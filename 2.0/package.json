@@ -6,8 +6,9 @@
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "2.0": "webpack build --config=./webpack.config.js",
-    "inspect": "vue inspect > output.js"
+    "build2.0": "webpack build --config=./webpack.config.js",
+    "webpackConfig": "vue inspect > vue-cli-webpack-config-output.js",
+    "eslintConfig": "eslint --print-config ./.eslintrc.js"
   },
   "dependencies": {
     "core-js": "^3.8.3",

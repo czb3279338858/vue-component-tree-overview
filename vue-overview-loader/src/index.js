@@ -2,10 +2,22 @@
  * See the webpack docs for more information about loaders:
  * https://webpack.js.org/contribute/writing-a-loader
  */
-
+const { parse } = require('vue-eslint-parser')
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
 	console.log('vue-overview-loader');
+	const ast = parse(source, {
+		"ecmaVersion": 2020,
+		"sourceType": "module",
+		"parser": "@typescript-eslint/parser",
+		"extraFileExtensions": [
+			".vue"
+		],
+		"ecmaFeatures": {
+			"jsx": true
+		}
+	})
+	console.log(ast)
 	const newSource = `
 	/**
 	 * vue-overview-loader

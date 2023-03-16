@@ -3,11 +3,15 @@
   "description": "webpack loader",
   "name": "vue-overview-loader",
   "scripts": {
-    "examples": "webpack build --config=./examples/simple/webpack.config.js"
+    "buildExamples": "webpack build --config=./examples/simple/webpack.config.js"
   },
   "devDependencies": {
     "webpack": "^5.76.2",
     "webpack-cli": "^5.0.1",
     "webpack-defaults": "^4.0.0"
+  },
+  "dependencies": {
+    "@typescript-eslint/parser": "^5.55.0",
+    "vue-eslint-parser": "^9.1.0"
   }
 }
