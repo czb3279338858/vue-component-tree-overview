@@ -1,15 +1,15 @@
 const path = require('path');
 
 module.exports = {
-  entry: path.join(__dirname, './src/index.js'),
+  entry: path.join(__dirname, './src/router/routes.ts'),
   output: {
-    path: path.join(__dirname, 'example_dist'),
+    path: path.join(__dirname, 'dist'),
     filename: '[name].chunk.js',
   },
   module: {
     rules: [
       {
-        test: /\.js$/,
+        test: /\.(js|ts|jsx|tsx|vue)$/,
         use: [
           {
             loader: 'example-loader',

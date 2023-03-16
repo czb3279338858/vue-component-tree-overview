@@ -3,7 +3,7 @@
   "description": "webpack loader",
   "name": "vue-overview-loader",
   "scripts": {
-    "start": "webpack build --config=./examples/simple/webpack.config.js"
+    "examples": "webpack build --config=./examples/simple/webpack.config.js"
   },
   "devDependencies": {
     "webpack": "^5.76.2",

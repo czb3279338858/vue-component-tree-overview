@@ -1,6 +1,6 @@
 import esmModule from './static-esm-module';
 
-const getLazyModule = () => System.import('./lazy-module');
+const getLazyModule = () => import('./lazy-module');
 
 setTimeout(() => {
   getLazyModule.then((modDefault) => {
