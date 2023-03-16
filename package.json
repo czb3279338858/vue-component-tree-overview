@@ -1,0 +1,24 @@
+{
+  "name": "vue-component-tree-overview",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/czb3279338858/vue-component-tree-overview.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/czb3279338858/vue-component-tree-overview/issues"
+  },
+  "homepage": "https://github.com/czb3279338858/vue-component-tree-overview#readme",
+  "devDependencies": {
+    "@webpack-cli/generators": "^3.0.1",
+    "webpack": "^5.76.2",
+    "webpack-cli": "^5.0.1"
+  }
+}
