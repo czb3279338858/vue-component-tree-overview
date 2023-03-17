@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-  entry: path.join(__dirname, './src/router/routes.ts'),
+  entry: path.join(__dirname, './src/views/HomeView.vue'),
   output: {
     path: path.join(__dirname, 'dist'),
     filename: '[name].chunk.js',
@@ -21,7 +21,7 @@ module.exports = {
   },
   resolveLoader: {
     alias: {
-      'example-loader': require.resolve('D:/git/vue-component-tree-overview/vue-overview-loader/src/'),
+      'example-loader': require.resolve('../vue-overview-loader/src/'),
     },
   },
 };

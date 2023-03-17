@@ -21,7 +21,7 @@ module.exports = {
   },
   resolveLoader: {
     alias: {
-      'example-loader': require.resolve('D:/git/vue-component-tree-overview/vue-overview-loader/src/'),
+      'example-loader': require.resolve('../../src/'),
     },
   },
 };

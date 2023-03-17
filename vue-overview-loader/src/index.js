@@ -2,11 +2,17 @@
  * See the webpack docs for more information about loaders:
  * https://webpack.js.org/contribute/writing-a-loader
  */
-const { parse } = require('vue-eslint-parser')
+/** ast 解析器 */
+const { parseForESLint } = require('vue-eslint-parser')
+/** ast 遍历器 */
+const estraverse = require("estraverse");
+/** eslint-plugin-vue 辅助创建 visitor 对象的工具 */
+const utils = require('eslint-plugin-vue/lib/utils')
+
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
 	console.log('vue-overview-loader');
-	const ast = parse(source, {
+	const sourceCode = parseForESLint(source, {
 		"ecmaVersion": 2020,
 		"sourceType": "module",
 		"parser": "@typescript-eslint/parser",
@@ -17,7 +23,23 @@ module.exports = function loader(source) {
 			"jsx": true
 		}
 	})
-	console.log(ast)
+	const visitor = utils.defineTemplateBodyVisitor({
+		parserServices: sourceCode.services
+	}, {
+		VStartTag() {
+			console.log('VStartTag')
+		},
+		VAttribute(node) {
+			console.log('VAttribute')
+
+		}
+	})
+
+	estraverse.traverse(sourceCode.ast, {
+		leave(node) {
+			visitor['Program:exit'](node)
+		}
+	})
 	const newSource = `
 	/**
 	 * vue-overview-loader
