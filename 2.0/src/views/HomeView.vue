@@ -1,12 +1,11 @@
 <!-- 组件备注1 -->
-<!-- 组件备注2 -->
-<template>
-  <div class="home">
-    <!-- 标签备注1 -->
-    <!-- 标签备注2 -->
-    <img alt="Vue logo" src="../assets/logo.png" :attr-some="dataAttr">
-    <HelloWorld msg="Welcome to Your Vue.js + TypeScript App"/>
-  </div>
+<!-- 组件备注2 --><template>
+    <div>
+      <span>111</span>
+      <!-- 标签备注1 -->
+      <!-- 标签备注2 -->
+      <HelloWorld v-on="a" v-on:style="a" v-on:c.native="a" @="a" @blur="a" @blur.native="a"/>
+    </div>
 </template>
 
 <script lang="ts">
@@ -16,10 +15,14 @@ import HelloWorld from '@/components/HelloWorld.vue'; // @ is an alias to /src
 @Component({
   components: {
     HelloWorld,
-  },
-  data:{
-    dataAttr:1
   }
 })
-export default class HomeView extends Vue {}
+export default class HomeView extends Vue {
+  a={}
+  b=2
+  c(){
+    console.log('c')
+  }
+  d={}
+}
 </script>
