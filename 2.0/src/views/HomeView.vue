@@ -1,25 +1,17 @@
 <!-- 测试1 -->
 <template>
-  <div1 :class="aaa.a" :style="a">
-    <div2 v-for="val in a" :key="val">333</div2>
+  <div1 class="1" :class="b" :style="c()" :a="'1'" :b="e.a">
+    {{ a }}
+    <!-- 测试3 -->
+    {{ a.b }}
+    {{ b() }}
+    {{ "1" }}
+    {{ `${d}` }}
+    {{ e + f }}
     <!-- 测试2 -->
-    123
-    <div3>
-      <span :value="name">
-        123
-        {{ index }}
-        <!--111-->
-        {{ val.id }}
-        {{ val.id + index }}
-        {{ `${val.id}${index}` }}
-        {{ doSome(val) }}
-      </span>
-
-      <span>
-        <!-- 测试 -->
-        123 456
-      </span>
-    </div3>
+    <div2 v-if="a"></div2>
+    <div3 v-else></div3>
+    <dvi4 v-for="(value, key, index) in d" :key="index"></dvi4>
   </div1>
 </template>
 
@@ -40,8 +32,21 @@ export default class HomeView extends Vue {
     default: () => {
       return [];
     },
+    type: [Array, Number],
     required: true,
   })
-  readonly e!: ABC[];
+  readonly propD!: string;
+
+  @Prop([String, Boolean]) readonly propC: string | boolean | undefined;
+  @Prop() age!: ABC;
+
+  @Prop(Number) readonly propA: number | undefined;
+
+  @Prop({
+    default: "default value",
+    type: Number,
+    required: true,
+  })
+  readonly propB!: string;
 }
 </script>

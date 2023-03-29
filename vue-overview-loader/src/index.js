@@ -54,11 +54,11 @@ module.exports = function loader(source) {
 				// 只有属性没有值时，例如 v-else
 				if (!attributeValue) return []
 
-				// 绑定值是常量，数值、字符串、布尔值，[常量文本,'VLiteral']
+				// 没有绑定直接是赋值常量，数值、字符串、布尔值，[常量文本,'VLiteral']
 				if (attributeValue.type === 'VLiteral') return [attributeValue.value, attributeValue.type]
 
 				// 绑定值是变量，[函数名、变量名,'Identifier']
-				if (attributeValue.expression.Identifier === 'Identifier') return [attributeValue.expression.name, attributeValue.expression.type]
+				if (attributeValue.expression.type === 'Identifier') return [attributeValue.expression.name, attributeValue.expression.type]
 
 				// 绑定值是函数调用,[函数名,'CallExpression']
 				// 函数调用可以层层嵌套的，这里不支持嵌套，只读取第一层的函数名
@@ -74,13 +74,37 @@ module.exports = function loader(source) {
 				}
 
 				// 表达式直接返回文本
-				// 包括:attr="'string'" 这个时候返回["'string'",'VExpressionContainer']
-				if (attributeValue.expression.type === 'VExpressionContainer') {
-					return [sourceCode.getText(attributeValue), attributeValue.expression.type]
+				if (attributeValue.expression.type === 'MemberExpression') {
+					return [sourceCode.getText(attributeValue.expression), attributeValue.expression.type]
 				}
 
-				// 其他，好像没其他了
+				// 其他，不支持
+				// 例如：:a="'1'"
 				return [undefined, attributeValue.expression.type]
+			}
+			/**
+			 * 不支持 {{ val.id + index }} 、 {{ `${val.id}${index}` }} 、 {{ "111" }}
+			 * @param {*} VExpressionContainer 
+			 * @returns 
+			 */
+			function getVExpressionContainerExpression(VExpressionContainer) {
+
+				// 绑定值是变量，[函数名、变量名,'Identifier']
+				if (VExpressionContainer.expression.type === 'Identifier') return [VExpressionContainer.expression.name, VExpressionContainer.expression.type]
+
+				// 绑定值是函数调用,[函数名,'CallExpression']
+				// 函数调用可以层层嵌套的，这里不支持嵌套，只读取第一层的函数名
+				if (VExpressionContainer.expression.type === 'CallExpression') {
+					return [VExpressionContainer.expression.callee.name, VExpressionContainer.expression.type]
+				}
+
+				// 表达式直接返回文本
+				if (['MemberExpression'].includes(VExpressionContainer.expression.type)) {
+					return [sourceCode.getText(VExpressionContainer.expression), VExpressionContainer.expression.type]
+				}
+
+				// 其他
+				return [undefined, VExpressionContainer.expression.type]
 			}
 			/** 所有的template中的注释都在template节点中 */
 			function getAllComments(element) {
@@ -155,14 +179,21 @@ module.exports = function loader(source) {
 				const parentInfo = templateMap.get(parent)
 				if (parentInfo) {
 					parentInfo.children.push(elementInfo)
-				} else {
-					rootTemplate.add(elementInfo)
 				}
 				templateMap.set(node, elementInfo)
 			}
-			const rootTemplate = new Set()
 			const templateMap = new Map()
 
+			function getPropType(decoratorArgumentTypeValue) {
+				switch (decoratorArgumentTypeValue.type) {
+					case 'Identifier':
+						return [decoratorArgumentTypeValue.name]
+					case 'ArrayExpression':
+						return decoratorArgumentTypeValue.elements.map(e => e.name)
+					default:
+						return []
+				}
+			}
 			return utils.compositingVisitors(
 				utils.defineTemplateBodyVisitor(
 					context,
@@ -198,60 +229,66 @@ module.exports = function loader(source) {
 							const templateInfo = {
 								templateValue: node.value,
 								templateType: 'VText',
-								attributes: [],
+								attributes: undefined,
 								templateComment: getTemplateCommentBefore(node),
-								children: []
+								children: undefined
 							}
 							addTemplateMap(node, templateInfo)
 						},
 						// 不支持在{{ }}内部写 // 注释，只支持在{{ }}之前
-						// 只支持变量、函数调用、
 						'VElement>VExpressionContainer'(node) {
+							const [templateName, templateType] = getVExpressionContainerExpression(node)
 							const templateInfo = {
-								templateName: sourceCode.getText(node.expression),
-								templateType: 'VExpressionContainer',
-								attributes: [],
+								templateName,
+								templateType,
+								attributes: undefined,
 								templateComment: getTemplateCommentBefore(node),
-								children: []
+								children: undefined
 							}
-
+							addTemplateMap(node, templateInfo)
 						}
 					},
 					// script 解析
-					// {
-					// 	// class component @Prop
-					// 	'Decorator[expression.callee.name=Prop]'(node) {
-					// 		const prop = node.parent
-					// 		const propName = prop.key.name
-					// 		const decoratorArgument = node.expression.arguments[0]
-					// 		let { default: propDefault, type: propType, required: propRequired } = decoratorArgument.properties.reduce((p, c) => {
-					// 			// TODO:default如果是个函数需要获取函数返回值，这里暂不支持
-					// 			if (c.key.name === 'default') p['default'] = sourceCode.getText(c.value)
-					// 			if (c.key.name === 'type') p['type'] = sourceCode.getText(c.value)
-					// 			if (c.key.name === 'required') p['required'] = c.value.raw
-					// 			return p
-					// 		}, {})
-					// 		if (prop.typeAnnotation) {
-					// 			const text = sourceCode.getText(prop.parent.parent)
-					// 			const sourceFile = ts.createSourceFile('', text)
-					// 			const classDeclaration = sourceFile.statements[0]
-					// 			const classDeclarationMembers = classDeclaration.members;
-					// 			const classDeclarationMember = classDeclarationMembers[0]
-					// 			const classDeclarationMemberType = classDeclarationMember.type;
-					// 			const a = classDeclarationMemberType.getText(sourceFile)
-					// 			// const sourceCodes = ts.createSourceFile('test.ts', text)
-					// 			// const program = ts.createProgram({
-					// 			// 	rootNames: ["file.ts"],
-					// 			// 	options: {},
-					// 			// })
-					// 			// const typeChecker = program.getTypeChecker()
-					// 			// const type = typeChecker.getTypeFromTypeNode(sourceCodes)
+					{
+						// class component @Prop
+						'Decorator[expression.callee.name=Prop]'(node) {
+							const prop = node.parent
+							const propName = prop.key.name
+							// 装饰器参数
+							const decoratorArgument = node.expression.arguments[0]
+							let propDefault, propType, propRequired = false
+							if (decoratorArgument) {
+								// 参数是个构造函数
+								switch (decoratorArgument.type) {
+									case 'Identifier':
+										propType = getPropType(decoratorArgument)
+										break;
+									case 'ObjectExpression':
+										decoratorArgument.properties.forEach(d => {
+											const key = d.key.name
+											switch (key) {
+												case 'default':
+													propDefault = sourceCode.getText(d.value)
+													break;
+												case 'type':
+													propType = getPropType(d.value)
+													break;
+												case 'required':
+													if (d.value.raw === 'true') {
+														propRequired = true
+													}
+													break;
+											}
+										})
+										break;
+									case 'ArrayExpression':
+										propType = getPropType(decoratorArgument)
+										break;
+								}
+							}
 
-					// 			debugger
-					// 		}
-					// 		debugger
-					// 	}
-					// }
+						}
+					}
 				),
 			)
 		},
