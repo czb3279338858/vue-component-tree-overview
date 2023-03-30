@@ -28,6 +28,7 @@ interface ABC {
   },
 })
 export default class HomeView extends Vue {
+  // 注释1
   @Prop({
     default: () => {
       return [];
@@ -35,6 +36,7 @@ export default class HomeView extends Vue {
     type: [Array, Number],
     required: true,
   })
+  // 注释2
   readonly propD!: string;
 
   @Prop([String, Boolean]) readonly propC: string | boolean | undefined;

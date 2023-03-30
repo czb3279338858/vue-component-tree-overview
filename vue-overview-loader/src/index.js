@@ -255,6 +255,7 @@ module.exports = function loader(source) {
 							const propName = prop.key.name
 							// 装饰器参数
 							const decoratorArgument = node.expression.arguments[0]
+							// TODO:需要根据ts获取propType（vscode-languageserver-node、vue-language-server）
 							let propDefault, propType, propRequired = false
 							if (decoratorArgument) {
 								// 参数是个构造函数
@@ -285,6 +286,8 @@ module.exports = function loader(source) {
 										break;
 								}
 							}
+							const decoratorComment = sourceCode.getCommentsBefore(node)
+							const propComment = sourceCode.getCommentsBefore(prop.key)
 
 						}
 					}
