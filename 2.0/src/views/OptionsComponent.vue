@@ -4,6 +4,12 @@
 <script lang="ts">
 import Vue from "vue";
 export default Vue.extend({
+  data() {
+    return {
+      // data注释1
+      dataA: null,
+    };
+  },
   //   props: {
   //     // 注释1
   //     propA: {

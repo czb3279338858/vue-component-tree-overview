@@ -224,8 +224,6 @@ module.exports = function loader(source) {
 				})
 				return propSet
 			}
-			const templateMap = new Map()
-			let propSet = new Set()
 			function getPropType(decoratorArgumentTypeValue) {
 				switch (decoratorArgumentTypeValue.type) {
 					case 'Identifier':
@@ -269,6 +267,9 @@ module.exports = function loader(source) {
 				}
 				return [propDefault, propType, propRequired]
 			}
+			const templateMap = new Map()
+			let propSet = new Set()
+			let dataSet = new Set()
 			return utils.compositingVisitors(
 				utils.defineTemplateBodyVisitor(
 					context,
@@ -428,9 +429,29 @@ module.exports = function loader(source) {
 							propSet.add(propInfo)
 						},
 						// 可以在一个Vue组件 option 上执行一个回调函数
-						...utils.executeOnVueComponent(context, (option) => {
-							const props = utils.getComponentPropsFromOptions(option)
+						...utils.executeOnVueComponent(context, (optionNode) => {
+							const props = utils.getComponentPropsFromOptions(optionNode)
 							propSet = getPropsInfoSet(props)
+							const data = utils.findProperty(optionNode, 'data')
+							if (data.value.type === 'FunctionExpression') {
+								const ret = data.value.body.body.find(b => b.type === 'ReturnStatement')
+								const retBody = ret.argument.properties
+								retBody.forEach(data => {
+									const dataName = data.key.name
+									const comments = sourceCode.getCommentsBefore(data.key)
+									const dataComment = commentsToText(comments)
+									const dataInfo = {
+										dataName,
+										dataComment
+									}
+									dataSet.add(dataInfo)
+									debugger
+								})
+								debugger
+							} else {
+
+							}
+							debugger
 						}),
 						// script setup 中
 						...utils.defineScriptSetupVisitor(context, {
