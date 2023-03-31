@@ -29,6 +29,50 @@ interface ABC {
 })
 export default class HomeView extends Vue {
   // 注释1
+  @VModel({
+    default: () => {
+      return [];
+    },
+    type: [Array, Number],
+    required: true,
+  })
+  computedPropI!: string;
+
+  @ModelSync(
+    // 注释3
+    "propH",
+    "change",
+    {
+      default: () => {
+        return [];
+      },
+      type: [Array, Number],
+      required: true,
+    }
+  )
+  readonly syncedPropH!: boolean;
+
+  @Model("changePropG", {
+    default: () => {
+      return [];
+    },
+    type: [Array, Number],
+    required: true,
+  })
+  // 注释1
+  readonly propG!: boolean;
+
+  /** 注释2 */
+  @PropSync("propF", {
+    default: () => {
+      return [];
+    },
+    type: [Array, Number],
+    required: true,
+  })
+  syncedPropF!: string;
+
+  // 注释1
   @Prop({
     default: () => {
       return [];
@@ -36,19 +80,16 @@ export default class HomeView extends Vue {
     type: [Array, Number],
     required: true,
   })
-  // 注释2
-  readonly propD!: string;
+  readonly propA: number | undefined;
 
-  @Prop([String, Boolean]) readonly propC: string | boolean | undefined;
-  @Prop() age!: ABC;
-
-  @Prop(Number) readonly propA: number | undefined;
-
-  @Prop({
-    default: "default value",
-    type: Number,
-    required: true,
-  })
+  @Prop(Number)
   readonly propB!: string;
+
+  @Prop([String, Boolean])
+  propC: string | boolean | undefined;
+
+  // 注释3
+  @Prop()
+  propD!: ABC;
 }
 </script>

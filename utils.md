@@ -48,6 +48,7 @@ defineScriptSetupVisitor 定义一个访问器对象，用于访问.vue文件中
 hasWithDefaults 可以判断一个组件的props是否有默认值。
 getWithDefaultsPropExpressions 可以从组件的props中获取有默认值的prop得表达式。
 getWithDefaultsProps 从组件的props中获取有默认值的props节点。
+
 getVueObjectType 可以从一个节点中获取Vue对象的类型。
     - ‘mark’：表示该节点是一个标记，用于标识Vue对象的开始和结束
     - ‘export’：表示该节点是一个export语句，用于导出Vue对象
@@ -83,7 +84,7 @@ editDistance 用于计算两个字符串之间的编辑距离（Levenshtein dist
 
 inRange 用于判断一个位置是否在一个范围内的函数
 
-isProperty 用于判断一个节点是否是一个属性（Property）的函数
+isProperty 用于判断一个节点是否是一个属性。对象的key
 isAssignmentProperty 用于判断一个属性（Property）节点是否是一个赋值属性（AssignmentProperty）的函数。赋值属性是一个表示对象解构赋值中的键值对的节点，比如{a: b} = c中的a: b
 
 isVElement(node)：检查一个节点是否是Vue组件节点
@@ -96,38 +97,13 @@ skipTSAsExpression 如果给定的节点是一个 TSAsExpression 节点，就返
 skipDefaultParamValue 如果给定的节点是一个 AssignmentPattern 节点，就返回它的 left 属性的值。否则，就直接返回它本身。AssignmentPattern 节点是一种语法节点，表示一个带有默认值的参数
 skipChainExpression 这句话的意思是，如果给定的节点是一个 ChainExpression 节点，就返回它的 expression 属性的值。否则，就直接返回它本身。ChainExpression 节点是一种语法节点，表示一个可选链式表达式`const foo = obj?.bar?.baz;`
 
-withinTypeNode
+withinTypeNode 检查给定的节点是否在类型注释中
 
-
-getComponentComments(node)：获取一个组件节点上的所有注释1
-getComponentName：获取一个组件的名称
-getDirectiveModifiers(node)：获取一个节点上的所有指令修饰符，比如[‘prevent’, ‘stop’]等1。
-getDirectiveName：获取一个指令的名称
-getDirectiveNames(node)：获取一个节点上的所有指令名称，比如[‘if’, ‘for’]等1。
-getElementType(node)：获取一个节点的元素类型，比如’html’, ‘svg’, ‘mathml’, 'custom’或’unknown’1。
-
-
-hasVBind：检查一个元素是否有v - bind指令
-hasVOn：检查一个元素是否有v - on指令
-
-isCustomElementNode(node)：检查一个节点是否是自定义元素节点1。
-
-
-
-isHtmlSelfClosingElementName：检查一个元素名称是否是HTML自闭合元素名称
-
-
-isTextNode：检查一个节点是否是文本节点
-isVBindDirective(node)：检查一个节点是否是v - bind指令1。
-isVDirectiveKey(node)：检查一个节点是否是指令键，比如v -if、v - for等1。
-
-isVExpressionContainer(node)：检查一个节点是否是表达式容器，比如{ {… } } 1。
-isVFilterSequenceExpression(node)：检查一个节点是否是过滤器序列表达式，比如{ {… | … } } 1。
-isVForDirective(node)：检查一个节点是否是v - for指令1。
-isVIdentifier(node)：检查一个节点是否是标识符，比如v - for中的item或index1。
-isVModelDirective(node)：检查一个节点是否是v - model指令1。
-isVOnDirective(node)：检查一个节点是否是v - on指令1。
-isVSlotDirective(node)：检查一个节点是否是v - slot指令1。
-isVText(node)：检查一个节点是否是文本节点，比如{ {… } } 之外的内容1。
-
-
+findVariableByIdentifier 用于根据标识符（字符串）查找一个变量的定义
+getScope 用于获取一个节点所在的作用域。作用域是一个定义变量和函数可见性的范围。
+isInExportDefault 用于判断一个节点是否在export default语句中
+isThis 用于判断一个节点是否是this表达式
+findMutating 用于查找一个节点是否有修改数据的操作2。修改数据的操作包括赋值、增量、递减、删除等
+iterateWatchHandlerValues 用于遍历一个watch属性的处理函数的值
+createCompositionApiTraceMap 用于创建一个跟踪Composition API函数调用的映射
+equalTokens 用于比较两个节点的标记是否相等。标记是一个表示源代码中的最小单元的对象

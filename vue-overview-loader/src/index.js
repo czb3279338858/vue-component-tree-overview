@@ -165,12 +165,15 @@ module.exports = function loader(source) {
 				}
 				return nodeComments
 			}
-			function getTemplateCommentBefore(node) {
-				const elementComments = getTemplateCommentsBefore(node)
-				const elementComment = elementComments.reduce((p, c) => {
+			function commentsToText(comments) {
+				return comments.reduce((p, c) => {
 					p = p ? `${p}\n${c.value}` : c.value
 					return p
 				}, '')
+			}
+			function getTemplateCommentBefore(node) {
+				const elementComments = getTemplateCommentsBefore(node)
+				const elementComment = commentsToText(elementComments)
 				return elementComment
 			}
 			function addTemplateMap(node, elementInfo) {
@@ -181,8 +184,48 @@ module.exports = function loader(source) {
 				}
 				templateMap.set(node, elementInfo)
 			}
+			function getPropsInfoSet(props) {
+				const propSet = new Set()
+				props.forEach(prop => {
+					const propName = prop.propName
+					const [propDefault, propType, propRequired] = getPropOptionInfo(prop.value)
+					const propComments = sourceCode.getCommentsBefore(prop.key)
+					const propComment = commentsToText(propComments)
+					const propInfo = {
+						propName,
+						propDefault,
+						propType,
+						propRequired,
+						propComment
+					}
+					propSet.add(propInfo)
+				})
+				return propSet
+			}
+			function getWithDefaultsPropInfoSet(props, withDefaultsArguments) {
+				const propSet = new Set()
+				const propDefaultNodes = withDefaultsArguments ? withDefaultsArguments[1].properties : []
+				props.forEach(prop => {
+					const propName = prop.propName
+					const propDefaultNode = propDefaultNodes.find(p => p.key.name === propName)
+					const propDefault = sourceCode.getText(propDefaultNode.value)
+					const propType = prop.types
+					const propRequired = prop.required
+					const propComments = sourceCode.getCommentsBefore(prop.key)
+					const propComment = commentsToText(propComments)
+					const propInfo = {
+						propName,
+						propDefault,
+						propType,
+						propRequired,
+						propComment
+					}
+					propSet.add(propInfo)
+				})
+				return propSet
+			}
 			const templateMap = new Map()
-
+			let propSet = new Set()
 			function getPropType(decoratorArgumentTypeValue) {
 				switch (decoratorArgumentTypeValue.type) {
 					case 'Identifier':
@@ -192,6 +235,39 @@ module.exports = function loader(source) {
 					default:
 						return []
 				}
+			}
+			function getPropOptionInfo(propOption) {
+				let propDefault, propType, propRequired = false
+				// option 中的 prop 可以没有参数
+				if (!propOption) return [propDefault, propType, propRequired]
+
+				switch (propOption.type) {
+					case 'Identifier':
+						propType = getPropType(propOption)
+						break;
+					case 'ObjectExpression':
+						propOption.properties.forEach(d => {
+							const key = d.key.name
+							switch (key) {
+								case 'default':
+									propDefault = sourceCode.getText(d.value)
+									break;
+								case 'type':
+									propType = getPropType(d.value)
+									break;
+								case 'required':
+									if (d.value.raw === 'true') {
+										propRequired = true
+									}
+									break;
+							}
+						})
+						break;
+					case 'ArrayExpression':
+						propType = getPropType(propOption)
+						break;
+				}
+				return [propDefault, propType, propRequired]
 			}
 			return utils.compositingVisitors(
 				utils.defineTemplateBodyVisitor(
@@ -252,44 +328,128 @@ module.exports = function loader(source) {
 						// class component @Prop
 						'Decorator[expression.callee.name=Prop]'(node) {
 							const prop = node.parent
+
 							const propName = prop.key.name
 							// 装饰器参数
-							const decoratorArgument = node.expression.arguments[0]
+							const propOption = node.expression.arguments[0]
 							// TODO:需要根据ts获取propType（vscode-languageserver-node、vue-language-server）
-							let propDefault, propType, propRequired = false
-							if (decoratorArgument) {
-								// 参数是个构造函数
-								switch (decoratorArgument.type) {
-									case 'Identifier':
-										propType = getPropType(decoratorArgument)
-										break;
-									case 'ObjectExpression':
-										decoratorArgument.properties.forEach(d => {
-											const key = d.key.name
-											switch (key) {
-												case 'default':
-													propDefault = sourceCode.getText(d.value)
-													break;
-												case 'type':
-													propType = getPropType(d.value)
-													break;
-												case 'required':
-													if (d.value.raw === 'true') {
-														propRequired = true
-													}
-													break;
-											}
-										})
-										break;
-									case 'ArrayExpression':
-										propType = getPropType(decoratorArgument)
-										break;
-								}
-							}
-							const decoratorComment = sourceCode.getCommentsBefore(node)
-							const propComment = sourceCode.getCommentsBefore(prop.key)
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
 
-						}
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const propNameComments = sourceCode.getCommentsInside(prop)
+							const propComment = commentsToText([...decoratorComments, ...propNameComments])
+
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
+							}
+							propSet.add(propInfo)
+						},
+						// class component @PropSync
+						'Decorator[expression.callee.name=PropSync]'(node) {
+							const decoratorArgument = node.expression.arguments
+
+							const propName = decoratorArgument[0].value
+							const propOption = decoratorArgument[1] || undefined
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+
+							const comments = sourceCode.getCommentsBefore(node)
+							const propComment = commentsToText(comments)
+
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
+							}
+							propSet.add(propInfo)
+						},
+						// class component @Model
+						'Decorator[expression.callee.name=Model]'(node) {
+							const prop = node.parent
+							const propName = prop.key.name
+
+							const decoratorArgument = node.expression.arguments
+							const propOption = decoratorArgument[1] || undefined
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+
+							const comments = sourceCode.getCommentsInside(prop)
+							const propComment = commentsToText(comments)
+
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
+							}
+							propSet.add(propInfo)
+						},
+						// class component @ModelSync
+						'Decorator[expression.callee.name=ModelSync]'(node) {
+							const decoratorArgument = node.expression.arguments
+
+							const propName = decoratorArgument[0].value
+							const propOption = decoratorArgument[2]
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+
+							const comments = sourceCode.getCommentsBefore(decoratorArgument[0])
+							const propComment = commentsToText(comments)
+
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
+							}
+							propSet.add(propInfo)
+						},
+						// class component @VModel
+						'Decorator[expression.callee.name=VModel]'(node) {
+							const propName = 'value'
+							const decoratorArgument = node.expression.arguments
+							const propOption = decoratorArgument[0]
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+							const comments = sourceCode.getCommentsBefore(node)
+							const propComment = commentsToText(comments)
+
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
+							}
+							propSet.add(propInfo)
+						},
+						// 可以在一个Vue组件 option 上执行一个回调函数
+						...utils.executeOnVueComponent(context, (option) => {
+							const props = utils.getComponentPropsFromOptions(option)
+							propSet = getPropsInfoSet(props)
+						}),
+						// script setup 中
+						...utils.defineScriptSetupVisitor(context, {
+							onDefinePropsEnter(node, props) {
+								// 目前defineProps在setup只能使用一次，onDefinePropsEnter只会获取第一个defineProps，下面的方法兼容defineProps被多次使用时
+
+								// defineProps和withDefaults配合使用时
+								let withDefaultsProps = []
+								// 普通defineProps
+								let otherProps = []
+								props.forEach(prop => {
+									if (prop.type === 'type') withDefaultsProps.push(prop)
+									else otherProps.push(prop)
+								})
+								const otherPropSet = getPropsInfoSet(otherProps)
+								const withDefaultsPropSet = getWithDefaultsPropInfoSet(withDefaultsProps, node.parent.arguments)
+								propSet = new Set([...otherPropSet, ...withDefaultsPropSet])
+							}
+						})
 					}
 				),
 			)
