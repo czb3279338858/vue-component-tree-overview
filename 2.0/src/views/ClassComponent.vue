@@ -18,10 +18,7 @@
 <script lang="ts">
 import { Component, Prop, Vue } from "vue-property-decorator";
 import HelloWorld from "@/components/HelloWorld.vue"; // @ is an alias to /src
-// 测试3
-interface ABC {
-  a: string;
-}
+
 @Component({
   components: {
     HelloWorld,
@@ -59,7 +56,7 @@ export default class HomeView extends Vue {
     type: [Array, Number],
     required: true,
   })
-  // 注释1
+  // 注释propG
   readonly propG!: boolean;
 
   /** 注释2 */
@@ -80,7 +77,8 @@ export default class HomeView extends Vue {
     type: [Array, Number],
     required: true,
   })
-  readonly propA: number | undefined;
+  // 注释propA
+  readonly propA?: (a: string) => string;
 
   @Prop(Number)
   readonly propB!: string;
@@ -90,6 +88,6 @@ export default class HomeView extends Vue {
 
   // 注释3
   @Prop()
-  propD!: ABC;
+  propD!: string;
 }
 </script>

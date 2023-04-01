@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-  entry: path.join(__dirname, './src/views/OptionsComponent.vue'),
+  entry: path.join(__dirname, './src/views/SetupComponent.vue'),
   output: {
     path: path.join(__dirname, 'dist'),
     filename: '[name].chunk.js',

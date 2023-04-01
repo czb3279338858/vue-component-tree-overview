@@ -330,6 +330,9 @@ module.exports = function loader(source) {
 						'Decorator[expression.callee.name=Prop]'(node) {
 							const prop = node.parent
 
+							// inferRuntimeType 获取的类型会把 interface 定义的函数误认为是对象
+							const tsType = tsUtils.inferRuntimeType(context, prop.typeAnnotation.typeAnnotation)
+
 							const propName = prop.key.name
 							// 装饰器参数
 							const propOption = node.expression.arguments[0]
@@ -337,7 +340,7 @@ module.exports = function loader(source) {
 							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
-							const propNameComments = sourceCode.getCommentsInside(prop)
+							const propNameComments = sourceCode.getCommentsAfter(node)
 							const propComment = commentsToText([...decoratorComments, ...propNameComments])
 
 							const propInfo = {
@@ -378,7 +381,7 @@ module.exports = function loader(source) {
 							const propOption = decoratorArgument[1] || undefined
 							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
 
-							const comments = sourceCode.getCommentsInside(prop)
+							const comments = sourceCode.getCommentsAfter(node)
 							const propComment = commentsToText(comments)
 
 							const propInfo = {
@@ -430,8 +433,10 @@ module.exports = function loader(source) {
 						},
 						// 可以在一个Vue组件 option 上执行一个回调函数
 						...utils.executeOnVueComponent(context, (optionNode) => {
+							// props
 							const props = utils.getComponentPropsFromOptions(optionNode)
 							propSet = getPropsInfoSet(props)
+							// data
 							const data = utils.findProperty(optionNode, 'data')
 							if (data.value.type === 'FunctionExpression') {
 								const ret = data.value.body.body.find(b => b.type === 'ReturnStatement')
@@ -455,9 +460,9 @@ module.exports = function loader(source) {
 						}),
 						// script setup 中
 						...utils.defineScriptSetupVisitor(context, {
+							// 这里的props会包含ts中的类型，不过是转换为js的类型，例如interface=>object
 							onDefinePropsEnter(node, props) {
 								// 目前defineProps在setup只能使用一次，onDefinePropsEnter只会获取第一个defineProps，下面的方法兼容defineProps被多次使用时
-
 								// defineProps和withDefaults配合使用时
 								let withDefaultsProps = []
 								// 普通defineProps
