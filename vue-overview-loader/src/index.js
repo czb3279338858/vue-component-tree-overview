@@ -6,6 +6,8 @@ const { Linter } = require('eslint')
 const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
+const tsUtils = require('./utils/ts-ast-utils')
+const eslintScope = require('eslint-scope')
 
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
@@ -238,7 +240,7 @@ module.exports = function loader(source) {
 				let propDefault, propType, propRequired = false
 				// option 中的 prop 可以没有参数
 				if (!propOption) return [propDefault, propType, propRequired]
-
+				// 通过prop配置项获取ts
 				switch (propOption.type) {
 					case 'Identifier':
 						propType = getPropType(propOption)
@@ -264,6 +266,10 @@ module.exports = function loader(source) {
 					case 'ArrayExpression':
 						propType = getPropType(propOption)
 						break;
+				}
+				// 如果没有类型，尝试从ts中获取
+				if (!propType) {
+
 				}
 				return [propDefault, propType, propRequired]
 			}
@@ -330,8 +336,9 @@ module.exports = function loader(source) {
 						'Decorator[expression.callee.name=Prop]'(node) {
 							const prop = node.parent
 
-							// inferRuntimeType 获取的类型会把 interface 定义的函数误认为是对象
-							const tsType = tsUtils.inferRuntimeType(context, prop.typeAnnotation.typeAnnotation)
+							// const defNode = tsUtils.resolveQualifiedType(context, prop.typeAnnotation.typeAnnotation, tsUtils.isTSTypeLiteral)
+							// const tsType = tsUtils.inferRuntimeType(context, defNode)
+							debugger
 
 							const propName = prop.key.name
 							// 装饰器参数

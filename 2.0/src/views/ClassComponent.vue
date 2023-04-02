@@ -18,7 +18,7 @@
 <script lang="ts">
 import { Component, Prop, Vue } from "vue-property-decorator";
 import HelloWorld from "@/components/HelloWorld.vue"; // @ is an alias to /src
-
+import { ABC } from "./type";
 @Component({
   components: {
     HelloWorld,
@@ -78,7 +78,7 @@ export default class HomeView extends Vue {
     required: true,
   })
   // 注释propA
-  readonly propA?: (a: string) => string;
+  readonly propA?: ABC;
 
   @Prop(Number)
   readonly propB!: string;
