@@ -66,7 +66,6 @@ importers:
       '@typescript-eslint/parser': ^5.55.0
       eslint: ^7.32.0
       eslint-plugin-vue: ^8.0.3
-      eslint-scope: ^7.1.1
       vue-eslint-parser: ^9.1.0
       webpack: ^5.76.2
       webpack-cli: ^5.0.1
@@ -75,7 +74,6 @@ importers:
       '@typescript-eslint/parser': registry.npmmirror.com/@typescript-eslint/parser/5.55.0_eslint@7.32.0
       eslint: registry.npmmirror.com/eslint/7.32.0
       eslint-plugin-vue: registry.npmmirror.com/eslint-plugin-vue/8.7.1_eslint@7.32.0
-      eslint-scope: registry.npmmirror.com/eslint-scope/7.1.1
       vue-eslint-parser: registry.npmmirror.com/vue-eslint-parser/9.1.0_eslint@7.32.0
     devDependencies:
       webpack: registry.npmmirror.com/webpack/5.76.2_webpack-cli@5.0.1
@@ -4006,7 +4004,7 @@ packages:
       webpack-cli: 5.x.x
     dependencies:
       webpack: registry.npmmirror.com/webpack/5.76.2_webpack-cli@5.0.1
-      webpack-cli: registry.npmmirror.com/webpack-cli/5.0.1_webpack@5.76.2
+      webpack-cli: registry.npmmirror.com/webpack-cli/5.0.1_ppii47mr2ckg4obtyjr2tkfvvq
     dev: true
 
   registry.npmmirror.com/@webpack-cli/generators/3.0.1_4puitx5hps5iiy4n2enrchvjna:
@@ -4045,7 +4043,7 @@ packages:
       webpack-cli: 5.x.x
     dependencies:
       webpack: registry.npmmirror.com/webpack/5.76.2_webpack-cli@5.0.1
-      webpack-cli: registry.npmmirror.com/webpack-cli/5.0.1_webpack@5.76.2
+      webpack-cli: registry.npmmirror.com/webpack-cli/5.0.1_ppii47mr2ckg4obtyjr2tkfvvq
     dev: true
 
   registry.npmmirror.com/@webpack-cli/serve/2.0.1_4puitx5hps5iiy4n2enrchvjna:
@@ -4063,7 +4061,7 @@ packages:
         optional: true
     dependencies:
       webpack: registry.npmmirror.com/webpack/5.76.2_webpack-cli@5.0.1
-      webpack-cli: registry.npmmirror.com/webpack-cli/5.0.1_webpack@5.76.2
+      webpack-cli: registry.npmmirror.com/webpack-cli/5.0.1_ppii47mr2ckg4obtyjr2tkfvvq
     dev: true
 
   registry.npmmirror.com/@xtuc/ieee754/1.2.0:
@@ -14632,7 +14630,7 @@ packages:
       tapable: registry.npmmirror.com/tapable/2.2.1
       terser-webpack-plugin: registry.npmmirror.com/terser-webpack-plugin/5.3.7_webpack@5.76.2
       watchpack: registry.npmmirror.com/watchpack/2.4.0
-      webpack-cli: registry.npmmirror.com/webpack-cli/5.0.1_webpack@5.76.2
+      webpack-cli: registry.npmmirror.com/webpack-cli/5.0.1_ppii47mr2ckg4obtyjr2tkfvvq
       webpack-sources: registry.npmmirror.com/webpack-sources/3.2.3
     transitivePeerDependencies:
       - '@swc/core'

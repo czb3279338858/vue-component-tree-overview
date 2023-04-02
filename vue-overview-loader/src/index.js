@@ -7,7 +7,7 @@ const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const tsUtils = require('./utils/ts-ast-utils')
-const eslintScope = require('eslint-scope')
+const eslintScope = require('@typescript-eslint/scope-manager')
 
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
