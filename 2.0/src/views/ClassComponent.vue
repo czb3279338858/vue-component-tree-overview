@@ -18,7 +18,10 @@
 <script lang="ts">
 import { Component, Prop, Vue } from "vue-property-decorator";
 import HelloWorld from "@/components/HelloWorld.vue"; // @ is an alias to /src
-import { ABC } from "./type";
+interface BCD {
+  a: string;
+}
+type ABC = BCD;
 @Component({
   components: {
     HelloWorld,
@@ -74,7 +77,7 @@ export default class HomeView extends Vue {
     default: () => {
       return [];
     },
-    type: [Array, Number],
+    // type: [Array, Number],
     required: true,
   })
   // 注释propA

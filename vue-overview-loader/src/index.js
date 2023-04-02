@@ -7,7 +7,7 @@ const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const tsUtils = require('./utils/ts-ast-utils')
-const eslintScope = require('@typescript-eslint/scope-manager')
+const { findVariable } = require('eslint-utils')
 
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
@@ -336,15 +336,35 @@ module.exports = function loader(source) {
 						'Decorator[expression.callee.name=Prop]'(node) {
 							const prop = node.parent
 
-							// const defNode = tsUtils.resolveQualifiedType(context, prop.typeAnnotation.typeAnnotation, tsUtils.isTSTypeLiteral)
-							// const tsType = tsUtils.inferRuntimeType(context, defNode)
-							debugger
-
 							const propName = prop.key.name
 							// 装饰器参数
 							const propOption = node.expression.arguments[0]
 							// TODO:需要根据ts获取propType（vscode-languageserver-node、vue-language-server）
-							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+							let [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+							if (!propType) {
+								function resolveQualifiedType(context, node, qualifier) {
+									if (qualifier(node)) {
+										return node
+									}
+									if (node.type === 'TSTypeReference' && node.typeName.type === 'Identifier') {
+										const refName = node.typeName.name
+										// findVariable 在当前作用域中查找变量声明
+										// context.getScope() 返回当前文件所在的作用域
+										const variable = findVariable(context.getScope(), refName)
+										if (variable && variable.defs.length === 1) {
+											const def = variable.defs[0]
+											const defNode = def.node
+											if (defNode.type === 'TSTypeAliasDeclaration') {
+												return defNode.typeAnnotation
+											}
+											return defNode
+										}
+									}
+								}
+								const variable = resolveQualifiedType(context, prop.typeAnnotation.typeAnnotation, (node) => node.type !== 'TSTypeReference')
+								const a = tsUtils.inferRuntimeType(context, variable)
+								debugger
+							}
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const propNameComments = sourceCode.getCommentsAfter(node)

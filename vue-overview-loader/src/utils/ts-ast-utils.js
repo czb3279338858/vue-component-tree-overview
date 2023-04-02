@@ -263,8 +263,10 @@ function inferRuntimeType(context, node, checked = new Set()) {
       return ['Number']
     case 'TSBooleanKeyword':
       return ['Boolean']
+    // 表示一个对象类型。type A = object 中 object 就是一个 TSObjectKeyword
     case 'TSObjectKeyword':
       return ['Object']
+    // 表示一个由属性和方法组成的类型，它可以具体地指定每个属性或方法的名称和类型。例如，type Foo = { x: number; y: number } 表示 Foo 是一个对象类型，它有两个属性 x 和 y，它们的类型都是 number
     case 'TSTypeLiteral':
       return ['Object']
     case 'TSFunctionType':
@@ -272,7 +274,7 @@ function inferRuntimeType(context, node, checked = new Set()) {
     case 'TSArrayType':
     case 'TSTupleType':
       return ['Array']
-
+    // 表示一个字面量类型
     case 'TSLiteralType':
       if (node.literal.type === 'Literal') {
         switch (typeof node.literal.value) {
@@ -289,6 +291,7 @@ function inferRuntimeType(context, node, checked = new Set()) {
         }
       }
       return [`null`]
+    // TSTypeReference 表示对另一个类型的引用
     case 'TSTypeReference':
       if (node.typeName.type === 'Identifier') {
         const variable = findVariable(context.getScope(), node.typeName.name)
