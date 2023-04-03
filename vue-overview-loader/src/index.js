@@ -7,7 +7,6 @@ const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const tsUtils = require('./utils/ts-ast-utils')
-const { findVariable } = require('eslint-utils')
 
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
@@ -186,10 +185,12 @@ module.exports = function loader(source) {
 				}
 				templateMap.set(node, elementInfo)
 			}
+			// TODO：不支持解构语法
 			function getPropsInfoSet(props) {
 				const propSet = new Set()
 				props.forEach(prop => {
 					const propName = prop.propName
+					if (!propName) return
 					const [propDefault, propType, propRequired] = getPropOptionInfo(prop.value)
 					const propComments = sourceCode.getCommentsBefore(prop.key)
 					const propComment = commentsToText(propComments)
@@ -271,19 +272,54 @@ module.exports = function loader(source) {
 					}
 				}
 				// 如果没有类型，尝试从ts中获取
-				if (prop && !propType && prop.typeAnnotation) {
-					const typeAnnotation = prop.typeAnnotation.typeAnnotation
-					const runtimeType = tsUtils.inferRuntimeType(context, typeAnnotation)
-					propType = runtimeType
-				}
-				if (prop && propRequired === undefined && prop.typeAnnotation) {
-					propRequired = !prop.optional
+				if (prop && prop.typeAnnotation) {
+					if (!propType) {
+						const typeAnnotation = prop.typeAnnotation.typeAnnotation
+						// TODO: tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
+						const runtimeType = tsUtils.inferRuntimeType(context, typeAnnotation)
+						propType = runtimeType
+					}
+					if (propRequired === undefined) {
+						propRequired = !prop.optional
+					}
 				}
 				return [propDefault, propType, propRequired]
+			}
+			function getDataInfo(dataBody) {
+				const dataSet = new Set()
+				dataBody.forEach(data => {
+					const dataName = data.key.name
+					const retDataComments = sourceCode.getCommentsBefore(data.key)
+
+					const variable = utils.findVariableByIdentifier(context, data.value.type === 'CallExpression' ? data.value.callee : data.value)
+
+					let defNodeComments = []
+					if (variable) {
+						const def = variable.defs[0]
+						const defNode = def.node.type === 'VariableDeclarator' ? def.node.parent : def.node
+						defNodeComments = sourceCode.getCommentsBefore(defNode)
+					}
+					const dataComment = commentsToText([...retDataComments, ...defNodeComments])
+					const dataInfo = {
+						dataName,
+						dataComment
+					}
+					dataSet.add(dataInfo)
+				})
+				return dataSet
+			}
+			const ScriptSetupDataFunNames = ['ref', 'reactive', 'toRef', 'toRefs', 'readonly', 'shallowRef', 'shallowReactive']
+			function getComputedComments(computedNode, computedType) {
+				const computedComments = sourceCode.getCommentsBefore(computedNode)
+				if (computedComments.length) {
+					computedComments.unshift({ value: `${computedType}:` })
+				}
+				return computedComments
 			}
 			const templateMap = new Map()
 			let propSet = new Set()
 			let dataSet = new Set()
+			let computedMap = new Map()
 			return utils.compositingVisitors(
 				utils.defineTemplateBodyVisitor(
 					context,
@@ -291,7 +327,6 @@ module.exports = function loader(source) {
 						// 标签
 						VElement(element) {
 							const templateValue = element.rawName
-							// TODO：v-for的循环值被绑定后无法和其他值区分出来
 							const attributes = element.startTag.attributes.map(a => {
 								const name = sourceCode.getText(a.key)
 								// const name = getAttributesName(a.key)
@@ -443,32 +478,94 @@ module.exports = function loader(source) {
 							}
 							propSet.add(propInfo)
 						},
+						// class component data
+						// TODO:PropertyDefinition 表示对象字面量中的属性定义的AST节点。它有一个key属性，用来表示属性的键，一个value属性，用来表示属性的值，一个computed属性，用来表示键是否是计算属性，一个kind属性，用来表示属性的种类（init, get或set），一个method属性，用来表示属性是否是方法，和一个shorthand属性，用来表示属性是否是简写形式
+						'ClassBody > PropertyDefinition:not([decorators])'(node) {
+							const dataName = node.key.name
+							const dataComments = sourceCode.getCommentsBefore(node)
+							const dataComment = commentsToText(dataComments)
+							const dataInfo = {
+								dataName,
+								dataComment
+							}
+							dataSet.add(dataInfo)
+						},
+						// class component computed
+						'ClassBody > MethodDefinition[kind]'(node) {
+							const computedName = node.key.name
+							const computedComments = sourceCode.getCommentsBefore(node)
+							const computedComment = `${node.kind}:${commentsToText(computedComments)}`
+							let computedInfo = computedMap.get(computedName)
+							if (computedInfo) {
+								if (computedComment) {
+									computedInfo.computedComment = `${computedInfo.computedComment}\n${computedComment}`
+								}
+							} else {
+								computedInfo = {
+									computedName,
+									computedComment
+								}
+							}
+							computedMap.set(computedName, computedInfo)
+						},
 						// 可以在一个Vue组件 option 上执行一个回调函数
 						...utils.executeOnVueComponent(context, (optionNode) => {
 							// props
 							const props = utils.getComponentPropsFromOptions(optionNode)
 							propSet = getPropsInfoSet(props)
-							// data
-							const data = utils.findProperty(optionNode, 'data')
-							if (data.value.type === 'FunctionExpression') {
-								const ret = data.value.body.body.find(b => b.type === 'ReturnStatement')
-								const retBody = ret.argument.properties
-								retBody.forEach(data => {
-									const dataName = data.key.name
-									const comments = sourceCode.getCommentsBefore(data.key)
-									const dataComment = commentsToText(comments)
-									const dataInfo = {
-										dataName,
-										dataComment
-									}
-									dataSet.add(dataInfo)
-									debugger
-								})
-								debugger
-							} else {
 
+							// datas
+							const datas = utils.findProperty(optionNode, 'data')
+							if (datas.value.type === 'FunctionExpression') {
+								const funBody = datas.value.body.body
+								const returnStatement = funBody.find(b => b.type === 'ReturnStatement')
+								if (returnStatement) {
+									const returnBody = returnStatement.argument.properties
+									if (returnBody) {
+										dataSet = getDataInfo(returnBody)
+									}
+								}
 							}
-							debugger
+							if (datas.value.type === 'ObjectExpression') {
+								const dataBody = datas.value.properties
+								dataSet = getDataInfo(dataBody)
+							}
+						}),
+						...utils.defineVueVisitor(context, {
+							onVueObjectEnter(node) {
+								// option component computed
+								const computeds = utils.getComputedProperties(node)
+								computeds.forEach(computed => {
+									const computedName = computed.key
+									const computedGetNode = computed.value.parent.parent
+									const computedCommentMap = new Map()
+									computedCommentMap.set('get', getComputedComments(computedGetNode, 'get'))
+
+									if (computedGetNode.parent.parent.key.name === computedName) {
+										computedCommentMap.set('all', getComputedComments(computedGetNode.parent.parent, 'all'))
+
+										const properties = computedGetNode.parent.properties
+										const computedSetNode = properties.find(p => p.key.name === 'set')
+										if (computedSetNode) {
+											computedCommentMap.set('set', getComputedComments(computedSetNode, 'set'))
+										}
+									}
+									const computedComments = [
+										commentsToText(computedCommentMap.get('all') || []),
+										commentsToText(computedCommentMap.get('get') || []),
+										commentsToText(computedCommentMap.get('set') || [])
+									].filter(c => c)
+									const computedComment = computedComments.reduce((p, c) => {
+										p = p ? `${p}\n\n${c}` : c
+										return p
+									}, '')
+									const computedInfo = {
+										computedName,
+										computedComment
+									}
+									computedMap.set(computedName, computedInfo)
+								})
+							},
 						}),
 						// script setup 中
 						...utils.defineScriptSetupVisitor(context, {
@@ -486,8 +583,22 @@ module.exports = function loader(source) {
 								const otherPropSet = getPropsInfoSet(otherProps)
 								const withDefaultsPropSet = getWithDefaultsPropInfoSet(withDefaultsProps, node.parent.arguments)
 								propSet = new Set([...otherPropSet, ...withDefaultsPropSet])
+							},
+							'Program>VariableDeclaration'(node) {
+								const declarations = node.declarations[0]
+								// data
+								if (declarations.init && declarations.init.type === 'CallExpression' && ScriptSetupDataFunNames.includes(declarations.init.callee.name)) {
+									const dataName = declarations.id.name
+									const dataComments = sourceCode.getCommentsBefore(node)
+									const dataComment = commentsToText(dataComments)
+									const dataInfo = {
+										dataName,
+										dataComment
+									}
+									dataSet.add(dataInfo)
+								}
 							}
-						})
+						}),
 					}
 				),
 			)

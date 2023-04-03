@@ -4,6 +4,11 @@
 
 
 <script setup lang="ts">
+// dataA注释1
+const dataA = ref("");
+// dataB注释1
+const dataB = reactive("");
+
 defineProps({
   /** 注释1 */
   propA: {

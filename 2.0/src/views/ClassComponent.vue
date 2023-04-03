@@ -27,6 +27,18 @@ type ABC = string[];
   },
 })
 export default class HomeView extends Vue {
+  /** dataA注释 */
+  dataA = "1";
+
+  /** computedA注释1 */
+  get computedA() {
+    return this.dataA;
+  }
+  /** computedA注释2 */
+  set computedA(a: string) {
+    this.dataA = a;
+  }
+
   // 注释1
   @VModel({
     default: () => {
