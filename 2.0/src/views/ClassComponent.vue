@@ -18,10 +18,9 @@
 <script lang="ts">
 import { Component, Prop, Vue } from "vue-property-decorator";
 import HelloWorld from "@/components/HelloWorld.vue"; // @ is an alias to /src
-interface BCD {
-  a: string;
-}
-type ABC = BCD;
+type BCD = number;
+type DFE = BCD;
+type ABC = string[];
 @Component({
   components: {
     HelloWorld,
@@ -33,10 +32,10 @@ export default class HomeView extends Vue {
     default: () => {
       return [];
     },
-    type: [Array, Number],
-    required: true,
+    // type: [Array, Number],
+    // required: true,
   })
-  computedPropI!: string;
+  computedPropI?: string;
 
   @ModelSync(
     // 注释3
@@ -46,7 +45,7 @@ export default class HomeView extends Vue {
       default: () => {
         return [];
       },
-      type: [Array, Number],
+      // type: [Array, Number],
       required: true,
     }
   )
@@ -56,7 +55,7 @@ export default class HomeView extends Vue {
     default: () => {
       return [];
     },
-    type: [Array, Number],
+    // type: [Array, Number],
     required: true,
   })
   // 注释propG
@@ -67,7 +66,7 @@ export default class HomeView extends Vue {
     default: () => {
       return [];
     },
-    type: [Array, Number],
+    // type: [Array, Number],
     required: true,
   })
   syncedPropF!: string;
@@ -81,16 +80,16 @@ export default class HomeView extends Vue {
     required: true,
   })
   // 注释propA
-  readonly propA?: ABC;
+  readonly propA?: string;
 
-  @Prop(Number)
-  readonly propB!: string;
+  @Prop()
+  readonly propB!: ABC;
 
-  @Prop([String, Boolean])
-  propC: string | boolean | undefined;
+  @Prop()
+  propC: DFE;
 
   // 注释3
   @Prop()
-  propD!: string;
+  propD!: string | number;
 }
 </script>

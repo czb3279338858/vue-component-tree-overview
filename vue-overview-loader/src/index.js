@@ -210,7 +210,7 @@ module.exports = function loader(source) {
 				props.forEach(prop => {
 					const propName = prop.propName
 					const propDefaultNode = propDefaultNodes.find(p => p.key.name === propName)
-					const propDefault = sourceCode.getText(propDefaultNode.value)
+					const propDefault = propDefaultNode ? sourceCode.getText(propDefaultNode.value) : undefined
 					const propType = prop.types
 					const propRequired = prop.required
 					const propComments = sourceCode.getCommentsBefore(prop.key)
@@ -236,40 +236,48 @@ module.exports = function loader(source) {
 						return []
 				}
 			}
-			function getPropOptionInfo(propOption) {
-				let propDefault, propType, propRequired = false
+			function getPropOptionInfo(propOption, prop) {
+				let propDefault, propType, propRequired
 				// option 中的 prop 可以没有参数
-				if (!propOption) return [propDefault, propType, propRequired]
-				// 通过prop配置项获取ts
-				switch (propOption.type) {
-					case 'Identifier':
-						propType = getPropType(propOption)
-						break;
-					case 'ObjectExpression':
-						propOption.properties.forEach(d => {
-							const key = d.key.name
-							switch (key) {
-								case 'default':
-									propDefault = sourceCode.getText(d.value)
-									break;
-								case 'type':
-									propType = getPropType(d.value)
-									break;
-								case 'required':
-									if (d.value.raw === 'true') {
-										propRequired = true
-									}
-									break;
-							}
-						})
-						break;
-					case 'ArrayExpression':
-						propType = getPropType(propOption)
-						break;
+				if (propOption) {
+					// 通过prop配置项获取ts
+					switch (propOption.type) {
+						case 'Identifier':
+							propType = getPropType(propOption)
+							break;
+						case 'ObjectExpression':
+							propOption.properties.forEach(d => {
+								const key = d.key.name
+								switch (key) {
+									case 'default':
+										propDefault = sourceCode.getText(d.value)
+										break;
+									case 'type':
+										propType = getPropType(d.value)
+										break;
+									case 'required':
+										if (d.value.raw === 'true') {
+											propRequired = true
+										} else {
+											propRequired = false
+										}
+										break;
+								}
+							})
+							break;
+						case 'ArrayExpression':
+							propType = getPropType(propOption)
+							break;
+					}
 				}
 				// 如果没有类型，尝试从ts中获取
-				if (!propType) {
-
+				if (prop && !propType && prop.typeAnnotation) {
+					const typeAnnotation = prop.typeAnnotation.typeAnnotation
+					const runtimeType = tsUtils.inferRuntimeType(context, typeAnnotation)
+					propType = runtimeType
+				}
+				if (prop && propRequired === undefined && prop.typeAnnotation) {
+					propRequired = !prop.optional
 				}
 				return [propDefault, propType, propRequired]
 			}
@@ -339,32 +347,8 @@ module.exports = function loader(source) {
 							const propName = prop.key.name
 							// 装饰器参数
 							const propOption = node.expression.arguments[0]
-							// TODO:需要根据ts获取propType（vscode-languageserver-node、vue-language-server）
-							let [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
-							if (!propType) {
-								function resolveQualifiedType(context, node, qualifier) {
-									if (qualifier(node)) {
-										return node
-									}
-									if (node.type === 'TSTypeReference' && node.typeName.type === 'Identifier') {
-										const refName = node.typeName.name
-										// findVariable 在当前作用域中查找变量声明
-										// context.getScope() 返回当前文件所在的作用域
-										const variable = findVariable(context.getScope(), refName)
-										if (variable && variable.defs.length === 1) {
-											const def = variable.defs[0]
-											const defNode = def.node
-											if (defNode.type === 'TSTypeAliasDeclaration') {
-												return defNode.typeAnnotation
-											}
-											return defNode
-										}
-									}
-								}
-								const variable = resolveQualifiedType(context, prop.typeAnnotation.typeAnnotation, (node) => node.type !== 'TSTypeReference')
-								const a = tsUtils.inferRuntimeType(context, variable)
-								debugger
-							}
+
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, prop)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const propNameComments = sourceCode.getCommentsAfter(node)
@@ -382,10 +366,11 @@ module.exports = function loader(source) {
 						// class component @PropSync
 						'Decorator[expression.callee.name=PropSync]'(node) {
 							const decoratorArgument = node.expression.arguments
+							const prop = node.parent
 
 							const propName = decoratorArgument[0].value
 							const propOption = decoratorArgument[1] || undefined
-							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, prop)
 
 							const comments = sourceCode.getCommentsBefore(node)
 							const propComment = commentsToText(comments)
@@ -406,7 +391,7 @@ module.exports = function loader(source) {
 
 							const decoratorArgument = node.expression.arguments
 							const propOption = decoratorArgument[1] || undefined
-							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, prop)
 
 							const comments = sourceCode.getCommentsAfter(node)
 							const propComment = commentsToText(comments)
@@ -426,7 +411,7 @@ module.exports = function loader(source) {
 
 							const propName = decoratorArgument[0].value
 							const propOption = decoratorArgument[2]
-							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, node.parent)
 
 							const comments = sourceCode.getCommentsBefore(decoratorArgument[0])
 							const propComment = commentsToText(comments)
@@ -445,7 +430,7 @@ module.exports = function loader(source) {
 							const propName = 'value'
 							const decoratorArgument = node.expression.arguments
 							const propOption = decoratorArgument[0]
-							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption)
+							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, node.parent)
 							const comments = sourceCode.getCommentsBefore(node)
 							const propComment = commentsToText(comments)
 

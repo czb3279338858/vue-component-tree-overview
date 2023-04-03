@@ -184,6 +184,7 @@ function* extractRuntimeEmits(node) {
       eventName &&
       eventName.type === 'Identifier' &&
       eventName.typeAnnotation &&
+      // TSTypeAnnotation 表示TypeScript类型注解的AST节点。它有一个typeAnnotation属性，用来存储实际的类型注解
       eventName.typeAnnotation.type === 'TSTypeAnnotation'
     ) {
       const typeNode = eventName.typeAnnotation.typeAnnotation
