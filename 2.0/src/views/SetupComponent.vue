@@ -136,7 +136,16 @@ function getDataHAndI() {
     dataI: "",
   };
 }
-const { dataH, dataI } = getDataHAndI();
+const {
+  // dataH注释
+  dataH,
+  // dataI注释
+  dataI,
+} = getDataHAndI();
+const {
+  // dataJ注释
+  dataH: dataJ,
+} = getDataHAndI();
 
 // ————————————————————————
 interface Props {

@@ -620,7 +620,24 @@ module.exports = function loader(source) {
 							},
 							// 变量定义
 							'Program>VariableDeclaration'(node) {
-								debugger
+								// 过滤掉prop和emit变量定义函数
+								const setupDeclarations = node.declarations.filter(d => {
+									return !d.init || !(d.init && d.init.type === 'CallExpression' && ['defineEmits', 'defineProps', 'useContext'].includes(d.init.callee.name))
+								})
+								setupDeclarations.forEach(declarations => {
+									if (!declarations.id.name) {
+										debugger
+									}
+									const setupName = declarations.id.name
+									const setupNode = declarations.parent
+									const setupComments = sourceCode.getCommentsBefore(setupNode)
+									const setupComment = commentsToText(setupComments)
+									const setupInfo = {
+										setupName,
+										setupComment
+									}
+									setupMap.set(setupName, setupInfo)
+								})
 								// 变量定义中的声明部分 const dataA = ref("") => dataA = ref("")
 								// const declarations = node.declarations
 								// data
