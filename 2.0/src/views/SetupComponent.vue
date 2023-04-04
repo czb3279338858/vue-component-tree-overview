@@ -1,33 +1,49 @@
 <template>
-  <div>1</div>
+  <div>setupComponent</div>
 </template>
 
 
 <script setup lang="ts">
-// dataA注释1
+import { reactive, ref } from "vue";
+
+// ————————————————————————
+
+// dataA注释
 const dataA = ref("");
-// dataB注释1
+// dataB注释
 const dataB = reactive("");
+function getDataC() {
+  const ret = ref("");
+  return ret;
+}
+// dataC注释
+const dataC = getDataC();
 
-defineProps({
-  /** 注释1 */
-  propA: {
-    type: Boolean,
-    default: false,
-    required: true,
-  },
-  propB: Boolean,
-});
+// ————————————————————————
 
-// interface Props {
-//   /** 注释1 */
-//   propC: boolean | string;
-//   propD?: string[];
-// }
-// withDefaults(defineProps<Props>(), {
-//   propC: false,
-//   propD: () => {
-//     return ["one", "two"];
+// defineProps({
+//   /** propA注释 */
+//   propA: {
+//     type: Boolean,
+//     default: false,
+//     required: true,
 //   },
+//   // propB注释
+//   propB: Boolean,
+//   // propC注释
+//   propC: [Array, Boolean],
 // });
+
+interface Props {
+  // 类型注释
+  propA: boolean | string;
+  propB?: string[];
+}
+withDefaults(defineProps<Props>(), {
+  // 默认值注释
+  propA: false,
+  propB: () => {
+    return ["one", "two"];
+  },
+});
 </script>
