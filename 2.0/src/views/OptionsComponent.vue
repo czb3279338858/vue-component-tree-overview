@@ -21,22 +21,17 @@
     <div2 v-if="a"></div2>
     <div3 v-else></div3>
     <dvi4 v-for="(value, key, index) in d" :key="index"></dvi4>
-    <div5 :style="propA | filterA | filterB"></div5>
+    <div5 :style="propA | filterA | filterB">
+      <div6 slot-scope="scope">{{ scope.row }}</div6>
+      <div7 slot="slotName">1</div7>
+      <slot name="name"></slot>
+    </div5>
   </div1>
 </template>
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
 const otherProp = ["propC"];
-// dataA注释1
-const dataA = 1;
-// dataB注释1
-function dataB() {
-  console.log("dataB");
-}
-// dataC注释1
-function dataC() {
-  console.log("dataC");
-}
+
 export default defineComponent({
   // filters: {
   //   filterA(a) {
@@ -75,26 +70,26 @@ export default defineComponent({
 
   // ————————————————————————————————————
 
-  props: {
-    // 注释propA
-    propA: {
-      default: "a",
-      type: String as PropType<string>,
-      required: true,
-    },
-    // 注释propB
-    propB: Number,
-    // 注释propC
-    propC: [Number, String],
-  },
-
-  // props: [
-  //   // 不支持解构
-  //   ...otherProp,
+  // props: {
   //   // 注释propA
-  //   "propA",
+  //   propA: {
+  //     default: "a",
+  //     type: String as PropType<string>,
+  //     required: true,
+  //   },
   //   // 注释propB
-  //   "propB",
-  // ],
+  //   propB: Number,
+  //   // 注释propC
+  //   propC: [Number, String],
+  // },
+
+  props: [
+    // 不支持解构
+    ...otherProp,
+    // 注释propA
+    "propA",
+    // 注释propB
+    "propB",
+  ],
 });
 </script>

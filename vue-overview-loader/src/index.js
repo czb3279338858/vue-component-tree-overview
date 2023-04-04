@@ -178,6 +178,11 @@ module.exports = function loader(source) {
 					return [sourceCode.getText(attributeValue.expression), attributeValue.expression.type]
 				}
 
+				// 绑定值是slot-scope
+				if (attributeValue.expression.type === 'VSlotScopeExpression') {
+					return [attributeValue.parent.key.name.name, attributeValue.expression.type, attributeValue.expression.params.map(p => p.name)]
+				}
+
 				// 其他，不支持
 				// 例如：:a="'1'"
 				return [undefined, attributeValue.expression.type]
@@ -255,6 +260,7 @@ module.exports = function loader(source) {
 					if (!propType) {
 						const typeAnnotation = prop.typeAnnotation.typeAnnotation
 						// TODO: tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
+						// tsUtils.inferRuntimeType 支持在本文件递归查找类型的实际定义，从而获取对应的运行时类型
 						const runtimeType = tsUtils.inferRuntimeType(context, typeAnnotation)
 						propType = runtimeType
 					}
@@ -298,7 +304,7 @@ module.exports = function loader(source) {
 			function getWithDefaultsDefinePropsInfoMap(props, withDefaultsArguments) {
 				const propMap = new Map()
 
-				const propsDefaultNode = withDefaultsArguments ? withDefaultsArguments[1].properties : []
+				const propsDefaultNode = (withDefaultsArguments && withDefaultsArguments[1]) ? withDefaultsArguments[1].properties : []
 
 				props.forEach(prop => {
 					const propName = prop.propName
@@ -329,7 +335,8 @@ module.exports = function loader(source) {
 
 			// ——————————————————————————————————————————————————————————————
 
-			let dataSet = new Set()
+			let setupMap = new Map()
+
 
 
 			// ——————————————————————————————————————————————————————————————
@@ -379,12 +386,12 @@ module.exports = function loader(source) {
 							const templateValue = element.rawName
 							const attributes = element.startTag.attributes.map(a => {
 								const name = sourceCode.getText(a.key)
-								const [valueName, valueType, vForLeft] = getAttributesValue(a.value)
+								const [valueName, valueType, scopeNames] = getAttributesValue(a.value)
 								return {
 									name,
 									valueName,
 									valueType,
-									vForLeft
+									scopeNames
 								}
 							})
 							const templateComment = getTemplateCommentBefore(element)
@@ -427,10 +434,11 @@ module.exports = function loader(source) {
 					{
 						// class component @Prop
 						'Decorator[expression.callee.name=Prop]'(node) {
+							const decoratorArgument = node.expression.arguments
 							const prop = node.parent
 
 							const propName = prop.key.name
-							const propOption = node.expression.arguments[0]
+							const propOption = decoratorArgument[0]
 
 							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, prop)
 
@@ -484,10 +492,11 @@ module.exports = function loader(source) {
 						},
 						// class component @Model
 						'Decorator[expression.callee.name=Model]'(node) {
+							const decoratorArgument = node.expression.arguments
 							const prop = node.parent
 
 							const propName = prop.key.name
-							const propOption = node.expression.arguments[1]
+							const propOption = decoratorArgument[1]
 
 							const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, prop)
 
@@ -574,7 +583,7 @@ module.exports = function loader(source) {
 							// TODO: utils.getComponentPropsFromOptions(optionNode) 只能获取 props 中的字面量
 							// TODO: utils.getComponentPropsFromOptions(optionNode) 返回中包含 PropType 指向的具体类型，目前只获取运行时类型，不获取ts类型
 							const props = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
-							propMap = getDefinePropsInfoMap(props)
+							propMap = new Map([...propMap, ...getDefinePropsInfoMap(props)])
 
 							// datas
 							// const datas = utils.findProperty(optionNode, 'data')
@@ -607,11 +616,13 @@ module.exports = function loader(source) {
 								const otherPropMap = getDefinePropsInfoMap(defineProps)
 								const withDefaultsPropMap = getWithDefaultsDefinePropsInfoMap(withDefaultsDefineProps, node.parent.arguments)
 
-								propMap = new Map([...otherPropMap, ...withDefaultsPropMap])
+								propMap = new Map([...propMap, ...otherPropMap, ...withDefaultsPropMap])
 							},
 							// 变量定义
 							'Program>VariableDeclaration'(node) {
-								const declarations = node.declarations[0]
+								debugger
+								// 变量定义中的声明部分 const dataA = ref("") => dataA = ref("")
+								// const declarations = node.declarations
 								// data
 								// if (declarations.init && declarations.init.type === 'CallExpression' && ScriptSetupDataFunNames.includes(declarations.init.callee.name)) {
 								// 	const dataName = declarations.id.name
