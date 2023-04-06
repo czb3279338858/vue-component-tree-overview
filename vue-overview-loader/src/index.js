@@ -335,46 +335,132 @@ module.exports = function loader(source) {
 
 			// ——————————————————————————————————————————————————————————————
 
+			// setup中的变量定义不需要添加setupMap中的项
+			// 1.没有初始化的变量
+			// 2.初始化是函数调用，函数名为特定项
+			// 3.初始化是常量
+			function initUnAddSetupMap(init) {
+				return !init
+					|| (
+						init
+						&& (
+							(init.type === 'CallExpression' && ['defineEmits', 'defineProps', 'useContext'].includes(init.callee.name))
+							|| init.type === 'Literal'
+						)
+					)
+			}
+			// 获取 id 对应的 init
+			function getIdInit(init, idIndex) {
+				if (idIndex !== undefined) {
+					if (init.type === 'ObjectExpression') return init.properties[idIndex]
+					if (init.type === 'ArrayExpression') return init.elements[idIndex]
+				}
+				return init
+			}
+			// 从变量定义中添加 setupMap,支持 const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
+			function addSetupMapFromDeclarations(declarations, setupMap, isRecursion) {
+				const needAddSetupMapDeclarations = declarations.filter(d => {
+					return !initUnAddSetupMap(d.init)
+				})
+				// 遍历允许添加到 setupMap 的变量定义
+				// declarations:例如：const provideData = ref(""); => provideData = ref("")
+				needAddSetupMapDeclarations.forEach(declarations => {
+					const id = declarations.id
+					const init = declarations.init
+					// 当变量的左边是常量时
+					// 例如：dataG = ref("") => dataG 的 id.type === 'Identifier'
+					if (id.type === 'Identifier') {
+						const setupName = id.name
+						let variableDeclarationComments = []
+						if (!isRecursion) {
+							const variableDeclarationNode = declarations.parent
+							variableDeclarationComments = sourceCode.getCommentsBefore(variableDeclarationNode)
+						}
+						const idComments = sourceCode.getCommentsBefore(id)
+						const setupComment = commentsToText([...variableDeclarationComments, ...idComments])
+						const setupInfo = {
+							setupName,
+							setupComment
+						}
+						setupMap.set(setupName, setupInfo)
+					}
+					// 当变量的左边是数组或对象时
+					// 例如：const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
+					if (['ObjectPattern', 'ArrayPattern'].includes(id.type)) {
+						const objectIds = id.type === 'ArrayPattern' ? id.elements : id.properties
+						const childrenDeclarations = []
+						objectIds.forEach((objectId, index) => {
+							const idInit = getIdInit(init, index)
+							if (!initUnAddSetupMap(idInit)) {
+								const objectIdKey = id.type === 'ArrayPattern' ? objectId : objectId.value
+								// 如果左边 id 是常量
+								if (objectIdKey.type === 'Identifier') {
+									const setupName = objectIdKey.name
+									const setupComments = sourceCode.getCommentsBefore(objectIdKey)
+									const setupComment = commentsToText(setupComments)
+									const setupInfo = {
+										setupName,
+										setupComment
+									}
+									setupMap.set(setupName, setupInfo)
+								}
+								// 如果不是常量，例如 const[[a]]=[[1]] 左边是 [a]
+								if (['ObjectPattern', 'ArrayPattern'].includes(objectIdKey.type)) {
+									childrenDeclarations.push({
+										id: objectIdKey,
+										init: idInit
+									})
+								}
+							}
+						})
+						if (childrenDeclarations.length) {
+							addSetupMapFromDeclarations(childrenDeclarations, setupMap, true)
+						}
+					}
+				})
+			}
 			let setupMap = new Map()
-
-
 
 			// ——————————————————————————————————————————————————————————————
 
+			// 生命周期
+			const lifecycleHookMap = new Map()
 
-			function getDataInfo(dataBody) {
-				const dataSet = new Set()
-				dataBody.forEach(data => {
-					const dataName = data.key.name
-					const retDataComments = sourceCode.getCommentsBefore(data.key)
+			// ——————————————————————————————————————————————————————————————
 
-					const variable = utils.findVariableByIdentifier(context, data.value.type === 'CallExpression' ? data.value.callee : data.value)
+			// function getDataInfo(dataBody) {
+			// 	const dataSet = new Set()
+			// 	dataBody.forEach(data => {
+			// 		const dataName = data.key.name
+			// 		const retDataComments = sourceCode.getCommentsBefore(data.key)
 
-					let defNodeComments = []
-					if (variable) {
-						const def = variable.defs[0]
-						const defNode = def.node.type === 'VariableDeclarator' ? def.node.parent : def.node
-						defNodeComments = sourceCode.getCommentsBefore(defNode)
-					}
-					const dataComment = commentsToText([...retDataComments, ...defNodeComments])
-					const dataInfo = {
-						dataName,
-						dataComment
-					}
-					dataSet.add(dataInfo)
-				})
-				return dataSet
-			}
-			const ScriptSetupDataFunNames = ['ref', 'reactive', 'toRef', 'toRefs', 'readonly', 'shallowRef', 'shallowReactive']
-			function getComputedComments(computedNode, computedType) {
-				const computedComments = sourceCode.getCommentsBefore(computedNode)
-				if (computedComments.length) {
-					computedComments.unshift({ value: `${computedType}:` })
-				}
-				return computedComments
-			}
+			// 		const variable = utils.findVariableByIdentifier(context, data.value.type === 'CallExpression' ? data.value.callee : data.value)
 
-			let computedMap = new Map()
+			// 		let defNodeComments = []
+			// 		if (variable) {
+			// 			const def = variable.defs[0]
+			// 			const defNode = def.node.type === 'VariableDeclarator' ? def.node.parent : def.node
+			// 			defNodeComments = sourceCode.getCommentsBefore(defNode)
+			// 		}
+			// 		const dataComment = commentsToText([...retDataComments, ...defNodeComments])
+			// 		const dataInfo = {
+			// 			dataName,
+			// 			dataComment
+			// 		}
+			// 		dataSet.add(dataInfo)
+			// 	})
+			// 	return dataSet
+			// }
+			// const ScriptSetupDataFunNames = ['ref', 'reactive', 'toRef', 'toRefs', 'readonly', 'shallowRef', 'shallowReactive']
+			// function getComputedComments(computedNode, computedType) {
+			// 	const computedComments = sourceCode.getCommentsBefore(computedNode)
+			// 	if (computedComments.length) {
+			// 		computedComments.unshift({ value: `${computedType}:` })
+			// 	}
+			// 	return computedComments
+			// }
+
+			// let computedMap = new Map()
 
 
 			return utils.compositingVisitors(
@@ -429,9 +515,13 @@ module.exports = function loader(source) {
 							addTemplateMap(node, templateInfo, templateMap)
 						}
 					},
+
 					// script 解析
+
 					// TODO:所有的 装饰器参数、prop option 必须是字面量对象
 					{
+						// class component
+						// 以下为Prop相关装饰器
 						// class component @Prop
 						'Decorator[expression.callee.name=Prop]'(node) {
 							const decoratorArgument = node.expression.arguments
@@ -577,6 +667,8 @@ module.exports = function loader(source) {
 
 							// TODO:emit this.$emit('input', value)
 						},
+
+						// option component
 						// 可以在一个Vue组件 option 上执行一个回调函数
 						...utils.executeOnVueComponent(context, (optionNode) => {
 							// props
@@ -602,8 +694,10 @@ module.exports = function loader(source) {
 							// 	dataSet = getDataInfo(dataBody)
 							// }
 						}),
+
 						// script setup 中
 						...utils.defineScriptSetupVisitor(context, {
+							// prop
 							onDefinePropsEnter(node, props) {
 								// 目前 defineProps 在 script setup 中只能使用一次，onDefinePropsEnter 只会获取第一个 defineProps，下面的方法兼容defineProps 被多次使用时
 								// TODO: 这里的 props 包含了类型，但是现在只提取运行时
@@ -618,39 +712,57 @@ module.exports = function loader(source) {
 
 								propMap = new Map([...propMap, ...otherPropMap, ...withDefaultsPropMap])
 							},
-							// 变量定义
+							// 变量定义，包括 data\computed\inject\methods 表现为 const dataA = ref('')
 							'Program>VariableDeclaration'(node) {
-								// 过滤掉prop和emit变量定义函数
-								const setupDeclarations = node.declarations.filter(d => {
-									return !d.init || !(d.init && d.init.type === 'CallExpression' && ['defineEmits', 'defineProps', 'useContext'].includes(d.init.callee.name))
-								})
-								setupDeclarations.forEach(declarations => {
-									if (!declarations.id.name) {
-										debugger
+								// 过滤掉没有初始化和初始化不允许添加进setupMap的变量定义，针对 let dataF,dataG=ref('')
+								const declarations = node.declarations
+								addSetupMapFromDeclarations(declarations, setupMap)
+							},
+							// 函数定义 methods，表现为 function methodA(){}
+							'Program>FunctionDeclaration'(node) {
+								const setupName = node.id.name
+								const setupComments = sourceCode.getCommentsBefore(node)
+								const setupComment = commentsToText(setupComments)
+								const setupInfo = {
+									setupName,
+									setupComment
+								}
+								setupMap.set(setupName, setupInfo)
+							},
+							// 生命周期，表现为 onMounted(()=>{})
+							'Program CallExpression'(node) {
+								const LIFECYCLE_HOOKS = [
+									'onBeforeMount',
+									'onBeforeUnmount',
+									'onBeforeUpdate',
+									'onErrorCaptured',
+									'onMounted',
+									'onRenderTracked',
+									'onRenderTriggered',
+									'onUnmounted',
+									'onUpdated',
+									'onActivated',
+									'onDeactivated'
+								]
+								const lifecycleHookName = node.callee.name
+								if (LIFECYCLE_HOOKS.includes(lifecycleHookName)) {
+									const lifecycleHookComments = sourceCode.getCommentsBefore(node)
+									const lifecycleHookComment = commentsToText(lifecycleHookComments)
+									const oldLifecycleHook = lifecycleHookMap.get(lifecycleHookName)
+									if ((lifecycleHookComment && oldLifecycleHook)) {
+										oldLifecycleHook.lifecycleHookComment = `${oldLifecycleHook.lifecycleHookComment}\n\n${lifecycleHookComment}`
+									} else {
+										const lifecycleHookInfo = {
+											lifecycleHookName,
+											lifecycleHookComment
+										}
+										lifecycleHookMap.set(lifecycleHookName, lifecycleHookInfo)
 									}
-									const setupName = declarations.id.name
-									const setupNode = declarations.parent
-									const setupComments = sourceCode.getCommentsBefore(setupNode)
-									const setupComment = commentsToText(setupComments)
-									const setupInfo = {
-										setupName,
-										setupComment
-									}
-									setupMap.set(setupName, setupInfo)
-								})
-								// 变量定义中的声明部分 const dataA = ref("") => dataA = ref("")
-								// const declarations = node.declarations
-								// data
-								// if (declarations.init && declarations.init.type === 'CallExpression' && ScriptSetupDataFunNames.includes(declarations.init.callee.name)) {
-								// 	const dataName = declarations.id.name
-								// 	const dataComments = sourceCode.getCommentsBefore(node)
-								// 	const dataComment = commentsToText(dataComments)
-								// 	const dataInfo = {
-								// 		dataName,
-								// 		dataComment
-								// 	}
-								// 	dataSet.add(dataInfo)
-								// }
+								}
+							},
+							// emit
+							onDefineEmitsEnter(node) {
+								debugger
 							}
 						}),
 
@@ -694,10 +806,8 @@ module.exports = function loader(source) {
 						// 			const computedGetNode = computed.value.parent.parent
 						// 			const computedCommentMap = new Map()
 						// 			computedCommentMap.set('get', getComputedComments(computedGetNode, 'get'))
-
 						// 			if (computedGetNode.parent.parent.key.name === computedName) {
 						// 				computedCommentMap.set('all', getComputedComments(computedGetNode.parent.parent, 'all'))
-
 						// 				const properties = computedGetNode.parent.properties
 						// 				const computedSetNode = properties.find(p => p.key.name === 'set')
 						// 				if (computedSetNode) {

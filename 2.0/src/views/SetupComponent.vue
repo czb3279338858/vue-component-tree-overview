@@ -25,7 +25,7 @@ import { computed, inject, onMounted, provide, reactive, ref } from "vue";
 // emit
 // bus总线 vue.$on vue.$emit 等,不考虑
 
-// ————————————————————————
+// import————————————————————————
 // 组件注释
 import OtherComponent from "./OtherComponent.vue";
 
@@ -33,7 +33,7 @@ import OtherComponent from "./OtherComponent.vue";
 // 指令注释
 import { directiveA } from "./directiveA";
 
-// ————————————————————————
+// emit————————————————————————
 
 const emit1 = defineEmits([
   // emitA类型注释
@@ -69,7 +69,7 @@ function emitD(value) {
   emit4("emitD", value);
 }
 
-// ————————————————————————
+// 生命周期————————————————————————
 
 // 生命周期注释1
 onMounted(() => {
@@ -80,7 +80,7 @@ onMounted(() => {
   console.log("onMounted");
 });
 
-// ————————————————————————
+// provide/inject————————————————————————
 
 // provideData注释
 const provideData = ref("");
@@ -89,14 +89,46 @@ provide("provideName", provideData);
 // injdectA注释
 const injectA = inject("provideName");
 
+function getInjectBAndC(): [[number, number], number] {
+  return [[1, 2], 3];
+}
+const [
+  [
+    // injectB注释
+    injectB,
+    // injectC注释
+    injectC,
+  ],
+  // injectD注释
+  injectD,
+] = getInjectBAndC();
+
+const [
+  {
+    // injectE注释
+    injectE,
+    // injectG注释
+    injectG: [
+      // injectH注释
+      injectH,
+    ],
+  },
+  // injectF注释
+  injectF,
+] = [{ injectE: ref(""), injectG: [ref("2")] }, 1];
+
 // ————————————————————————
 
 // methodA注释
-function methoA() {
+function methodA() {
   console.log("method");
 }
+// methodB注释
+const methodB = () => {
+  console.log("method");
+};
 
-// ————————————————————————
+// computed————————————————————————
 
 // computdA注释
 const computedA = computed(() => dataA.value);
@@ -108,7 +140,7 @@ const computedB = defineComputed({
   },
 });
 
-// ————————————————————————
+// data Identifier————————————————————————
 
 // dataA注释
 const dataA = ref("");
@@ -120,16 +152,32 @@ function getDataC() {
 }
 // dataC注释
 const dataC = getDataC();
+
+// node.declarations 有两个值
+let // dataF注释
+  dataF,
+  // dataG注释
+  dataG = ref("");
+
+// data ArrayPattern——————————
+
 const [
   // dataD注释
   dataD,
   // dataE注释
   dataE,
-] = [ref(""), ref("")];
-let // dataF注释
-  dataF,
-  // dataG注释
-  dataG = ref("");
+] = [ref(""), "1"];
+
+function getDataM() {
+  return [1];
+}
+const [
+  // dataM注释
+  dataM,
+] = getDataM();
+
+// data ObjectPattern——————————
+
 function getDataHAndI() {
   return {
     dataH: ref(""),
@@ -142,12 +190,20 @@ const {
   // dataI注释
   dataI,
 } = getDataHAndI();
+
 const {
   // dataJ注释
   dataH: dataJ,
 } = getDataHAndI();
 
-// ————————————————————————
+const {
+  // dataK注释
+  a: dataK,
+  // dataL注释
+  b: dataL,
+} = { a: ref("") };
+
+// prop ————————————————————————
 interface Props {
   // 类型注释
   propA: boolean | string;
