@@ -201,6 +201,7 @@ module.exports = function loader(source) {
 				}
 				templateMap.set(node, templateInfo)
 			}
+
 			const templateMap = new Map()
 
 			// ——————————————————————————————————————————————————————————————
@@ -294,7 +295,6 @@ module.exports = function loader(source) {
 				})
 				return propMap
 			}
-
 			/**
 			 * script setup 中 withDefaults(defineProps<Props>(), {}) 获取 propInfo
 			 * @param {*} props 
@@ -330,6 +330,7 @@ module.exports = function loader(source) {
 				})
 				return propMap
 			}
+
 			let propMap = new Map()
 
 
@@ -419,12 +420,68 @@ module.exports = function loader(source) {
 					}
 				})
 			}
+
 			let setupMap = new Map()
 
 			// ——————————————————————————————————————————————————————————————
 
 			// 生命周期
 			const lifecycleHookMap = new Map()
+
+			// ——————————————————————————————————————————————————————————————
+
+			// 当 defineEmits 参数是对像时获取 value 的类型
+			function getObjectEmitValueType(value) {
+				const valueType = value.type
+				if (['FunctionExpression'].includes(valueType)) return [sourceCode.getText(value.parent)]
+				if ('ArrowFunctionExpression' === valueType) return [sourceCode.getText(value)]
+				if (valueType === 'Identifier') return [value.name]
+				if (valueType === 'ArrayExpression') return value.elements.map(element => getObjectEmitValueType(element)[0])
+			}
+			// 获取 emit 抛出参数的运行时类型
+			function getEmitTypes(emit) {
+				const emitType = emit.type
+				if (emitType === 'array') return undefined
+				if (emitType === 'object') {
+					return getObjectEmitValueType(emit.value)
+				}
+				if (emitType === 'type') {
+					const value = emit.node.params[1]
+					if (value) return tsUtils.inferRuntimeType(context, value.typeAnnotation.typeAnnotation)
+				}
+			}
+
+			const emitMap = new Map()
+
+			// ——————————————————————————————————————————————————————————————
+
+			const dataMap = new Map()
+
+			// ——————————————————————————————————————————————————————————————
+
+			const computedMap = new Map()
+
+			// ——————————————————————————————————————————————————————————————
+
+			const methodMap = new Map()
+
+			// ——————————————————————————————————————————————————————————————
+
+			const provideMap = new Map()
+
+			// ——————————————————————————————————————————————————————————————
+
+			function getInjectFrom(inject) {
+				const decorator = inject.decorators[0]
+				const argument = decorator.expression.arguments[0]
+				if (argument === undefined) return inject.key.name
+				if (argument.type === 'Literal') return argument.raw
+				if (argument.type === 'ObjectExpression') {
+					const from = argument.properties.find(p => p.key.name === 'from')
+					return from.value.raw
+				}
+			}
+			const injectMap = new Map()
 
 			// ——————————————————————————————————————————————————————————————
 
@@ -523,7 +580,7 @@ module.exports = function loader(source) {
 						// class component
 						// 以下为Prop相关装饰器
 						// class component @Prop
-						'Decorator[expression.callee.name=Prop]'(node) {
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Prop]'(node) {
 							const decoratorArgument = node.expression.arguments
 							const prop = node.parent
 
@@ -546,7 +603,7 @@ module.exports = function loader(source) {
 							propMap.set(propName, propInfo)
 						},
 						// class component @PropSync
-						'Decorator[expression.callee.name=PropSync]'(node) {
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=PropSync]'(node) {
 							// prop
 							const decoratorArgument = node.expression.arguments
 							const computed = node.parent
@@ -581,7 +638,7 @@ module.exports = function loader(source) {
 							// computedMap.set(computedName, computedInfo)
 						},
 						// class component @Model
-						'Decorator[expression.callee.name=Model]'(node) {
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Model]'(node) {
 							const decoratorArgument = node.expression.arguments
 							const prop = node.parent
 
@@ -606,7 +663,7 @@ module.exports = function loader(source) {
 							// TODO: 需要获取 model 配置项
 						},
 						// class component @ModelSync
-						'Decorator[expression.callee.name=ModelSync]'(node) {
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]'(node) {
 							// prop
 							const computed = node.parent
 							const decoratorArgument = node.expression.arguments
@@ -643,7 +700,7 @@ module.exports = function loader(source) {
 							// computedMap.set(computedName, computedInfo)
 						},
 						// class component @VModel
-						'Decorator[expression.callee.name=VModel]'(node) {
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=VModel]'(node) {
 							const computed = node.parent
 							const decoratorArgument = node.expression.arguments
 
@@ -666,6 +723,77 @@ module.exports = function loader(source) {
 							propMap.set(propName, propInfo)
 
 							// TODO:emit this.$emit('input', value)
+						},
+						// 属性定义 dataA = "1"
+						'ClassDeclaration > ClassBody > PropertyDefinition[decorators=undefined]'(node) {
+							const dataName = node.key.name
+							const dataComments = sourceCode.getCommentsBefore(node)
+							const dataComment = commentsToText(dataComments)
+							const dataInfo = {
+								setupName: dataName,
+								setupComment: dataComment
+							}
+							dataMap.set(dataName, dataInfo)
+						},
+						// 方法定义，包括计算属性和方法
+						'ClassDeclaration > ClassBody > MethodDefinition'(node) {
+							const kind = node.kind
+							// 计算属性 get computedA() {}
+							if (['get', 'set'].includes(kind)) {
+								const computedName = node.key.name
+								const computedComments = sourceCode.getCommentsBefore(node)
+								const computedComment = commentsToText(computedComments)
+								const oldComputed = computedMap.get(computedName)
+								if (oldComputed) {
+									oldComputed.computedComment = `${oldComputed.computedComment}\n\n${kind}:${computedComment}`
+								} else {
+									const computedInfo = {
+										computedName,
+										computedComment: `${kind}:${computedComment}`
+									}
+									computedMap.set(computedName, computedInfo)
+								}
+							}
+							// 方法 methodA() {}
+							if (kind === 'method') {
+								const methodName = node.key.name
+								const methodComments = sourceCode.getCommentsBefore(node)
+								const methodComment = commentsToText(methodComments)
+								const methodInfo = {
+									methodName,
+									methodComment
+								}
+								methodMap.set(methodName, methodInfo)
+							}
+						},
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Provide]'(node) {
+							const provide = node.parent
+							// TODO: setupComponent 的 provide 要看看怎么处理
+							// provide
+							const provideName = node.expression.arguments.length ? node.expression.arguments[0].value : provide.key.name
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const dataComments = sourceCode.getCommentsAfter(node)
+							const provideComment = commentsToText([...decoratorComments, ...dataComments])
+							const provideInfo = {
+								provideName,
+								provideComment
+							}
+							provideMap.set(provideName, provideInfo)
+
+							// data
+							const dataName = provide.key.name
+							const dataComment = commentsToText(dataComments)
+							const dataInfo = {
+								dataName,
+								dataComment
+							}
+							dataMap.set(dataName, dataInfo)
+						},
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject]'(node) {
+							const inject = node.parent
+							const injectName = inject.key.name
+							const injectFrom = getInjectFrom(inject)
+							debugger
 						},
 
 						// option component
@@ -761,8 +889,19 @@ module.exports = function loader(source) {
 								}
 							},
 							// emit
-							onDefineEmitsEnter(node) {
-								debugger
+							onDefineEmitsEnter(node, emits) {
+								emits.forEach(emit => {
+									const emitName = emit.emitName
+									const emitType = getEmitTypes(emit)
+									const emitComments = sourceCode.getCommentsBefore(emit.node)
+									const emitComment = commentsToText(emitComments)
+									const emitInfo = {
+										emitName,
+										emitType,
+										emitComment
+									}
+									emitMap.set(emitName, emitInfo)
+								})
 							}
 						}),
 

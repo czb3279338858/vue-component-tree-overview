@@ -6,10 +6,12 @@
 <script lang="ts">
 import {
   Component,
+  Inject,
   Model,
   ModelSync,
   Prop,
   PropSync,
+  Provide,
   VModel,
   Vue,
 } from "vue-property-decorator";
@@ -21,23 +23,53 @@ interface BCD {
 }
 type ABC = string[];
 
+const symbol = Symbol("injectD");
+
 @Component({
   components: {
     HelloWorld,
   },
 })
 export default class HomeView extends Vue {
-  // /** dataA注释 */
-  // dataA = "1";
+  /** dataA注释 */
+  dataA = "1";
 
-  // /** computedA注释1 */
-  // get computedA() {
-  //   return this.dataA;
-  // }
-  // /** computedA注释2 */
-  // set computedA(a: string) {
-  //   this.dataA = a;
-  // }
+  /** computedA注释1 */
+  get computedA() {
+    return this.dataA;
+  }
+  /** computedA注释2 */
+  set computedA(a: string) {
+    this.dataA = a;
+  }
+
+  // 方法1
+  methodA() {
+    console.log("methodA");
+  }
+
+  // provideA注释1
+  @Provide()
+  // provideA注释2
+  provideA = "";
+
+  // provideB注释1
+  @Provide("provideBName")
+  // provideB注释2
+  provideB = "";
+
+  // injectA注释
+  @Inject()
+  // injectA
+  readonly injectA!: string;
+
+  @Inject("injectB") readonly injectB!: string;
+
+  @Inject({ from: "injectCFrom", default: "default" })
+  readonly injectC!: string;
+
+  // 不支持
+  @Inject(symbol) readonly injectD!: string;
 
   // ——————————————————————————————————————
 

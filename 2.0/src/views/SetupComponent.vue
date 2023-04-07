@@ -34,40 +34,29 @@ import OtherComponent from "./OtherComponent.vue";
 import { directiveA } from "./directiveA";
 
 // emit————————————————————————
-
 const emit1 = defineEmits([
   // emitA类型注释
   "emitA",
 ]);
 function emitA(value) {
-  // emitA触发注释
+  // emitA触发注释，获取不到
   emit1("emitA", value);
 }
 
 const emit2 = defineEmits({
   // emitB类型注释
-  emitB: String,
+  emitB(payload) {
+    return typeof payload === "string";
+  },
+  // emitC注释
+  emitC: [String, Number, (value) => typeof value === "number"],
 });
-function emitB(value) {
-  // emitB触发注释
-  emit2("emitB", value);
-}
 
-const { emit: emit3 } = useContext<{ emitC: number }>();
-function emitC(value) {
-  // emitC触发注释
-  emit3("emitC", value);
-}
-
-interface Emits {
+interface EmitD {
   // 类型注释
-  emitD: string[];
+  (e: "emitD", value: string[] | number): void;
 }
-const emit4 = defineEmits<Emits>();
-function emitD(value) {
-  // emitD触发注释
-  emit4("emitD", value);
-}
+const emit4 = defineEmits<EmitD>();
 
 // 生命周期————————————————————————
 
