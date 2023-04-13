@@ -20,24 +20,96 @@
     }}
     <div2 v-if="a"></div2>
     <div3 v-else></div3>
+    <!-- scopeNames:['value', 'key', 'index'] -->
     <dvi4 v-for="(value, key, index) in d" :key="index"></dvi4>
+    <!-- valueName:'propA | filterA | filterB' -->
     <div5 :style="propA | filterA | filterB">
-      <div6 slot-scope="scope">{{ scope.row }}</div6>
-      <div7 slot="slotName">1</div7>
-      <slot name="name"></slot>
+      <!-- 使用 -->
+      <div7 slot="header">1</div7>
+      <div6 slot-scope="scope" slot="footer">{{ scope.item }}</div6>
+      <div12 slot-scope="[{ item: item1 }]" slot="footer2">{{ item1 }}</div12>
+      <div11 slot-scope="{ item, index: [a, b, { a: c }] }" slot="footer">{{
+        `${item}${a}${b}${c}`
+      }}</div11>
+      <!-- 定义 -->
+      <slot name="header"></slot>
+      <slot name="footer" :item="item" :index="index"></slot>
     </div5>
+    <!-- 2.6之后 -->
+    <div8 v-slot:header></div8>
+    <div9 v-slot:footer="{ item, index: [a, b] }"></div9>
+    <div9 v-slot:footer="[item, { a: item2 }]"></div9>
+    <div10 v-slot:header="headerData"></div10>
   </div1>
 </template>
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
 const otherProp = ["propC"];
-
+const s = Symbol();
 export default defineComponent({
-  // filters: {
-  //   filterA(a) {
-  //     return `a:${a}`;
-  //   },
+  filters: {
+    // filterA注释
+    filterA(a) {
+      return `a:${a}`;
+    },
+  },
+  // 生命周期
+  mounted() {
+    console.log("mounted");
+  },
+
+  // provide注入 ————————————————————————————————————
+  provide: {
+    // 注释
+    provideA: "provideFromA",
+  },
+  // provide() {
+  //   let b,
+  //     s = Symbol();
+  //   return {
+  //     // 注释1
+  //     [s]: "provideFromS",
+  //     // 注释2
+  //     provideA: "provideFromA",
+  //   };
   // },
+
+  // inject捕获 ————————————————————————————————————
+  // inject: [
+  //   // 注释injectA
+  //   "injectA",
+  //   "injectB",
+  // ],
+  inject: {
+    // 注释injectA
+    injectA: {
+      from: "injectAFrom",
+      default: () => "injectADefault",
+    },
+    injectB: s,
+  },
+
+  // methods ————————————————————————————————————
+  // emits: ["emitA"],
+  emits: {
+    // emitB注释
+    emitB: null,
+    // emitA注释
+    emitA(emitValue: string, emitValue2) {
+      return typeof emitValue === "string" && emitValue2;
+    },
+    // emitC注释
+    emitC({ emitValue, emitValue2 }) {
+      return typeof emitValue === "string" && emitValue2;
+    },
+  },
+  methods: {
+    doSome() {
+      this.$emit("emitA");
+    },
+  },
+  // computed ————————————————————————————————————
+
   // computed: {
   //   // computedA注释
   //   computedA: {

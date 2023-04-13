@@ -6,12 +6,15 @@
 <script lang="ts">
 import {
   Component,
+  Emit,
   Inject,
+  InjectReactive,
   Model,
   ModelSync,
   Prop,
   PropSync,
   Provide,
+  ProvideReactive,
   VModel,
   Vue,
 } from "vue-property-decorator";
@@ -68,8 +71,40 @@ export default class HomeView extends Vue {
   @Inject({ from: "injectCFrom", default: "default" })
   readonly injectC!: string;
 
-  // 不支持
+  // 支持 injectFrom = [symbol]
   @Inject(symbol) readonly injectD!: string;
+
+  // ProvideReactiveA注释
+  @ProvideReactive() ProvideReactiveA = "ProvideReactiveA";
+
+  // InjectReactiveA注释
+  @InjectReactive() InjectReactiveA!: string;
+
+  // ——————————————————————————————————————
+
+  // emitA注释1
+  @Emit()
+  // emitA注释2
+  emit1(n: number, m: string | number, o) {
+    return n as number;
+  }
+
+  @Emit("emit2")
+  emit2() {
+    console.log("emit2");
+  }
+
+  @Emit()
+  // emit('emit3',10)
+  emit3() {
+    return 10;
+  }
+
+  @Emit()
+  // emit('emit-four',e.target.value,e)
+  emitFour(e) {
+    return e.target.value;
+  }
 
   // ——————————————————————————————————————
 

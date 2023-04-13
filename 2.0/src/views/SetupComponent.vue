@@ -10,19 +10,15 @@ import { computed, inject, onMounted, provide, reactive, ref } from "vue";
 // keyCodes
 // extends
 // directive 自定义指令的含义
+// mixin
 // import 全局搜索导入注释
 // 全局搜索类型，类型的ts具体形态
-// model 的定义，script setup 需要用两个 script
 // component 组件名\option name
 // vue.use 注册的全局东西,不考虑
-// mixin 不考虑
 // Vue.myGlobalMethod Vue方法、属性，不考虑
 // Vue.prototype.$myMethod 实例方法或属性，不考虑
 // Vue.observable 让一个对象可响应，不考虑
-// 生命周期
-// provide/inject
 // slot、scopeSlots
-// emit
 // bus总线 vue.$on vue.$emit 等,不考虑
 
 // import————————————————————————
@@ -48,13 +44,13 @@ const emit2 = defineEmits({
   emitB(payload) {
     return typeof payload === "string";
   },
-  // emitC注释
+  // emitC注释，校验满足数组的其中一个就行
   emitC: [String, Number, (value) => typeof value === "number"],
 });
 
 interface EmitD {
   // 类型注释
-  (e: "emitD", value: string[] | number): void;
+  (e: "emitD", value: string[] | number, value2: number): void;
 }
 const emit4 = defineEmits<EmitD>();
 
@@ -186,11 +182,19 @@ const {
 } = getDataHAndI();
 
 const {
+  // dataO注释
+  dataO,
   // dataK注释
   a: dataK,
-  // dataL注释
-  b: dataL,
-} = { a: ref("") };
+  b: [
+    // dataL注释
+    dataL,
+    {
+      // dataN注释
+      a: dataN,
+    },
+  ],
+} = { a: ref(""), dataO: ref(""), b: [ref(""), { a: ref("") }] };
 
 // prop ————————————————————————
 interface Props {
