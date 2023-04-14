@@ -540,17 +540,22 @@ linter.defineRule("my-rule", {
 
 		// ——————————————————————————————————————————————————————————————
 
-		function getInjectFromAndDefault(inject) {
-			if (inject === undefined) return [inject.key.name, undefined]
-			if (inject.type === 'Literal') return [inject.raw, undefined]
-			if (inject.type === 'ObjectExpression') {
-				return inject.properties.reduce((p, c) => {
+		function getInjectFromAndDefaultFromInjectOption(injectOption, injectName) {
+			if (injectOption === undefined) return [injectName, undefined]
+			// 常量字符串
+			if (injectOption.type === 'Literal') return [injectOption.raw, undefined]
+			// 对象
+			if (injectOption.type === 'ObjectExpression') {
+				const ret = injectOption.properties.reduce((p, c) => {
 					if (c.key.name === 'from') p[0] = c.value.raw
 					if (c.key.name === 'default') p[1] = sourceCode.getText(c.value)
 					return p
 				}, [undefined, undefined])
+				if (!ret[0]) ret = injectName
+				return ret
 			}
-			if (inject.type === 'Identifier') return [`[${inject.name}]`, undefined]
+			// 变量名
+			if (injectOption.type === 'Identifier') return [`[${injectOption.name}]`, undefined]
 			return [undefined, undefined]
 		}
 		// {injectName,injectFrom,injectDefault,injectComment}
@@ -876,8 +881,7 @@ linter.defineRule("my-rule", {
 					':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=InjectReactive])'(node) {
 						const inject = node.parent
 						const injectName = inject.key.name
-						// TODO:这里有问题
-						const [injectFrom, injectDefault] = getInjectFromAndDefault(inject.decorators[0].expression.arguments[0])
+						const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(node.expression.arguments[0], injectName)
 						const decoratorComments = sourceCode.getCommentsBefore(node)
 						const injectComments = sourceCode.getCommentsAfter(node)
 						const injectComment = commentsToText([...decoratorComments, ...injectComments])
@@ -1017,7 +1021,7 @@ linter.defineRule("my-rule", {
 								if (optionValue.type === 'ObjectExpression') {
 									optionValue.properties.forEach(inject => {
 										const injectName = inject.key.name
-										const [injectFrom, injectDefault] = getInjectFromAndDefault(inject.value)
+										const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(inject.value, injectName)
 										const injectComments = sourceCode.getCommentsBefore(inject)
 										const injectComment = commentsToText(injectComments)
 										const injectInfo = {

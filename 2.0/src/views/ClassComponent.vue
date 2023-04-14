@@ -79,6 +79,11 @@ export default class HomeView extends Vue {
 
   // InjectReactiveA注释
   @InjectReactive() InjectReactiveA!: string;
+  // InjectReactiveB注释
+  @InjectReactive("InjectReactiveBFrom") InjectReactiveB!: string;
+  // InjectReactiveC注释
+  @InjectReactive({ from: "InjectReactiveCFrom", default: () => "1" })
+  InjectReactiveC!: string;
 
   // ——————————————————————————————————————
 
