@@ -8,7 +8,7 @@ const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const tsUtils = require('./utils/ts-ast-utils')
-const { findVariable } = require('eslint-utils')
+// const { findVariable } = require('eslint-utils')
 // const variable = findVariable(context.getScope(), provide.key)
 const linter = new Linter()
 const parserOptions = {
@@ -30,31 +30,6 @@ linter.defineRule("my-rule", {
 	create(context) {
 		const sourceCode = context.getSourceCode()
 
-		/**
-		 * template 中获取 {{ }} 节点的 name 和 type
-		 * 不支持 {{ val.id + index }} 、 {{ `${val.id}${index}` }} 、 {{ "111" }}
-		 * @param {*} VExpressionContainer 
-		 * @returns 
-		 */
-		function getVExpressionContainerNameAndType(VExpressionContainer) {
-
-			// 绑定值是变量，[函数名、变量名,'Identifier']
-			if (VExpressionContainer.expression.type === 'Identifier') return [VExpressionContainer.expression.name, VExpressionContainer.expression.type]
-
-			// 绑定值是函数调用,[函数名,'CallExpression']
-			// 函数调用可以层层嵌套的，这里不支持嵌套，只读取第一层的函数名
-			if (VExpressionContainer.expression.type === 'CallExpression') {
-				return [VExpressionContainer.expression.callee.name, VExpressionContainer.expression.type]
-			}
-
-			// 表达式直接返回文本、filter
-			if (['MemberExpression', 'VFilterSequenceExpression'].includes(VExpressionContainer.expression.type)) {
-				return [sourceCode.getText(VExpressionContainer.expression), VExpressionContainer.expression.type]
-			}
-
-			// 其他
-			return [undefined, VExpressionContainer.expression.type]
-		}
 		/**
 		 * 将注释节点拼装成注释字符串
 		 * @param {*} comments 
@@ -136,7 +111,7 @@ linter.defineRule("my-rule", {
 			return nodeComments
 		}
 		/**
-		 * 获取 template 当前节点前的注释文本
+		 * 获取 template 当前节点前的注释文本，空白的换行节点会被跳过，例如OptionsComponent种VText的上一行
 		 * @param {*} node 
 		 * @returns 
 		 */
@@ -145,14 +120,14 @@ linter.defineRule("my-rule", {
 			const elementComment = commentsToText(elementComments)
 			return elementComment
 		}
-		// 遍历结构对象，支持数组和对象结构对象
+		// 遍历解构对象，支持数组和对象结构对象，传入最终解构的键值对，例如：{a:[b],c:{d:e}} 最终 callBack接收到 b \ d:e
 		function forEachPattern(pattern, callBack) {
 			pattern.forEach(p => {
 				const patternItemValue = p.value
 				if (patternItemValue) {
 					// 遍历的当前项是对象
 					if (patternItemValue.type === 'Identifier') {
-						callBack(patternItemValue)
+						callBack(p)
 					}
 					if (patternItemValue.type === 'ArrayPattern') {
 						forEachPattern(patternItemValue.elements, callBack)
@@ -174,56 +149,98 @@ linter.defineRule("my-rule", {
 				}
 			})
 		}
+		// 获取所有解构语法的最终变量名，例如：{a:[b],c:{d:e}} 最终返回 [b,e]
+		function getPatternNames(expression) {
+			const scopeName = []
+			forEachPattern(expression, (item) => {
+				if (item.type === 'Identifier') {
+					scopeName.push(item.name)
+				} else {
+					scopeName.push(item.value.name)
+				}
+			})
+			return scopeName
+		}
 		/**
-		 * 获取 template 的 attributes
-		 * @param {*} attributeValue 
-		 * @returns [valueName, valueType, vForLeft]
+		 * 获取函数调用的函数名和参数
+		 * 支持连续调用，不支持多个参数
+		 * 不支持多参数 :style="c(d(a.b), a)"，支持 c(d(a.b))=>[a.b,[c,d]]
+		 * @param {*} callExpression 
+		 * @param {*} names 
 		 */
-		function getAttrInfo(attributeValue) {
+		function getCallExpressionNamesAndParams(callExpression, names = []) {
+			const funName = callExpression.callee.name
+			const arguments = callExpression.arguments
+			names.push(funName)
+			if (arguments && arguments.length === 1) {
+				const argument = arguments[0]
+				if (argument.type === 'CallExpression') {
+					return getCallExpressionNamesAndParams(argument, names)
+				} else {
+					const params = argument.type === 'MemberExpression' ? sourceCode.getText(argument) : undefined
+					return [params, names]
+				}
+			} else {
+				return [undefined, names]
+			}
+		}
+		/**
+		 * 获取绑定值的信息
+		 * @param {*} expression 
+		 * @returns [valueName, valueType,scopeName, callNames]
+		 */
+		function getExpressionInfo(expression) {
 			// 只有属性没有值时，例如 v-else
-			if (!attributeValue) return []
+			if (!expression) return []
 
 			// 没有绑定，直接是赋值常量，数值、字符串、布尔值，[常量文本,'VLiteral']
-			if (attributeValue.type === 'VLiteral') return [attributeValue.value, attributeValue.type]
+			if (expression.type === 'VLiteral') return [expression.value, expression.type]
 
-			// 绑定值是变量，[函数名、变量名(不带引号),'Identifier']
-			if (attributeValue.expression.type === 'Identifier') return [attributeValue.expression.name, attributeValue.expression.type]
+			// 绑定指是常量
+			if (expression.expression.type === 'Literal') {
+				return [expression.expression.raw, expression.expression.type]
+			}
+
+			// 绑定值是变量（函数或变量），[变量名(不带引号),'Identifier']
+			if (expression.expression.type === 'Identifier') return [expression.expression.name, expression.expression.type]
+
+			// 表达式(e.a)直接返回文本
+			if (['MemberExpression'].includes(expression.expression.type)) {
+				return [sourceCode.getText(expression.expression), expression.expression.type]
+			}
 
 			// 绑定值是函数调用,[函数名,'CallExpression']
 			// 函数调用可以层层嵌套的，这里不支持嵌套，只读取第一层的函数名
-			if (attributeValue.expression.type === 'CallExpression') {
-				return [attributeValue.expression.callee.name, attributeValue.expression.type]
+			// 不支持 :style="c(d(a.b), a)"，:style="c()"
+			// 支持 c(d(a.b))
+			if (expression.expression.type === 'CallExpression') {
+				const [valueName, callNames] = getCallExpressionNamesAndParams(expression.expression)
+				return [valueName, expression.expression.type, undefined, callNames]
+			}
+
+			// filter filter的顺序做了颠倒和函数一致符合它的调用顺序
+			if ('VFilterSequenceExpression' === expression.expression.type) {
+				const callNames = expression.expression.filters.map(f => f.callee.name).reverse()
+				const valueName = expression.expression.expression.name
+				return [valueName, expression.expression.type, undefined, callNames]
 			}
 
 			// 绑定值是v-for的值，[遍历的对象，'VForExpression'，遍历的项名[]]
 			// 遍历的对象只支持变量
 			// 遍历的项名[]，例如 (val, name, index) in object => [val,name,index]
-			if (attributeValue.expression.type === 'VForExpression') {
-				return [attributeValue.expression.right.type === 'Identifier' ? attributeValue.expression.right.name : undefined, attributeValue.expression.type, attributeValue.expression.left.map(l => l.name)]
-			}
-
-			// 表达式直接返回文本、绑定filter
-			if (['MemberExpression', 'VFilterSequenceExpression'].includes(attributeValue.expression.type)) {
-				return [sourceCode.getText(attributeValue.expression), attributeValue.expression.type]
+			if (expression.expression.type === 'VForExpression') {
+				return [expression.expression.right.type === 'Identifier' ? expression.expression.right.name : undefined, expression.expression.type, getPatternNames(expression.expression.left)]
 			}
 
 			// 绑定值是slot-scope或v-slot
-			if (attributeValue.expression.type === 'VSlotScopeExpression') {
-				const scopeNames = attributeValue.expression.params.reduce((p, c) => {
-					const pushNames = (patternItemValue) => {
-						p.push(patternItemValue.name)
-					}
-					forEachPattern([c], pushNames)
-					return p
-				}, [])
-				return [attributeValue.parent.key.name.name, attributeValue.expression.type, scopeNames]
+			if (expression.expression.type === 'VSlotScopeExpression') {
+				const scopeNames = getPatternNames(expression.expression.params)
+				return [expression.parent.key.name.name, expression.expression.type, scopeNames]
 			}
 
-
-
 			// 其他，不支持
-			// 例如：:a="'1'"
-			return [undefined, attributeValue.expression.type]
+			// 例如：:a="'1'"，:class1="{ a }"
+			return [undefined, expression.expression.type]
 		}
 		/**
 		 * 添加 templateInfo 信息到 templateMap 中
@@ -241,17 +258,17 @@ linter.defineRule("my-rule", {
 		}
 
 
-
+		// {templateName,templateCallNames,templateType,attributes,templateComment,children}
 		const templateMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
 
-		function getPropType(decoratorArgumentTypeValue) {
-			switch (decoratorArgumentTypeValue.type) {
+		function getPropType(typeValue) {
+			switch (typeValue.type) {
 				case 'Identifier':
-					return [decoratorArgumentTypeValue.name]
+					return [typeValue.name]
 				case 'ArrayExpression':
-					return decoratorArgumentTypeValue.elements.map(e => e.name)
+					return typeValue.elements.map(e => e.name)
 				default:
 					return []
 			}
@@ -262,7 +279,7 @@ linter.defineRule("my-rule", {
 		 * @param {*} prop 
 		 * @returns 
 		 */
-		function getPropOptionInfo(propOption, prop) {
+		function getPropInfoFromOption(propOption, prop) {
 			let propDefault, propType, propRequired
 			// option 中的 prop 可以没有参数
 			if (propOption) {
@@ -300,10 +317,9 @@ linter.defineRule("my-rule", {
 			if (prop && prop.typeAnnotation) {
 				if (!propType) {
 					const typeAnnotation = prop.typeAnnotation.typeAnnotation
-					// TODO: tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
+					// FIXMEi: tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
 					// tsUtils.inferRuntimeType 支持在本文件递归查找类型的实际定义，从而获取对应的运行时类型
-					const runtimeType = tsUtils.inferRuntimeType(context, typeAnnotation)
-					typeAnnotation = runtimeType
+					typeAnnotation = tsUtils.inferRuntimeType(context, typeAnnotation)
 				}
 				if (propRequired === undefined) {
 					propRequired = !prop.optional
@@ -321,7 +337,7 @@ linter.defineRule("my-rule", {
 
 			props.forEach(prop => {
 				const propName = prop.propName
-				const [propDefault, propType, propRequired] = getPropOptionInfo(prop.value)
+				const [propDefault, propType, propRequired] = getPropInfoFromOption(prop.value)
 				const propComments = sourceCode.getCommentsBefore(prop.key)
 				const propComment = commentsToText(propComments)
 				const propInfo = {
@@ -419,10 +435,10 @@ linter.defineRule("my-rule", {
 				// 当变量的左边是数组解构或对象解构时
 				// 例如：const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
 				if (['ObjectPattern', 'ArrayPattern'].includes(id.type)) {
-					forEachPattern([id], (pattern) => {
-						if (pattern.type === 'Identifier') {
-							const setupName = pattern.name
-							const hasCommentNode = pattern.parent.type === 'ArrayPattern' ? pattern : pattern.parent
+					forEachPattern([id], (item) => {
+						if (item.value.type === 'Identifier') {
+							const setupName = item.value.name
+							const hasCommentNode = item.type === 'ArrayPattern' ? item.value : item
 							const setupComments = sourceCode.getCommentsBefore(hasCommentNode)
 							const setupComment = commentsToText(setupComments)
 							const setupInfo = {
@@ -480,21 +496,12 @@ linter.defineRule("my-rule", {
 			}
 		}
 
+		// {emitName,emitType,emitComment}
 		const emitMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
 
-		function provideSetDataMap(provideDecoratorNode, dataMap) {
-			const provide = provideDecoratorNode.parent
-			const dataName = provide.key.name
-			const dataComments = sourceCode.getCommentsAfter(provideDecoratorNode)
-			const dataComment = commentsToText(dataComments)
-			const dataInfo = {
-				dataName,
-				dataComment
-			}
-			dataMap.set(dataName, dataInfo)
-		}
+		// {dataName,dataComment}
 		const dataMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
@@ -503,24 +510,12 @@ linter.defineRule("my-rule", {
 
 		// ——————————————————————————————————————————————————————————————
 
+		// {methodName,methodComment}
 		const methodMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
 
-		function classComponentSetProvideMap(provideDecoratorNode, provideMap) {
-			const provide = provideDecoratorNode.parent
-			const provideName = provideDecoratorNode.expression.arguments.length ? provideDecoratorNode.expression.arguments[0].value : provide.key.name
-			const decoratorComments = sourceCode.getCommentsBefore(provideDecoratorNode)
-			const dataComments = sourceCode.getCommentsAfter(provideDecoratorNode)
-			const provideComment = commentsToText([...decoratorComments, ...dataComments])
-			// classComponent 中 provide 包含了对应 data 的注释，所以不需要 provideFromKey
-			const provideInfo = {
-				provideName,
-				provideFromKey: undefined,
-				provideComment
-			}
-			provideMap.set(provideName, provideInfo)
-		}
+
 		// 遍历对象添加provideMap
 		function objectExpressionSetProvideMap(properties, provideMap) {
 			return properties.forEach(provide => {
@@ -545,17 +540,17 @@ linter.defineRule("my-rule", {
 
 		// ——————————————————————————————————————————————————————————————
 
-		function getInjectFromAndDefault(objectExpression) {
-			if (objectExpression === undefined) return [objectExpression.key.name, undefined]
-			if (objectExpression.type === 'Literal') return [objectExpression.raw, undefined]
-			if (objectExpression.type === 'ObjectExpression') {
-				return objectExpression.properties.reduce((p, c) => {
+		function getInjectFromAndDefault(inject) {
+			if (inject === undefined) return [inject.key.name, undefined]
+			if (inject.type === 'Literal') return [inject.raw, undefined]
+			if (inject.type === 'ObjectExpression') {
+				return inject.properties.reduce((p, c) => {
 					if (c.key.name === 'from') p[0] = c.value.raw
 					if (c.key.name === 'default') p[1] = sourceCode.getText(c.value)
 					return p
 				}, [undefined, undefined])
 			}
-			if (objectExpression.type === 'Identifier') return [`[${objectExpression.name}]`, undefined]
+			if (inject.type === 'Identifier') return [`[${inject.name}]`, undefined]
 			return [undefined, undefined]
 		}
 		// {injectName,injectFrom,injectDefault,injectComment}
@@ -581,12 +576,13 @@ linter.defineRule("my-rule", {
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
 							const name = sourceCode.getText(a.key)
-							const [valueName, valueType, scopeNames] = getAttrInfo(a.value)
+							const [valueName, valueType, scopeNames, callNames] = getExpressionInfo(a.value)
 							return {
 								name,
 								valueName,
 								valueType,
-								scopeNames
+								scopeNames,
+								callNames
 							}
 						})
 						const templateComment = getTemplateCommentBefore(element)
@@ -613,9 +609,10 @@ linter.defineRule("my-rule", {
 					},
 					// 标签内{{ }}
 					'VElement>VExpressionContainer'(node) {
-						const [templateName, templateType] = getVExpressionContainerNameAndType(node)
+						const [templateName, templateType, , templateCallNames] = getExpressionInfo(node)
 						const templateInfo = {
 							templateName,
+							templateCallNames,
 							templateType,
 							attributes: undefined,
 							templateComment: getTemplateCommentBefore(node),
@@ -625,7 +622,7 @@ linter.defineRule("my-rule", {
 					}
 				},
 				// script 解析
-				// TODO:所有的 装饰器参数、prop option 必须是字面量对象
+				// FIXME:所有的 装饰器参数、prop option 必须是字面量对象
 				{
 					// class component
 					// 以下为Prop相关装饰器
@@ -637,7 +634,7 @@ linter.defineRule("my-rule", {
 						const propName = prop.key.name
 						const propOption = decoratorArgument[0]
 
-						const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, prop)
+						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
 
 						const decoratorComments = sourceCode.getCommentsBefore(node)
 						const propNameComments = sourceCode.getCommentsAfter(node)
@@ -655,13 +652,13 @@ linter.defineRule("my-rule", {
 					// class component @PropSync
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=PropSync]'(node) {
 						// prop
-						const decoratorArgument = node.expression.arguments
+						const decoratorArguments = node.expression.arguments
 						const computed = node.parent
 
-						const propName = decoratorArgument[0].value
-						const propOption = decoratorArgument[1]
+						const propName = decoratorArguments[0].value
+						const propOption = decoratorArguments[1]
 
-						const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, computed)
+						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
 
 						const decoratorComments = sourceCode.getCommentsBefore(node)
 						const computedComments = sourceCode.getCommentsAfter(node)
@@ -696,13 +693,13 @@ linter.defineRule("my-rule", {
 					},
 					// class component @Model
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Model]'(node) {
-						const decoratorArgument = node.expression.arguments
+						const decoratorArguments = node.expression.arguments
 						const prop = node.parent
 
 						const propName = prop.key.name
-						const propOption = decoratorArgument[1]
+						const propOption = decoratorArguments[1]
 
-						const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, prop)
+						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
 
 						const decoratorComments = sourceCode.getCommentsBefore(node)
 						const propComments = sourceCode.getCommentsAfter(node)
@@ -718,7 +715,7 @@ linter.defineRule("my-rule", {
 						propMap.set(propName, propInfo)
 
 						// modelOption
-						const modelEvent = decoratorArgument[0].value
+						const modelEvent = decoratorArguments[0].value
 						modelOption.event = modelEvent
 						modelOption.prop = propName
 					},
@@ -726,15 +723,15 @@ linter.defineRule("my-rule", {
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]'(node) {
 						// prop
 						const computed = node.parent
-						const decoratorArgument = node.expression.arguments
+						const decoratorArguments = node.expression.arguments
 
-						const propName = decoratorArgument[0].value
-						const propOption = decoratorArgument[2]
+						const propName = decoratorArguments[0].value
+						const propOption = decoratorArguments[2]
 
-						const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, computed)
+						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
 
 						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const propComments = sourceCode.getCommentsBefore(decoratorArgument[0])
+						const propComments = sourceCode.getCommentsBefore(decoratorArguments[0])
 						const computedComments = sourceCode.getCommentsAfter(node)
 						const propComment = commentsToText([...decoratorComments, ...propComments, ...computedComments])
 
@@ -749,7 +746,7 @@ linter.defineRule("my-rule", {
 
 						// modelOption
 						modelOption.prop = propName
-						const modelEvent = decoratorArgument[1].value
+						const modelEvent = decoratorArguments[1].value
 						modelOption.event = modelEvent
 
 						// computed
@@ -773,12 +770,12 @@ linter.defineRule("my-rule", {
 					// class component @VModel
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=VModel]'(node) {
 						const computed = node.parent
-						const decoratorArgument = node.expression.arguments
+						const decoratorArguments = node.expression.arguments
 
 						const propName = 'value'
-						const propOption = decoratorArgument[0]
+						const propOption = decoratorArguments[0]
 
-						const [propDefault, propType, propRequired] = getPropOptionInfo(propOption, computed)
+						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
 
 						const decoratorComments = sourceCode.getCommentsBefore(node)
 						const computedComments = sourceCode.getCommentsAfter(node)
@@ -808,8 +805,8 @@ linter.defineRule("my-rule", {
 						const dataComments = sourceCode.getCommentsBefore(node)
 						const dataComment = commentsToText(dataComments)
 						const dataInfo = {
-							setupName: dataName,
-							setupComment: dataComment
+							dataName,
+							dataComment
 						}
 						dataMap.set(dataName, dataInfo)
 					},
@@ -823,14 +820,14 @@ linter.defineRule("my-rule", {
 						if (['get', 'set'].includes(kind)) {
 							const computedName = node.key.name
 							const computedComments = sourceCode.getCommentsBefore(node)
-							const computedComment = commentsToText(computedComments)
+							const computedComment = `${kind}:${commentsToText(computedComments)}`
 							const oldComputed = computedMap.get(computedName)
 							if (oldComputed) {
-								oldComputed.computedComment = `${oldComputed.computedComment}\n\n${kind}:${computedComment}`
+								oldComputed.computedComment = `${oldComputed.computedComment}\n\n${computedComment}`
 							} else {
 								const computedInfo = {
 									computedName,
-									computedComment: `${kind}:${computedComment}`
+									computedComment
 								}
 								computedMap.set(computedName, computedInfo)
 							}
@@ -850,15 +847,36 @@ linter.defineRule("my-rule", {
 					// @Provide/@ProvideReactive
 					':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Provide],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ProvideReactive])'(node) {
 						// provide
-						classComponentSetProvideMap(node, provideMap)
+						const provide = node.parent
+
+						const provideName = node.expression.arguments.length ? node.expression.arguments[0].value : provide.key.name
+						const dataName = provide.key.name
+
+						const decoratorComments = sourceCode.getCommentsBefore(node)
+						const dataComments = sourceCode.getCommentsAfter(node)
+						const provideComment = commentsToText([...decoratorComments, ...dataComments])
+
+						const provideInfo = {
+							provideName,
+							provideFromKey: dataName,
+							provideComment
+						}
+						provideMap.set(provideName, provideInfo)
 
 						// data
-						provideSetDataMap(node, dataMap)
+						const dataComment = commentsToText(dataComments)
+
+						const dataInfo = {
+							dataName,
+							dataComment
+						}
+						dataMap.set(dataName, dataInfo)
 					},
 					// @Inject/@InjectReactive
 					':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=InjectReactive])'(node) {
 						const inject = node.parent
 						const injectName = inject.key.name
+						// TODO:这里有问题
 						const [injectFrom, injectDefault] = getInjectFromAndDefault(inject.decorators[0].expression.arguments[0])
 						const decoratorComments = sourceCode.getCommentsBefore(node)
 						const injectComments = sourceCode.getCommentsAfter(node)
@@ -1022,7 +1040,6 @@ linter.defineRule("my-rule", {
 
 								}
 							})
-							debugger
 						})
 					}),
 

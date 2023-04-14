@@ -1,14 +1,22 @@
 <template>
-  <!-- div1注释，不支持:a="'1'"  -->
-  <div1 class="1" :class="b" :style="c()" :a="'1'" :b="e.a">
+  <!-- div1注释-->
+  <div1
+    class="1"
+    :class="b"
+    :style="c(d(a.b))"
+    :a="'1'"
+    :b="e.a"
+    :c="propA | filterA | filterB"
+  >
     <!-- VText注释 -->
+
     VText
     <!-- VExpressionContainer注释 -->
     {{ propA | filterA }}
     {{ a }}
     {{ a.b }}
     {{ b() }}
-    <!-- 不支持"1" -->
+    <!-- 支持"1" -->
     {{ "1" }}
     <!-- 不支持`${d}` -->
     {{ `${d}` }}
@@ -21,7 +29,8 @@
     <div2 v-if="a"></div2>
     <div3 v-else></div3>
     <!-- scopeNames:['value', 'key', 'index'] -->
-    <dvi4 v-for="(value, key, index) in d" :key="index"></dvi4>
+    <dvi4 v-for="({ item }, key, index) in d" :key="index">{{ item }}</dvi4>
+    <dvi13 v-for="(value, key, index) in d" :key="index">{{ value }}</dvi13>
     <!-- valueName:'propA | filterA | filterB' -->
     <div5 :style="propA | filterA | filterB">
       <!-- 使用 -->
