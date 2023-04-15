@@ -518,8 +518,8 @@ linter.defineRule("my-rule", {
 		// ——————————————————————————————————————————————————————————————
 
 
-		// 遍历对象添加provideMap
-		function objectExpressionSetProvideMap(properties, provideMap) {
+		// 遍历options中provide的对象添加provideMap
+		function forEachProvideOptionSetProvideMap(properties, provideMap) {
 			return properties.forEach(provide => {
 				let provideName = provide.key.name
 				// 如果对象中的key是[变量]的形式
@@ -997,12 +997,12 @@ linter.defineRule("my-rule", {
 							if (optionKeyName === 'provide') {
 								// provide是对象
 								if (optionValue.type === 'ObjectExpression') {
-									objectExpressionSetProvideMap(optionValue.properties, provideMap)
+									forEachProvideOptionSetProvideMap(optionValue.properties, provideMap)
 								}
 								if (optionValue.type === 'FunctionExpression') {
 									const funBody = optionValue.body.body
 									const funRet = funBody.find(f => f.type === 'ReturnStatement')
-									objectExpressionSetProvideMap(funRet.argument.properties, provideMap)
+									forEachProvideOptionSetProvideMap(funRet.argument.properties, provideMap)
 								}
 							}
 
