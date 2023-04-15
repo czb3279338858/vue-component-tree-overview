@@ -317,7 +317,7 @@ linter.defineRule("my-rule", {
 			if (prop && prop.typeAnnotation) {
 				if (!propType) {
 					const typeAnnotation = prop.typeAnnotation.typeAnnotation
-					// FIXMEi: tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
+					// FIXME: tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
 					// tsUtils.inferRuntimeType 支持在本文件递归查找类型的实际定义，从而获取对应的运行时类型
 					typeAnnotation = tsUtils.inferRuntimeType(context, typeAnnotation)
 				}
@@ -332,7 +332,7 @@ linter.defineRule("my-rule", {
 		 * @param {*} props 
 		 * @returns 
 		 */
-		function getDefinePropsInfoMap(props) {
+		function getPropInfoFromProps(props) {
 			const propMap = new Map()
 
 			props.forEach(prop => {
@@ -457,6 +457,8 @@ linter.defineRule("my-rule", {
 		// ——————————————————————————————————————————————————————————————
 
 		// 生命周期
+		// {lifecycleHookName,lifecycleHookComment}
+		// lifecycleHookName在setup中带on，在options、class中不带，
 		const lifecycleHookMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
@@ -848,6 +850,7 @@ linter.defineRule("my-rule", {
 							}
 							methodMap.set(methodName, methodInfo)
 						}
+						// TODO:生命周期
 					},
 					// @Provide/@ProvideReactive
 					':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Provide],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ProvideReactive])'(node) {
@@ -899,6 +902,7 @@ linter.defineRule("my-rule", {
 						const emitFun = node.parent
 						const emitName = casing.kebabCase(decoratorArgument ? decoratorArgument.value : emitFun.key.name)
 						const emitFunArguments = emitFun.value.params
+
 						const emitType = emitFunArguments.map(e => {
 							const typeAnnotation = e.typeAnnotation
 							if (typeAnnotation) {
@@ -913,12 +917,12 @@ linter.defineRule("my-rule", {
 						if (emitFunRet) {
 							let type = undefined
 							const emitFunRetArgument = emitFunRet.argument
-							// TODO: 感觉要写个this.data等获取data名的方法
-							if (emitFunRetArgument.type === 'Literal') {
-								type = emitFunRetArgument.raw
-							}
 							if (emitFunRetArgument.typeAnnotation) {
 								type = tsUtils.inferRuntimeType(context, emitFunRet.argument.typeAnnotation)
+							} else {
+								if (emitFunRetArgument.type === 'Literal') {
+									type = emitFunRetArgument.raw
+								}
 							}
 							emitType.unshift(type)
 						}
@@ -938,10 +942,10 @@ linter.defineRule("my-rule", {
 					// 可以在一个Vue组件 option 上执行一个回调函数
 					...utils.executeOnVueComponent(context, (optionNode) => {
 						// props
-						// TODO: utils.getComponentPropsFromOptions(optionNode) 只能获取 props 中的字面量
-						// TODO: utils.getComponentPropsFromOptions(optionNode) 返回中包含 PropType 指向的具体类型，目前只获取运行时类型，不获取ts类型
+						// FIXME: utils.getComponentPropsFromOptions(optionNode) 只能获取 props 中的字面量
+						// FIXME: utils.getComponentPropsFromOptions(optionNode) 返回中包含 PropType 指向的具体类型，目前只获取运行时类型，不获取ts类型
 						const props = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
-						propMap = new Map([...propMap, ...getDefinePropsInfoMap(props)])
+						propMap = new Map([...propMap, ...getPropInfoFromProps(props)])
 
 						optionNode.properties.forEach(option => {
 							const optionKeyName = option.key.name
@@ -1059,7 +1063,7 @@ linter.defineRule("my-rule", {
 								if (prop.type === 'type') withDefaultsDefineProps.push(prop)
 								else defineProps.push(prop)
 							})
-							const otherPropMap = getDefinePropsInfoMap(defineProps)
+							const otherPropMap = getPropInfoFromProps(defineProps)
 							const withDefaultsPropMap = getWithDefaultsDefinePropsInfoMap(withDefaultsDefineProps, node.parent.arguments)
 
 							propMap = new Map([...propMap, ...otherPropMap, ...withDefaultsPropMap])
