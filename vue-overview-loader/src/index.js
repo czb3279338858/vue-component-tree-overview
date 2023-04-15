@@ -1039,7 +1039,7 @@ linter.defineRule("my-rule", {
 								}
 							}
 
-							// emit
+							// TODO:emit
 							const emits = utils.getComponentEmitsFromOptions(optionNode)
 							emits.forEach(emit => {
 								const emitValue = emit.value
