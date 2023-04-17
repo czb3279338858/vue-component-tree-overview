@@ -329,16 +329,16 @@ linter.defineRule("my-rule", {
 		}
 		/**
 		 * 从 utils.getComponentPropsFromOptions 返回的 props 中提取 propInfo
-		 * @param {*} props 
+		 * @param {*} propList 
 		 * @returns 
 		 */
-		function getPropInfoFromProps(props) {
+		function getPropMapFromPropList(propList) {
 			const propMap = new Map()
 
-			props.forEach(prop => {
-				const propName = prop.propName
-				const [propDefault, propType, propRequired] = getPropInfoFromOption(prop.value)
-				const propComments = sourceCode.getCommentsBefore(prop.key)
+			propList.forEach(propOption => {
+				const propName = propOption.propName
+				const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption.value)
+				const propComments = sourceCode.getCommentsBefore(propOption.key)
 				const propComment = commentsToText(propComments)
 				const propInfo = {
 					propName,
@@ -354,18 +354,18 @@ linter.defineRule("my-rule", {
 		/**
 		 * script setup 中 withDefaults(defineProps<Props>(), {}) 获取 propInfo
 		 * @param {*} props 
-		 * @param {*} withDefaultsArguments 
+		 * @param {*} withDefaultsParams 
 		 * @returns 
 		 */
-		function getWithDefaultsDefinePropsInfoMap(props, withDefaultsArguments) {
+		function getPropMapFromTypePropList(props, withDefaultsParams) {
 			const propMap = new Map()
 
-			const propsDefaultNode = (withDefaultsArguments && withDefaultsArguments[1]) ? withDefaultsArguments[1].properties : []
+			const propDefaultNodes = (withDefaultsParams && withDefaultsParams[1]) ? withDefaultsParams[1].properties : []
 
 			props.forEach(prop => {
 				const propName = prop.propName
 
-				const propDefaultNode = propsDefaultNode.find(p => p.key.name === propName)
+				const propDefaultNode = propDefaultNodes.find(p => p.key.name === propName)
 				const propDefault = propDefaultNode ? sourceCode.getText(propDefaultNode.value) : undefined
 
 				const propType = prop.types
@@ -414,18 +414,18 @@ linter.defineRule("my-rule", {
 			// 遍历允许添加到 setupMap 的变量定义
 			// declarations:例如：const provideData = ref(""); => provideData = ref("")
 			needAddSetupMapDeclarations.forEach(declarations => {
-				const id = declarations.id
+				const left = declarations.id
 				// 当变量的左边是常量时
 				// 例如：dataG = ref("") => dataG 的 id.type === 'Identifier'
-				if (id.type === 'Identifier') {
-					const setupName = id.name
-					let variableDeclarationComments = []
+				if (left.type === 'Identifier') {
+					const setupName = left.name
+					let declarationComments = []
 					if (!isRecursion) {
-						const variableDeclarationNode = declarations.parent
-						variableDeclarationComments = sourceCode.getCommentsBefore(variableDeclarationNode)
+						const declarationNode = declarations.parent
+						declarationComments = sourceCode.getCommentsBefore(declarationNode)
 					}
-					const idComments = sourceCode.getCommentsBefore(id)
-					const setupComment = commentsToText([...variableDeclarationComments, ...idComments])
+					const leftComments = sourceCode.getCommentsBefore(left)
+					const setupComment = commentsToText([...declarationComments, ...leftComments])
 					const setupInfo = {
 						setupName,
 						setupComment
@@ -434,12 +434,13 @@ linter.defineRule("my-rule", {
 				}
 				// 当变量的左边是数组解构或对象解构时
 				// 例如：const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
-				if (['ObjectPattern', 'ArrayPattern'].includes(id.type)) {
-					forEachPattern([id], (item) => {
-						if (item.value.type === 'Identifier') {
-							const setupName = item.value.name
-							const hasCommentNode = item.type === 'ArrayPattern' ? item.value : item
-							const setupComments = sourceCode.getCommentsBefore(hasCommentNode)
+				if (['ObjectPattern', 'ArrayPattern'].includes(left.type)) {
+					forEachPattern([left], (patternItem) => {
+						if (patternItem.value.type === 'Identifier') {
+							const setupName = patternItem.value.name
+							// const [dataD, dataE] = [ref("")]; 和 const {a}={a:1} => dataD,dataE,a
+							const patternKey = patternItem.type === 'ArrayPattern' ? patternItem.value : patternItem
+							const setupComments = sourceCode.getCommentsBefore(patternKey)
 							const setupComment = commentsToText(setupComments)
 							const setupInfo = {
 								setupName,
@@ -469,28 +470,31 @@ linter.defineRule("my-rule", {
 		// ——————————————————————————————————————————————————————————————
 
 		// 当 defineEmits 参数是对像时获取 value 的类型
-		function getObjectEmitValueType(value) {
-			const valueType = value.type
+		function getEmitTypeFromObjectParam(paramValue) {
+			const paramType = paramValue.type
 
-			if (['FunctionExpression'].includes(valueType)) return [sourceCode.getText(value.parent)]
+			if (paramType === 'ArrayExpression') return [paramValue.elements.map(element => getEmitTypeFromObjectParam(element)[0])]
+
+			if (['FunctionExpression'].includes(paramType)) return [sourceCode.getText(paramValue.parent)]
 
 			// ArrowFunctionExpression 箭头函数
-			if ('ArrowFunctionExpression' === valueType) return [sourceCode.getText(value)]
+			if ('ArrowFunctionExpression' === paramType) return [sourceCode.getText(paramValue)]
 
-			if (valueType === 'Identifier') return [value.name]
-
-			if (valueType === 'ArrayExpression') return [value.elements.map(element => getObjectEmitValueType(element)[0])]
+			if (paramType === 'Identifier') return [paramValue.name]
 		}
 		// 获取 emit 抛出参数的运行时类型
-		function getEmitTypes(emit) {
-			const emitType = emit.type
-			if (emitType === 'array') return undefined
-			if (emitType === 'object') {
-				return getObjectEmitValueType(emit.value)
+		function getEmitType(emit) {
+			const defineEmitsParamType = emit.type
+			// defineEmits参数是数组
+			if (defineEmitsParamType === 'array') return undefined
+			// 参数是对象
+			if (defineEmitsParamType === 'object') {
+				return getEmitTypeFromObjectParam(emit.value)
 			}
-			if (emitType === 'type') {
-				const params = emit.node.params.slice(1)
-				if (params) return params.reduce((p, param) => {
+			// 类型
+			if (defineEmitsParamType === 'type') {
+				const typeFunParams = emit.node.params.slice(1)
+				if (typeFunParams) return typeFunParams.reduce((p, param) => {
 					const type = tsUtils.inferRuntimeType(context, param.typeAnnotation.typeAnnotation)
 					p.push(type)
 					return p
@@ -944,8 +948,8 @@ linter.defineRule("my-rule", {
 						// props
 						// FIXME: utils.getComponentPropsFromOptions(optionNode) 只能获取 props 中的字面量
 						// FIXME: utils.getComponentPropsFromOptions(optionNode) 返回中包含 PropType 指向的具体类型，目前只获取运行时类型，不获取ts类型
-						const props = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
-						propMap = new Map([...propMap, ...getPropInfoFromProps(props)])
+						const propList = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
+						propMap = new Map([...propMap, ...getPropMapFromPropList(propList)])
 
 						optionNode.properties.forEach(option => {
 							const optionKeyName = option.key.name
@@ -1054,21 +1058,21 @@ linter.defineRule("my-rule", {
 					// script setup 中
 					...utils.defineScriptSetupVisitor(context, {
 						// prop
-						onDefinePropsEnter(node, props) {
+						onDefinePropsEnter(node, propList) {
 							// 目前 defineProps 在 script setup 中只能使用一次，onDefinePropsEnter 只会获取第一个 defineProps，下面的方法兼容defineProps 被多次使用时
-							// TODO: 这里的 props 包含了类型，但是现在只提取运行时
-							let withDefaultsDefineProps = []
-							let defineProps = []
-							props.forEach(prop => {
-								if (prop.type === 'type') withDefaultsDefineProps.push(prop)
-								else defineProps.push(prop)
+							// FIXME: 这里的 props 包含了类型，但是现在只提取运行时
+							let typePropList = []
+							let optionPropList = []
+							propList.forEach(prop => {
+								if (prop.type === 'type') typePropList.push(prop)
+								else optionPropList.push(prop)
 							})
-							const otherPropMap = getPropInfoFromProps(defineProps)
-							const withDefaultsPropMap = getWithDefaultsDefinePropsInfoMap(withDefaultsDefineProps, node.parent.arguments)
+							const optionPropMap = getPropMapFromPropList(optionPropList)
+							const typePropMap = getPropMapFromTypePropList(typePropList, node.parent.arguments)
 
-							propMap = new Map([...propMap, ...otherPropMap, ...withDefaultsPropMap])
+							propMap = new Map([...propMap, ...optionPropMap, ...typePropMap])
 						},
-						// 变量定义，包括 data\computed\inject\methods 表现为 const dataA = ref('')
+						// 变量定义，包括 data\computed\inject\箭头函数methods 表现为 const dataA = ref('')
 						'Program>VariableDeclaration'(node) {
 							// 过滤掉没有初始化和初始化不允许添加进setupMap的变量定义，针对 let dataF,dataG=ref('')
 							const declarations = node.declarations
@@ -1120,7 +1124,7 @@ linter.defineRule("my-rule", {
 						onDefineEmitsEnter(node, emits) {
 							emits.forEach(emit => {
 								const emitName = emit.emitName
-								const emitType = getEmitTypes(emit)
+								const emitType = getEmitType(emit)
 								const emitComments = sourceCode.getCommentsBefore(emit.node)
 								const emitComment = commentsToText(emitComments)
 								const emitInfo = {
