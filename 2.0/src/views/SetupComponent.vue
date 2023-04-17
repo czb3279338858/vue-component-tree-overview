@@ -20,7 +20,6 @@ import { computed, inject, onMounted, provide, reactive, ref } from "vue";
 // directive 自定义指令的含义
 // import 全局搜索导入注释
 // component 组件名\option name
-// slot name attrs
 
 // import————————————————————————
 // 组件注释

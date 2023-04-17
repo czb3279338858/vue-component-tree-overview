@@ -263,6 +263,10 @@ linter.defineRule("my-rule", {
 
 		// ——————————————————————————————————————————————————————————————
 
+		const slotMap = new Map()
+
+		// ——————————————————————————————————————————————————————————————
+
 		function getPropType(typeValue) {
 			switch (typeValue.type) {
 				case 'Identifier':
@@ -655,6 +659,7 @@ linter.defineRule("my-rule", {
 						const templateValue = element.rawName
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
+							// TODO: 支持动态绑定
 							const name = sourceCode.getText(a.key)
 							const [valueName, valueType, scopeNames, callNames] = getExpressionInfo(a.value)
 							return {
@@ -672,6 +677,9 @@ linter.defineRule("my-rule", {
 							attributes,
 							templateComment,
 							children: []
+						}
+						if (templateValue === 'slot') {
+							slotMap.set(templateValue, templateInfo)
 						}
 						addTemplateMap(element, templateInfo, templateMap)
 					},
@@ -1011,6 +1019,7 @@ linter.defineRule("my-rule", {
 						emitMap.set(emitName, emitInfo)
 					},
 					// TODO: class组件需要处理@component得参数
+					// TODO：extends
 
 					// option component
 					// 可以在一个Vue组件 option 上执行一个回调函数

@@ -56,6 +56,15 @@ import { defineComponent, PropType } from "vue";
 const otherProp = ["propC"];
 const s = Symbol();
 export default defineComponent({
+  directives: {
+    // 注释directivesA
+    directivesA: {
+      bind(el, binding, vnode, prevVnode) {
+        console.log("directivesA");
+      },
+    },
+  },
+  // filter ————————————————————————————————————
   filters: {
     // filterA注释
     filterA(a) {
