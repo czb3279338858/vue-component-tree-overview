@@ -1054,13 +1054,37 @@ linter.defineRule("my-rule", {
 								}
 							}
 
-							// TODO:emit
+							// emit，只能获取 emits 配置项中的
+							// TODO:this.$emit调用
 							const emits = utils.getComponentEmitsFromOptions(optionNode)
 							emits.forEach(emit => {
+								const emitName = emit.key.name
+								const emitComments = sourceCode.getCommentsBefore(emit.node)
+								const emitComment = commentsToText(emitComments)
+								let emitType
 								const emitValue = emit.value
 								if (['FunctionExpression', 'ArrowFunctionExpression'].includes(emitValue.type)) {
-									const params = emitValue.params
-
+									const emitFunParams = emitValue.params
+									emitType = emitFunParams.map(p => {
+										let type = undefined
+										if (p.typeAnnotation) {
+											type = tsUtils.inferRuntimeType(context, p.typeAnnotation)
+										}
+										if (p.type === 'ObjectPattern') type === 'Object'
+										if (p.type === 'ArrayPattern') type === 'Array'
+										return type
+									})
+								}
+								const oldEmit = emitMap.get(emitName)
+								if (oldEmit) {
+									oldEmit.emitComment = `${oldEmit.emitComment}\n\n${emitComment}`
+								} else {
+									const emitInfo = {
+										emitName,
+										emitType,
+										emitComment
+									}
+									emitMap.set(emitName, emitInfo)
 								}
 							})
 						})

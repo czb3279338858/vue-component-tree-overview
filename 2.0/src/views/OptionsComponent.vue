@@ -104,17 +104,17 @@ export default defineComponent({
     // emitB注释
     emitB: null,
     // emitA注释
-    emitA(emitValue: string, emitValue2) {
-      return typeof emitValue === "string" && emitValue2;
+    emitA(emitAValue: string, emitAValue2) {
+      return typeof emitAValue === "string" && emitAValue2;
     },
     // emitC注释
-    emitC({ emitValue, emitValue2 }) {
-      return typeof emitValue === "string" && emitValue2;
+    emitC({ emitCValue, emitCValue2 }) {
+      return typeof emitCValue === "string" && emitCValue2;
     },
   },
   methods: {
     doSome() {
-      this.$emit("emitA");
+      this.$emit("emitD");
     },
   },
   // computed ————————————————————————————————————
