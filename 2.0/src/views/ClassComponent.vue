@@ -34,6 +34,11 @@ const symbol = Symbol("injectD");
   },
 })
 export default class HomeView extends Vue {
+  // 生命周期
+  mounted() {
+    console.log("mounted");
+  }
+
   /** dataA注释 */
   dataA = "1";
 

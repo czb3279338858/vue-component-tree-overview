@@ -319,7 +319,7 @@ linter.defineRule("my-rule", {
 					const typeAnnotation = prop.typeAnnotation.typeAnnotation
 					// FIXME: tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
 					// tsUtils.inferRuntimeType 支持在本文件递归查找类型的实际定义，从而获取对应的运行时类型
-					typeAnnotation = tsUtils.inferRuntimeType(context, typeAnnotation)
+					propType = tsUtils.inferRuntimeType(context, typeAnnotation)
 				}
 				if (propRequired === undefined) {
 					propRequired = !prop.optional
@@ -460,6 +460,24 @@ linter.defineRule("my-rule", {
 		// 生命周期
 		// {lifecycleHookName,lifecycleHookComment}
 		// lifecycleHookName在setup中带on，在options、class中不带，
+		// 生命周期
+		const LIFECYCLE_HOOKS = [
+			'beforeCreate',
+			'created',
+			'beforeMount',
+			'mounted',
+			'beforeUpdate',
+			'updated',
+			'activated',
+			'deactivated',
+			'beforeUnmount', // for Vue.js 3.x
+			'unmounted', // for Vue.js 3.x
+			'beforeDestroy',
+			'destroyed',
+			'renderTracked', // for Vue.js 3.x
+			'renderTriggered', // for Vue.js 3.x
+			'errorCaptured' // for Vue.js 2.5.0+
+		]
 		const lifecycleHookMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
@@ -843,18 +861,28 @@ linter.defineRule("my-rule", {
 								computedMap.set(computedName, computedInfo)
 							}
 						}
-						// 方法 methodA() {}
 						if (kind === 'method') {
 							const methodName = node.key.name
 							const methodComments = sourceCode.getCommentsBefore(node)
 							const methodComment = commentsToText(methodComments)
-							const methodInfo = {
-								methodName,
-								methodComment
+							if (LIFECYCLE_HOOKS.includes(methodName)) {
+								// TODO:生命周期
+								const lifecycleHookInfo = {
+									lifecycleHookName: methodName,
+									lifecycleHookComment: methodComment
+								}
+								lifecycleHookMap.set(methodName, lifecycleHookInfo)
+							} else {
+								// 方法 methodA() {}
+
+								const methodInfo = {
+									methodName,
+									methodComment
+								}
+								methodMap.set(methodName, methodInfo)
+
 							}
-							methodMap.set(methodName, methodInfo)
 						}
-						// TODO:生命周期
 					},
 					// @Provide/@ProvideReactive
 					':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Provide],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ProvideReactive])'(node) {
@@ -969,24 +997,7 @@ linter.defineRule("my-rule", {
 								})
 							}
 
-							// 生命周期
-							const LIFECYCLE_HOOKS = [
-								'beforeCreate',
-								'created',
-								'beforeMount',
-								'mounted',
-								'beforeUpdate',
-								'updated',
-								'activated',
-								'deactivated',
-								'beforeUnmount', // for Vue.js 3.x
-								'unmounted', // for Vue.js 3.x
-								'beforeDestroy',
-								'destroyed',
-								'renderTracked', // for Vue.js 3.x
-								'renderTriggered', // for Vue.js 3.x
-								'errorCaptured' // for Vue.js 2.5.0+
-							]
+
 							if (LIFECYCLE_HOOKS.includes(optionKeyName)) {
 								const lifecycleHookComments = sourceCode.getCommentsBefore(option)
 								const lifecycleHookComment = commentsToText(lifecycleHookComments)
