@@ -520,16 +520,67 @@ linter.defineRule("my-rule", {
 			}
 		}
 
+		function setEmitMap(emitMap, emitName, emitType, emitComment) {
+			const oldEmit = emitMap.get(emitName)
+			if (oldEmit) {
+				oldEmit.emitComment = `${oldEmit.emitComment}\n\n${emitComment}`
+				const oldEmitType = oldEmit.emitType
+				emitType && emitType.forEach((type, index) => {
+					if (type) oldEmitType[index] = type
+				})
+			} else {
+				const emitInfo = {
+					emitName,
+					emitType,
+					emitComment
+				}
+				emitMap.set(emitName, emitInfo)
+			}
+		}
+		function getRuntimeType(node) {
+			if (node.typeAnnotation) {
+				return tsUtils.inferRuntimeType(context, node.typeAnnotation)
+			}
+			if (['ObjectExpression'].includes(node.type)) return 'Object'
+			if (['ArrayExpression'].includes(node.type)) return 'Array'
+			if (['FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)) return 'Function'
+			if (node.type === 'Literal') return node.raw
+			if (node.type === 'MemberExpression') return sourceCode.getText(node)
+			if (node.type === 'Identifier') return node.name
+			return undefined
+		}
 		// {emitName,emitType,emitComment}
 		const emitMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
-
+		function forEachDataOptionSetDataMap(dataOptions, dataMap) {
+			dataOptions.forEach(dataOption => {
+				const dataName = dataOption.key.name
+				const dataComments = sourceCode.getCommentsBefore(dataOption)
+				const dataComment = commentsToText(dataComments)
+				const dataInfo = {
+					dataName,
+					dataComment
+				}
+				dataMap.set(dataName, dataInfo)
+			})
+		}
 		// {dataName,dataComment}
 		const dataMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
-
+		function setComputedMap(computedMap, computedName, computedComment) {
+			const oldComputed = computedMap.get(computedName)
+			if (oldComputed) {
+				oldComputed.computedComment = `${oldComputed.computedComment}\n\n${computedComment}`
+			} else {
+				const computedInfo = {
+					computedName,
+					computedComment
+				}
+				computedMap.set(computedName, computedInfo)
+			}
+		}
 		const computedMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
@@ -850,16 +901,7 @@ linter.defineRule("my-rule", {
 							const computedName = node.key.name
 							const computedComments = sourceCode.getCommentsBefore(node)
 							const computedComment = `${kind}:${commentsToText(computedComments)}`
-							const oldComputed = computedMap.get(computedName)
-							if (oldComputed) {
-								oldComputed.computedComment = `${oldComputed.computedComment}\n\n${computedComment}`
-							} else {
-								const computedInfo = {
-									computedName,
-									computedComment
-								}
-								computedMap.set(computedName, computedInfo)
-							}
+							setComputedMap(computedMap, computedName, computedComment)
 						}
 						if (kind === 'method') {
 							const methodName = node.key.name
@@ -979,6 +1021,24 @@ linter.defineRule("my-rule", {
 						const propList = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
 						propMap = new Map([...propMap, ...getPropMapFromPropList(propList)])
 
+						// emit，只能获取 emits 配置项中的
+						const emits = utils.getComponentEmitsFromOptions(optionNode)
+						emits.forEach(emit => {
+							const emitName = emit.key.name
+							const emitComments = sourceCode.getCommentsBefore(emit.node)
+							const emitComment = commentsToText(emitComments)
+							let emitType
+							const emitValue = emit.value
+							if (['FunctionExpression', 'ArrowFunctionExpression'].includes(emitValue.type)) {
+								const emitFunParams = emitValue.params
+								emitType = emitFunParams.map(p => {
+									return getRuntimeType(p)
+								})
+							}
+							setEmitMap(emitMap, emitName, emitType, emitComment)
+						})
+
+						// 其他项
 						optionNode.properties.forEach(option => {
 							const optionKeyName = option.key.name
 							const optionValue = option.value
@@ -1054,41 +1114,67 @@ linter.defineRule("my-rule", {
 								}
 							}
 
-							// emit，只能获取 emits 配置项中的
-							// TODO:this.$emit调用
-							const emits = utils.getComponentEmitsFromOptions(optionNode)
-							emits.forEach(emit => {
-								const emitName = emit.key.name
-								const emitComments = sourceCode.getCommentsBefore(emit.node)
-								const emitComment = commentsToText(emitComments)
-								let emitType
-								const emitValue = emit.value
-								if (['FunctionExpression', 'ArrowFunctionExpression'].includes(emitValue.type)) {
-									const emitFunParams = emitValue.params
-									emitType = emitFunParams.map(p => {
-										let type = undefined
-										if (p.typeAnnotation) {
-											type = tsUtils.inferRuntimeType(context, p.typeAnnotation)
-										}
-										if (p.type === 'ObjectPattern') type === 'Object'
-										if (p.type === 'ArrayPattern') type === 'Array'
-										return type
-									})
-								}
-								const oldEmit = emitMap.get(emitName)
-								if (oldEmit) {
-									oldEmit.emitComment = `${oldEmit.emitComment}\n\n${emitComment}`
-								} else {
-									const emitInfo = {
-										emitName,
-										emitType,
-										emitComment
+							// methods
+							if (optionKeyName === 'methods') {
+								optionValue.properties.forEach(method => {
+									const methodName = method.key.name
+									const methodComments = sourceCode.getCommentsBefore(method)
+									const methodComment = commentsToText(methodComments)
+									const methodInfo = {
+										methodName,
+										methodComment
 									}
-									emitMap.set(emitName, emitInfo)
+									methodMap.set(methodName, methodInfo)
+								})
+							}
+
+							// computed
+							if (optionKeyName === 'computed') {
+								const allComments = sourceCode.getCommentsBefore(option)
+								const allComment = `all:${commentsToText(allComments)}`
+								optionValue.properties.forEach(computed => {
+									const computedName = computed.key.name
+									const computedComments = sourceCode.getCommentsBefore(computed)
+									const computedComment = `all:${commentsToText(computedComments)}`
+									const computedValue = computed.value
+									setComputedMap(computedMap, computedName, computedComment)
+									if (computedValue.type === 'ObjectExpression') {
+										computedValue.properties.forEach(item => {
+											const kind = item.key.name
+											const kindComments = sourceCode.getCommentsBefore(item)
+											const kindComment = `${kind}:${commentsToText(kindComments)}`
+											setComputedMap(computedMap, computedName, kindComment)
+										})
+									}
+								})
+							}
+
+							// data
+							if (optionKeyName === 'data') {
+								if (optionValue.type === 'FunctionExpression') {
+									const funBody = optionValue.body.body
+									const funRet = funBody.find(f => f.type === 'ReturnStatement')
+									forEachDataOptionSetDataMap(funRet.argument.properties, dataMap)
 								}
-							})
+								if (optionValue.type === 'ObjectExpression') {
+									forEachDataOptionSetDataMap(optionValue.properties, dataMap)
+								}
+							}
 						})
 					}),
+
+					// emit函数调用，option\setup\class
+					CallExpression(node) {
+						const calleeName = node.callee.property && node.callee.property.name
+						if (['$emit', 'emit'].includes(calleeName)) {
+							const calleeParams = node.arguments
+							const emitName = calleeParams[0].value
+							const emitComments = sourceCode.getCommentsBefore(node)
+							const emitComment = commentsToText(emitComments)
+							const emitType = calleeParams.slice(1).map(p => { return getRuntimeType(p) })
+							setEmitMap(emitMap, emitName, emitType, emitComment)
+						}
+					},
 
 					// script setup 中
 					...utils.defineScriptSetupVisitor(context, {

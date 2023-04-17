@@ -113,40 +113,61 @@ export default defineComponent({
     },
   },
   methods: {
+    // 测试methods
     doSome() {
-      this.$emit("emitD");
+      const a = [];
+      // 测试emitA
+      this.$emit("emitA", "1", 1, [], {}, () => {}, this.injectA, a, a[0], [a]);
     },
+  },
+  setup(props, context) {
+    // 测试emitB
+    context.emit("emitB", "1", "2");
+    // 测试emitC
+    context.emit("emitC", { emitCValue: "1", emitCValue2: "2" });
   },
   // computed ————————————————————————————————————
 
-  // computed: {
-  //   // computedA注释
-  //   computedA: {
-  //     // computedA注释1
-  //     get() {
-  //       return this.dataA;
-  //     },
-  //     // computedA注释2
-  //     set() {
-  //       this.dataA = "1";
-  //     },
-  //   },
-  //   // computedB注释
-  //   computedB() {
-  //     return this.dataA;
-  //   },
-  // },
-  // data() {
-  //   return {
-  //     // dataA注释2
-  //     dataA,
-  //     // dataB注释2
-  //     dataB: dataB(),
-  //     // dataC注释2
-  //     dataC,
-  //     // dataD注释2
-  //     dataD: "1",
-  //   };
+  computed: {
+    // computedA注释
+    computedA: {
+      // computedA注释1
+      get() {
+        return this.dataA;
+      },
+      // computedA注释2
+      set() {
+        this.dataA = "1";
+      },
+    },
+    // computedB注释
+    computedB() {
+      return this.dataA;
+    },
+  },
+
+  // data ————————————————————————————————————
+  data() {
+    const dataA = "";
+    function dataB() {
+      return "1";
+    }
+    return {
+      // dataA注释2
+      dataA,
+      // dataB注释2
+      dataB: dataB(),
+      // dataD注释2
+      dataD: "1",
+    };
+  },
+  // data: {
+  //   // dataA注释2
+  //   dataA,
+  //   // dataB注释2
+  //   dataB: dataB(),
+  //   // dataD注释2
+  //   dataD: "1",
   // },
 
   // ————————————————————————————————————

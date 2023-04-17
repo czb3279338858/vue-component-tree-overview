@@ -8,18 +8,19 @@ import { computed, inject, onMounted, provide, reactive, ref } from "vue";
 // 其他可能要考虑的
 // ignoredElements 需要忽略组件查找的 Web Components APIs
 // keyCodes
-// extends
-// directive 自定义指令的含义
-// mixin
-// import 全局搜索导入注释
 // 全局搜索类型，类型的ts具体形态
-// component 组件名\option name
 // vue.use 注册的全局东西,不考虑
 // Vue.myGlobalMethod Vue方法、属性，不考虑
 // Vue.prototype.$myMethod 实例方法或属性，不考虑
 // Vue.observable 让一个对象可响应，不考虑
-// slot、scopeSlots
 // bus总线 vue.$on vue.$emit 等,不考虑
+
+// extends
+// mixin
+// directive 自定义指令的含义
+// import 全局搜索导入注释
+// component 组件名\option name
+// slot name attrs
 
 // import————————————————————————
 // 组件注释
