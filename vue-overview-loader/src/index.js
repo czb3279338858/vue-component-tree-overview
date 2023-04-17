@@ -168,17 +168,17 @@ linter.defineRule("my-rule", {
 		 * @param {*} callExpression 
 		 * @param {*} names 
 		 */
-		function getCallExpressionNamesAndParams(callExpression, names = []) {
+		function getCallExpressionNamesAndParam(callExpression, names = []) {
 			const funName = callExpression.callee.name
-			const arguments = callExpression.arguments
+			const params = callExpression.arguments
 			names.push(funName)
-			if (arguments && arguments.length === 1) {
-				const argument = arguments[0]
-				if (argument.type === 'CallExpression') {
-					return getCallExpressionNamesAndParams(argument, names)
+			if (params && params.length === 1) {
+				const param = params[0]
+				if (param.type === 'CallExpression') {
+					return getCallExpressionNamesAndParam(param, names)
 				} else {
-					const params = argument.type === 'MemberExpression' ? sourceCode.getText(argument) : undefined
-					return [params, names]
+					const callParam = param.type === 'MemberExpression' ? sourceCode.getText(param) : undefined
+					return [callParam, names]
 				}
 			} else {
 				return [undefined, names]
@@ -214,7 +214,7 @@ linter.defineRule("my-rule", {
 			// 不支持 :style="c(d(a.b), a)"，:style="c()"
 			// 支持 c(d(a.b))
 			if (expression.expression.type === 'CallExpression') {
-				const [valueName, callNames] = getCallExpressionNamesAndParams(expression.expression)
+				const [valueName, callNames] = getCallExpressionNamesAndParam(expression.expression)
 				return [valueName, expression.expression.type, undefined, callNames]
 			}
 
@@ -488,17 +488,17 @@ linter.defineRule("my-rule", {
 		// ——————————————————————————————————————————————————————————————
 
 		// 当 defineEmits 参数是对像时获取 value 的类型
-		function getEmitTypeFromObjectParam(paramValue) {
-			const paramType = paramValue.type
+		function getEmitTypeFromObjectParamValue(paramValue) {
+			const paramValueType = paramValue.type
 
-			if (paramType === 'ArrayExpression') return [paramValue.elements.map(element => getEmitTypeFromObjectParam(element)[0])]
+			if (paramValueType === 'ArrayExpression') return [paramValue.elements.map(element => getEmitTypeFromObjectParamValue(element)[0])]
 
-			if (['FunctionExpression'].includes(paramType)) return [sourceCode.getText(paramValue.parent)]
+			if (['FunctionExpression'].includes(paramValueType)) return [sourceCode.getText(paramValue.parent)]
 
 			// ArrowFunctionExpression 箭头函数
-			if ('ArrowFunctionExpression' === paramType) return [sourceCode.getText(paramValue)]
+			if ('ArrowFunctionExpression' === paramValueType) return [sourceCode.getText(paramValue)]
 
-			if (paramType === 'Identifier') return [paramValue.name]
+			if (paramValueType === 'Identifier') return [paramValue.name]
 		}
 		// 获取 emit 抛出参数的运行时类型
 		function getEmitType(emit) {
@@ -507,7 +507,7 @@ linter.defineRule("my-rule", {
 			if (defineEmitsParamType === 'array') return undefined
 			// 参数是对象
 			if (defineEmitsParamType === 'object') {
-				return getEmitTypeFromObjectParam(emit.value)
+				return getEmitTypeFromObjectParamValue(emit.value)
 			}
 			// 类型
 			if (defineEmitsParamType === 'type') {
@@ -657,11 +657,11 @@ linter.defineRule("my-rule", {
 					// 以下为Prop相关装饰器
 					// class component @Prop
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Prop]'(node) {
-						const decoratorArgument = node.expression.arguments
+						const decoratorParams = node.expression.arguments
 						const prop = node.parent
 
 						const propName = prop.key.name
-						const propOption = decoratorArgument[0]
+						const propOption = decoratorParams[0]
 
 						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
 
@@ -681,11 +681,11 @@ linter.defineRule("my-rule", {
 					// class component @PropSync
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=PropSync]'(node) {
 						// prop
-						const decoratorArguments = node.expression.arguments
+						const decoratorParams = node.expression.arguments
 						const computed = node.parent
 
-						const propName = decoratorArguments[0].value
-						const propOption = decoratorArguments[1]
+						const propName = decoratorParams[0].value
+						const propOption = decoratorParams[1]
 
 						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
 
@@ -722,11 +722,11 @@ linter.defineRule("my-rule", {
 					},
 					// class component @Model
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Model]'(node) {
-						const decoratorArguments = node.expression.arguments
+						const decoratorParams = node.expression.arguments
 						const prop = node.parent
 
 						const propName = prop.key.name
-						const propOption = decoratorArguments[1]
+						const propOption = decoratorParams[1]
 
 						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
 
@@ -744,7 +744,7 @@ linter.defineRule("my-rule", {
 						propMap.set(propName, propInfo)
 
 						// modelOption
-						const modelEvent = decoratorArguments[0].value
+						const modelEvent = decoratorParams[0].value
 						modelOption.event = modelEvent
 						modelOption.prop = propName
 					},
@@ -752,15 +752,15 @@ linter.defineRule("my-rule", {
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]'(node) {
 						// prop
 						const computed = node.parent
-						const decoratorArguments = node.expression.arguments
+						const decoratorParams = node.expression.arguments
 
-						const propName = decoratorArguments[0].value
-						const propOption = decoratorArguments[2]
+						const propName = decoratorParams[0].value
+						const propOption = decoratorParams[2]
 
 						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
 
 						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const propComments = sourceCode.getCommentsBefore(decoratorArguments[0])
+						const propComments = sourceCode.getCommentsBefore(decoratorParams[0])
 						const computedComments = sourceCode.getCommentsAfter(node)
 						const propComment = commentsToText([...decoratorComments, ...propComments, ...computedComments])
 
@@ -775,7 +775,7 @@ linter.defineRule("my-rule", {
 
 						// modelOption
 						modelOption.prop = propName
-						const modelEvent = decoratorArguments[1].value
+						const modelEvent = decoratorParams[1].value
 						modelOption.event = modelEvent
 
 						// computed
@@ -799,10 +799,10 @@ linter.defineRule("my-rule", {
 					// class component @VModel
 					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=VModel]'(node) {
 						const computed = node.parent
-						const decoratorArguments = node.expression.arguments
+						const decoratorParams = node.expression.arguments
 
 						const propName = 'value'
-						const propOption = decoratorArguments[0]
+						const propOption = decoratorParams[0]
 
 						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
 
@@ -866,7 +866,7 @@ linter.defineRule("my-rule", {
 							const methodComments = sourceCode.getCommentsBefore(node)
 							const methodComment = commentsToText(methodComments)
 							if (LIFECYCLE_HOOKS.includes(methodName)) {
-								// TODO:生命周期
+								// 生命周期
 								const lifecycleHookInfo = {
 									lifecycleHookName: methodName,
 									lifecycleHookComment: methodComment
@@ -930,12 +930,12 @@ linter.defineRule("my-rule", {
 					},
 					// @Emit
 					'ClassDeclaration > ClassBody > MethodDefinition > Decorator[expression.callee.name=Emit]'(node) {
-						const decoratorArgument = node.expression.arguments[0]
+						const decoratorParams = node.expression.arguments[0]
 						const emitFun = node.parent
-						const emitName = casing.kebabCase(decoratorArgument ? decoratorArgument.value : emitFun.key.name)
-						const emitFunArguments = emitFun.value.params
+						const emitName = casing.kebabCase(decoratorParams ? decoratorParams.value : emitFun.key.name)
+						const emitFunParams = emitFun.value.params
 
-						const emitType = emitFunArguments.map(e => {
+						const emitType = emitFunParams.map(e => {
 							const typeAnnotation = e.typeAnnotation
 							if (typeAnnotation) {
 								const type = tsUtils.inferRuntimeType(context, typeAnnotation.typeAnnotation)
@@ -944,16 +944,16 @@ linter.defineRule("my-rule", {
 							return undefined
 						})
 						const emitFunBody = emitFun.value.body.body
-						// TODO：无法获取函数 return 的推导类型，只先获取标注了具体类型
+						// FIXME：无法获取函数 return 的推导类型，只先获取标注了具体类型
 						const emitFunRet = emitFunBody.find(e => e.type === 'ReturnStatement')
 						if (emitFunRet) {
 							let type = undefined
-							const emitFunRetArgument = emitFunRet.argument
-							if (emitFunRetArgument.typeAnnotation) {
+							const emitFunRetParams = emitFunRet.argument
+							if (emitFunRetParams.typeAnnotation) {
 								type = tsUtils.inferRuntimeType(context, emitFunRet.argument.typeAnnotation)
 							} else {
-								if (emitFunRetArgument.type === 'Literal') {
-									type = emitFunRetArgument.raw
+								if (emitFunRetParams.type === 'Literal') {
+									type = emitFunRetParams.raw
 								}
 							}
 							emitType.unshift(type)
@@ -997,7 +997,7 @@ linter.defineRule("my-rule", {
 								})
 							}
 
-
+							// 生命周期
 							if (LIFECYCLE_HOOKS.includes(optionKeyName)) {
 								const lifecycleHookComments = sourceCode.getCommentsBefore(option)
 								const lifecycleHookComment = commentsToText(lifecycleHookComments)
