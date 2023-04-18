@@ -1,6 +1,6 @@
 <template>
   <!-- div1注释-->
-  <div1
+  <MyComponent
     class="1"
     :class="b"
     :style="c(d(a.b))"
@@ -49,21 +49,14 @@
     <div9 v-slot:footer="{ item, index: [a, b] }"></div9>
     <div9 v-slot:footer="[item, { a: item2 }]"></div9>
     <div10 v-slot:header="headerData"></div10>
-  </div1>
+  </MyComponent>
 </template>
 <script lang="ts">
 import { defineComponent, PropType, ref } from "vue";
 const otherProp = ["propC"];
 const s = Symbol();
+
 export default defineComponent({
-  directives: {
-    // 注释directivesA
-    directivesA: {
-      bind(el, binding, vnode, prevVnode) {
-        console.log("directivesA");
-      },
-    },
-  },
   // filter ————————————————————————————————————
   filters: {
     // filterA注释

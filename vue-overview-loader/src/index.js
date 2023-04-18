@@ -9,6 +9,7 @@ const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const tsUtils = require('./utils/ts-ast-utils')
 const { findVariable } = require('eslint-utils')
+
 const linter = new Linter()
 const parserOptions = {
 	ecmaVersion: 2020,
@@ -650,7 +651,7 @@ linter.defineRule("my-rule", {
 					// 标签
 					VElement(element) {
 						// 标签名
-						const templateValue = element.rawName
+						const templateValue = casing.kebabCase(element.rawName)
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
 							// FIXME: 支持动态绑定
