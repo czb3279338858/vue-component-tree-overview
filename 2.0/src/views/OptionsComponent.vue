@@ -52,7 +52,7 @@
   </div1>
 </template>
 <script lang="ts">
-import { defineComponent, PropType } from "vue";
+import { defineComponent, PropType, ref } from "vue";
 const otherProp = ["propC"];
 const s = Symbol();
 export default defineComponent({
@@ -134,6 +134,16 @@ export default defineComponent({
     context.emit("emitB", "1", "2");
     // 测试emitC
     context.emit("emitC", { emitCValue: "1", emitCValue2: "2" });
+    const [
+      [
+        // setupA注释
+        setupA,
+      ],
+    ] = [[ref(1)]];
+    return {
+      // setupA注释2
+      setupA,
+    };
   },
   // computed ————————————————————————————————————
 

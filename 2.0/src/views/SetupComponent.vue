@@ -14,10 +14,10 @@ import { computed, inject, onMounted, provide, reactive, ref } from "vue";
 // Vue.prototype.$myMethod 实例方法或属性，不考虑
 // Vue.observable 让一个对象可响应，不考虑
 // bus总线 vue.$on vue.$emit 等,不考虑
+// directive 自定义指令的含义
 
 // extends
 // mixin
-// directive 自定义指令的含义
 // import 全局搜索导入注释
 // component 组件名\option name
 
@@ -67,7 +67,7 @@ onMounted(() => {
 
 // provide/inject————————————————————————
 
-// provideData注释
+// provideData注释;
 const provideData = ref("");
 // provide注释
 provide("provideName", provideData);

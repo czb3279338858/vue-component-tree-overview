@@ -8,8 +8,7 @@ const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const tsUtils = require('./utils/ts-ast-utils')
-// const { findVariable } = require('eslint-utils')
-// const variable = findVariable(context.getScope(), provide.key)
+const { findVariable } = require('eslint-utils')
 const linter = new Linter()
 const parserOptions = {
 	ecmaVersion: 2020,
@@ -410,53 +409,48 @@ linter.defineRule("my-rule", {
 					)
 				)
 		}
-		// 从变量定义中添加 setupMap,支持 const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
-		function addSetupMapFromDeclarations(declarations, setupMap, isRecursion) {
-			const needAddSetupMapDeclarations = declarations.filter(d => {
-				return !initUnAddSetupMap(d.init)
-			})
-			// 遍历允许添加到 setupMap 的变量定义
-			// declarations:例如：const provideData = ref(""); => provideData = ref("")
-			needAddSetupMapDeclarations.forEach(declarations => {
-				const left = declarations.id
+		// 遍历变量定义
+		function forEachDeclarations(declarations, callBack) {
+			declarations.forEach(declaration => {
+				const left = declaration.id
 				// 当变量的左边是常量时
 				// 例如：dataG = ref("") => dataG 的 id.type === 'Identifier'
 				if (left.type === 'Identifier') {
-					const setupName = left.name
-					let declarationComments = []
-					if (!isRecursion) {
-						const declarationNode = declarations.parent
-						declarationComments = sourceCode.getCommentsBefore(declarationNode)
-					}
+					const leftName = left.name
 					const leftComments = sourceCode.getCommentsBefore(left)
-					const setupComment = commentsToText([...declarationComments, ...leftComments])
-					const setupInfo = {
-						setupName,
-						setupComment
-					}
-					setupMap.set(setupName, setupInfo)
+					const leftComment = commentsToText(leftComments)
+					callBack(leftName, leftComment)
 				}
 				// 当变量的左边是数组解构或对象解构时
 				// 例如：const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
 				if (['ObjectPattern', 'ArrayPattern'].includes(left.type)) {
 					forEachPattern([left], (patternItem) => {
-						if (patternItem.value.type === 'Identifier') {
-							const setupName = patternItem.value.name
-							// const [dataD, dataE] = [ref("")]; 和 const {a}={a:1} => dataD,dataE,a
-							const patternKey = patternItem.type === 'ArrayPattern' ? patternItem.value : patternItem
-							const setupComments = sourceCode.getCommentsBefore(patternKey)
-							const setupComment = commentsToText(setupComments)
-							const setupInfo = {
-								setupName,
-								setupComment
-							}
-							setupMap.set(setupName, setupInfo)
-						}
+						const itemValue = patternItem.value || patternItem
+						const itemName = itemValue.name
+						// const [dataD, dataE] = [ref("")]; 和 const {a}={a:1} => dataD,dataE,a
+						const itemComments = sourceCode.getCommentsBefore(itemValue)
+						const itemComment = commentsToText(itemComments)
+						callBack(itemName, itemComment)
 					})
 				}
 			})
 		}
-
+		// 从变量定义中添加 setupMap,支持 const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
+		function addSetupMapFromDeclarations(declarations, setupMap) {
+			const needAddSetupMapDeclarations = declarations.filter(d => {
+				return !initUnAddSetupMap(d.init)
+			})
+			// 遍历允许添加到 setupMap 的变量定义
+			// declarations:例如：const provideData = ref(""); => provideData = ref("")
+			forEachDeclarations(needAddSetupMapDeclarations, (setupName, setupComment) => {
+				const setupInfo = {
+					setupName,
+					setupComment
+				}
+				setupMap.set(setupName, setupInfo)
+			})
+		}
+		// {setupName,setupComment}
 		let setupMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
@@ -659,7 +653,7 @@ linter.defineRule("my-rule", {
 						const templateValue = element.rawName
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
-							// TODO: 支持动态绑定
+							// FIXME: 支持动态绑定
 							const name = sourceCode.getText(a.key)
 							const [valueName, valueType, scopeNames, callNames] = getExpressionInfo(a.value)
 							return {
@@ -1168,6 +1162,33 @@ linter.defineRule("my-rule", {
 								if (optionValue.type === 'ObjectExpression') {
 									forEachDataOptionSetDataMap(optionValue.properties, dataMap)
 								}
+							}
+
+							// setup函数
+							if (optionKeyName === 'setup') {
+								const setupFunBody = optionValue.body.body
+								const setupFunReturn = setupFunBody.find(f => f.type === 'ReturnStatement')
+								const setupFunReturnProperties = setupFunReturn.argument.properties
+								setupFunReturnProperties.forEach(item => {
+									const setupName = item.key.name
+									const setupValue = item.value
+									const keyComments = sourceCode.getCommentsBefore(item)
+									const keyComment = commentsToText(keyComments)
+									const variable = findVariable(context.getScope(), setupValue)
+									const variableDef = variable.defs[0]
+									let variableComment = ''
+									if (variableDef) {
+										forEachDeclarations([variableDef.node], (leftName, allComment) => {
+											variableComment = allComment
+										})
+									}
+									const setupComment = [keyComment, variableComment].filter(f => f).join('\n')
+									const setupInfo = {
+										setupName,
+										setupComment
+									}
+									setupMap.set(setupName, setupInfo)
+								})
 							}
 						})
 					}),
