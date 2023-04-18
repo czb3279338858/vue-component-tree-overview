@@ -1314,7 +1314,10 @@ module.exports = function loader(source) {
 	/**
 	 * Original Source From Loader
 	 */
-	${source}`;
+	const a = [1]
+	console.log(a)
+	export default a
+	`;
 
 	return newSource;
 }

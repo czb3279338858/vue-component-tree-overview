@@ -9,7 +9,7 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.(js|ts|jsx|tsx|vue)$/,
+        test: /\.(vue)$/,
         use: [
           {
             loader: 'example-loader',
