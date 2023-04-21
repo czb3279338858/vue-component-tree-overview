@@ -26,6 +26,7 @@ linter.defineParser('vueEslintParser', {
 	parseForESLint,
 	parserOptions
 })
+let sourceMetaMap
 linter.defineRule("my-rule", {
 	create(context) {
 		const sourceCode = context.getSourceCode()
@@ -263,7 +264,7 @@ linter.defineRule("my-rule", {
 
 		// ——————————————————————————————————————————————————————————————
 
-		const slotMap = new Map()
+		const slotSet = new Set()
 
 		// ——————————————————————————————————————————————————————————————
 
@@ -644,6 +645,71 @@ linter.defineRule("my-rule", {
 
 		// ——————————————————————————————————————————————————————————————
 
+		// {casing.kebabCase(key):value}
+		const componentMap = new Map()
+
+		// ——————————————————————————————————————————————————————————————
+
+		// {importName,importPath}
+		const importMap = new Map()
+
+		// ——————————————————————————————————————————————————————————————
+
+		// 
+		let componentName = undefined
+
+
+
+		// ——————————————————————————————————————————————————————————————
+
+		let extend = undefined
+
+		// ——————————————————————————————————————————————————————————————
+
+		const mixinSet = new Set()
+
+		// ——————————————————————————————————————————————————————————————
+
+		// filter,components,name,mixins
+		function setMapFromComponentCommonOption(optionKeyName, optionValue) {
+			if (optionKeyName === 'mixins') {
+				optionValue.elements.forEach(mixin => {
+					const mixinName = casing.kebabCase(mixin.name)
+					mixinSet.add(mixinName)
+				})
+			}
+
+			if (optionKeyName === 'name') {
+				componentName = optionValue.value
+			}
+
+			if (optionKeyName === 'components') {
+				optionValue.properties.forEach(component => {
+					if (component.type === 'Property') {
+						const componentKey = casing.kebabCase(component.key.value || component.key.name)
+						const componentValue = casing.pascalCase(component.value.name)
+						componentMap.set(componentKey, componentValue)
+					}
+				})
+			}
+
+			// filters只能传对象
+			if (optionKeyName === 'filters') {
+				optionValue.properties.forEach(filter => {
+					const filterName = filter.key.name
+					const filterComments = sourceCode.getCommentsBefore(filter)
+					const filterComment = commentsToText(filterComments)
+					const filterInfo = {
+						filterName,
+						filterComment
+					}
+					filterMap.set(filterName, filterInfo)
+				})
+			}
+		}
+
+
+
 		return utils.compositingVisitors(
 			utils.defineTemplateBodyVisitor(
 				context,
@@ -674,7 +740,7 @@ linter.defineRule("my-rule", {
 							children: []
 						}
 						if (templateValue === 'slot') {
-							slotMap.set(templateValue, templateInfo)
+							slotSet.add(templateInfo)
 						}
 						addTemplateMap(element, templateInfo, templateMap)
 					},
@@ -1013,8 +1079,25 @@ linter.defineRule("my-rule", {
 						}
 						emitMap.set(emitName, emitInfo)
 					},
-					// TODO: class组件需要处理@component得参数
-					// TODO：extends
+					// class组件@component得参数,
+					'Decorator[expression.callee.name=Component]'(node) {
+						if (node.expression.type === 'CallExpression') {
+							const componentOption = node.expression.arguments[0]
+							if (componentOption) {
+								componentOption.properties.forEach(p => {
+									const optionKeyName = p.key.name
+									const optionValue = p.value
+									setMapFromComponentCommonOption(optionKeyName, optionValue)
+								})
+							}
+						}
+					},
+					// export default class HomeView extends SuperClass {}
+					'ClassDeclaration'(node) {
+						if (node.superClass) {
+							extend = casing.kebabCase(node.superClass.name)
+						}
+					},
 
 					// option component
 					// 可以在一个Vue组件 option 上执行一个回调函数
@@ -1047,18 +1130,11 @@ linter.defineRule("my-rule", {
 							const optionKeyName = option.key.name
 							const optionValue = option.value
 
-							// filters只能传对象
-							if (optionKeyName === 'filters') {
-								optionValue.properties.forEach(filter => {
-									const filterName = filter.key.name
-									const filterComments = sourceCode.getCommentsBefore(filter)
-									const filterComment = commentsToText(filterComments)
-									const filterInfo = {
-										filterName,
-										filterComment
-									}
-									filterMap.set(filterName, filterInfo)
-								})
+							setMapFromComponentCommonOption(optionKeyName, optionValue)
+
+							// extend
+							if (optionKeyName === 'extends') {
+								extend = casing.kebabCase(optionValue.name)
 							}
 
 							// 生命周期
@@ -1288,8 +1364,41 @@ linter.defineRule("my-rule", {
 							})
 						}
 					}),
-				}
+
+					// import MyComponent1 from "./ClassComponent.vue";
+					ImportDefaultSpecifier(node) {
+						const importName = casing.pascalCase(node.local.name)
+						const importNode = node.parent
+						const importPath = importNode.source.value
+						importMap.set(importName, importPath)
+					},
+				},
 			),
+			{
+
+				"Program:exit"() {
+					sourceMetaMap = {
+						importMap,
+						templateMap,
+						slotSet,
+						propMap,
+						setupMap,
+						lifecycleHookMap,
+						filterMap,
+						emitMap,
+						dataMap,
+						computedMap,
+						methodMap,
+						provideMap,
+						injectMap,
+						modelOption,
+						componentMap,
+						componentName,
+						extend,
+						mixinSet
+					}
+				}
+			}
 		)
 	},
 });
@@ -1301,23 +1410,33 @@ const config = {
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
 	linter.verify(source, config)
-	const newSource = `
-	/**
-	 * vue-overview-loader
-	 *
-	 * Resource Location: ${resource}
-	 * Loaders chained to module: ${JSON.stringify(loaders)}
-	 * Loader API Version: ${version}
-	 * Is this in "webpack mode": ${webpack}
-	 * This is the users request for the module: ${request}
-	 */
-	/**
-	 * Original Source From Loader
-	 */
-	const a = [1]
-	console.log(a)
-	export default a
-	`;
+	let newCode = ''
+	const importMap = sourceMetaMap.importMap
+	if (importMap) {
+		let importCode = ''
+		importMap.forEach((value, key) => {
+			importCode += `import ${key} from '${value}'\n`
+		})
+		newCode += importCode
+	}
 
-	return newSource;
+	const newSourceObj = Object.keys(sourceMetaMap).reduce((p, key) => {
+		if (key === 'importMap') return p
+		const value = sourceMetaMap[key]
+		if (key === 'templateMap') {
+			p['template'] = value.entries().next().value[1]
+		} else {
+			if (value instanceof Map) {
+				p[key] = Object.fromEntries(value)
+			} else if (value instanceof Set) {
+				p[key] = [...value]
+			} else {
+				p[key] = value
+			}
+		}
+		return p
+	}, {})
+	newCode += `export default ${JSON.stringify(newSourceObj)}`
+	console.log(newCode)
+	return newCode;
 }

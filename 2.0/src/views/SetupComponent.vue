@@ -15,15 +15,13 @@ import { computed, inject, onMounted, provide, reactive, ref } from "vue";
 // Vue.observable 让一个对象可响应，不考虑
 // bus总线 vue.$on vue.$emit 等,不考虑
 // directive 自定义指令的含义
-
-// extends
-// mixin
-// import 全局搜索导入注释
-// component 组件名\option name
+// class组件中有多个装饰器时
+// calss组件只允许有一个class定义
+// import 及其他导入，现在只支持import MyComponent from './MyComponent.vue'
 
 // import————————————————————————
 // 组件注释
-import OtherComponent from "./OtherComponent.vue";
+// import OtherComponent from "./OtherComponent.vue";
 
 // ————————————————————————
 // 指令注释

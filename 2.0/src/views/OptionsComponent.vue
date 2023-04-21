@@ -52,11 +52,37 @@
   </MyComponent>
 </template>
 <script lang="ts">
-import { defineComponent, PropType, ref } from "vue";
+import { defineAsyncComponent, defineComponent, PropType, ref } from "vue";
+import MyComponent1 from "./ClassComponent.vue";
+import MyComponent2 from "./SetupComponent.vue";
+// const MyComponent2 = require("./ClassComponent.vue");
+// require(["./ClassComponent.vue"], function (MyComponent3) {
+//   // 使用 MyModule...
+// });
+// let importName = "ClassComponent.vue";
+// import(`./${importName}`).then((MyComponent4) => {});
+// const path = require("path");
+// const files = require.context("../components", false, /\.vue$/);
+// const modules = {};
+// files.keys().forEach((key) => {
+//   const name = path.basename(key, ".vue");
+//   modules[name] = files(key).default || files(key);
+// });
+// const MyComponent5 = defineAsyncComponent(() => import("./MyComponent.vue"));
+// import * as MyComponents2 from "./ClassComponent";
+
 const otherProp = ["propC"];
 const s = Symbol();
 
 export default defineComponent({
+  name: "my-define-Component",
+  extends: MyComponent1,
+  mixins: [MyComponent1, MyComponent2],
+  components: {
+    ...modules,
+    "my-component-name": MyComponent1,
+    MyComponent2,
+  },
   // filter ————————————————————————————————————
   filters: {
     // filterA注释
