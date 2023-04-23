@@ -24,4 +24,8 @@ module.exports = {
       'example-loader': require.resolve('../vue-overview-loader/src/'),
     },
   },
+  optimization: {
+    minimize: false
+  },
+  devtool: "source-map"
 };

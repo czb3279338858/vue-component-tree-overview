@@ -50,6 +50,10 @@ linter.defineRule("my-rule", {
 		function isEmptyVText(node) {
 			return node.type === 'VText' && /^[\n\s]*$/.test(node.value)
 		}
+
+		function vTextGetTemplateValue(nodeValue) {
+			return nodeValue.replace(/[\n\s]/g, '')
+		}
 		/**
 		 * 获取 template 中的所有注释节点，template 所有注释节点都在 template 上
 		 * @param {*} element 
@@ -674,7 +678,7 @@ linter.defineRule("my-rule", {
 		function setMapFromComponentCommonOption(optionKeyName, optionValue) {
 			if (optionKeyName === 'mixins') {
 				optionValue.elements.forEach(mixin => {
-					const mixinName = casing.kebabCase(mixin.name)
+					const mixinName = casing.pascalCase(mixin.name)
 					mixinSet.add(mixinName)
 				})
 			}
@@ -748,7 +752,7 @@ linter.defineRule("my-rule", {
 					'VElement>VText'(node) {
 						if (isEmptyVText(node)) return
 						const templateInfo = {
-							templateValue: node.value,
+							templateValue: vTextGetTemplateValue(node.value),
 							templateType: 'VText',
 							attributes: undefined,
 							templateComment: getTemplateCommentBefore(node),
@@ -1095,7 +1099,7 @@ linter.defineRule("my-rule", {
 					// export default class HomeView extends SuperClass {}
 					'ClassDeclaration'(node) {
 						if (node.superClass) {
-							extend = casing.kebabCase(node.superClass.name)
+							extend = casing.pascalCase(node.superClass.name)
 						}
 					},
 
@@ -1134,7 +1138,7 @@ linter.defineRule("my-rule", {
 
 							// extend
 							if (optionKeyName === 'extends') {
-								extend = casing.kebabCase(optionValue.name)
+								extend = casing.pascalCase(optionValue.name)
 							}
 
 							// 生命周期
@@ -1407,6 +1411,18 @@ const config = {
 	rules: { "my-rule": "error" },
 	parser: 'vueEslintParser'
 };
+function objToCode(obj, noHandle) {
+	if (typeof obj === 'object' && obj !== null) {
+		if (Array.isArray(obj)) return `[${obj.map(item => objToCode(item, noHandle)).join(',')}]`
+		else return `{${Object.entries(obj).map(
+			([key, value]) => {
+				const ret = key + ":" + objToCode(value, noHandle || ['componentMap', 'mixinSet', 'extend'].includes(key))
+				return ret
+			}
+		).join(',')}}`
+	}
+	return noHandle ? obj : JSON.stringify(obj)
+}
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
 	linter.verify(source, config)
@@ -1415,7 +1431,7 @@ module.exports = function loader(source) {
 	if (importMap) {
 		let importCode = ''
 		importMap.forEach((value, key) => {
-			importCode += `import ${key} from '${value}'\n`
+			importCode += `import ${key} from '${value}';\n`
 		})
 		newCode += importCode
 	}
@@ -1436,7 +1452,7 @@ module.exports = function loader(source) {
 		}
 		return p
 	}, {})
-	newCode += `export default ${JSON.stringify(newSourceObj)}`
+	newCode += `export default ${objToCode(newSourceObj)}`
 	console.log(newCode)
 	return newCode;
 }
