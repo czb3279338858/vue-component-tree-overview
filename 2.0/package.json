@@ -7,6 +7,7 @@
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
     "build2.0": "webpack build --config=./webpack.config.js",
+    "serve2.0": "webpack serve --config=./webpack.config.js",
     "webpackConfig": "vue inspect > vue-cli-webpack-config-output.js",
     "eslintConfig": "eslint --print-config ./.eslintrc.js"
   },

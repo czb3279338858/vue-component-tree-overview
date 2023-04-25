@@ -3,11 +3,17 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   entry: {
-    route: path.join(__dirname, './src/router/routes.ts'),
-    // main: {
-    //   dependOn: 'route',
-    //   import: path.join(__dirname, './main.ts')
-    // }
+    routes: {
+      import: path.join(__dirname, './src/router/routes.ts'),
+      library: {
+        name: 'routes',
+        type: 'var',
+      }
+    },
+    main: {
+      dependOn: 'routes',
+      import: path.join(__dirname, './main.ts')
+    }
   },
   output: {
     path: path.join(__dirname, 'dist'),
@@ -16,7 +22,22 @@ module.exports = {
   module: {
     rules: [
       {
+        test: /\.vue$/,
+        include: [path.resolve(__dirname, './App.vue')],
+        use: [
+          {
+            loader: 'vue-loader-v15',
+            options: {
+              compilerOptions: {
+                whitespace: 'condense'
+              }
+            }
+          }
+        ]
+      },
+      {
         test: /\.(vue)$/,
+        include: [path.resolve(__dirname, 'src')],
         use: [
           {
             loader: 'example-loader',
@@ -56,7 +77,8 @@ module.exports = {
   mode: 'development',
   plugins: [
     new HtmlWebpackPlugin({
-      chunks: ['route']
+      chunks: ['main', 'routes'],
+      template: './public/index.html'
     })
   ]
 };

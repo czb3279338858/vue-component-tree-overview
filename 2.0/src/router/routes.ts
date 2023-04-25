@@ -16,5 +16,4 @@ const routes: Array<RouteConfig> = [
     //     component: () => import(/* webpackChunkName: "about" */ '../views/AboutView.vue')
     // }
 ]
-console.log(routes)
 export default routes
