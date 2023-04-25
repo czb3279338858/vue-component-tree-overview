@@ -1,6 +1,6 @@
 
 import { RouteConfig } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import HomeView from '../views/OptionsComponent.vue'
 const routes: Array<RouteConfig> = [
     {
         path: '/',
@@ -16,4 +16,5 @@ const routes: Array<RouteConfig> = [
     //     component: () => import(/* webpackChunkName: "about" */ '../views/AboutView.vue')
     // }
 ]
+console.log(routes)
 export default routes

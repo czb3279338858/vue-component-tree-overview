@@ -1,7 +1,14 @@
 const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
-  entry: path.join(__dirname, './src/views/OptionsComponent.vue'),
+  entry: {
+    route: path.join(__dirname, './src/router/routes.ts'),
+    // main: {
+    //   dependOn: 'route',
+    //   import: path.join(__dirname, './main.ts')
+    // }
+  },
   output: {
     path: path.join(__dirname, 'dist'),
     filename: '[name].chunk.js',
@@ -17,6 +24,24 @@ module.exports = {
           },
         ],
       },
+      {
+        test: /\.ts$/,
+        use: [
+          {
+            loader: 'babel-loader'
+          },
+          {
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true,
+              appendTsSuffixTo: [
+                '\\.vue$'
+              ],
+              happyPackMode: false
+            }
+          }
+        ]
+      }
     ],
   },
   resolveLoader: {
@@ -27,5 +52,11 @@ module.exports = {
   optimization: {
     minimize: false
   },
-  devtool: "source-map"
+  devtool: "source-map",
+  mode: 'development',
+  plugins: [
+    new HtmlWebpackPlugin({
+      chunks: ['route']
+    })
+  ]
 };

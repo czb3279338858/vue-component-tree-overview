@@ -30,7 +30,7 @@ const symbol = Symbol("injectD");
 
 @Component({
   components: {
-    HelloWorld,
+    // HelloWorld,
   },
 })
 export default class HomeView extends Vue {

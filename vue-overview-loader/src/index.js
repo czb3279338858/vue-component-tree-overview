@@ -678,7 +678,7 @@ linter.defineRule("my-rule", {
 		function setMapFromComponentCommonOption(optionKeyName, optionValue) {
 			if (optionKeyName === 'mixins') {
 				optionValue.elements.forEach(mixin => {
-					const mixinName = casing.pascalCase(mixin.name)
+					const mixinName = mixin.name
 					mixinSet.add(mixinName)
 				})
 			}
@@ -691,8 +691,8 @@ linter.defineRule("my-rule", {
 				optionValue.properties.forEach(component => {
 					if (component.type === 'Property') {
 						const componentKey = casing.kebabCase(component.key.value || component.key.name)
-						const componentValue = casing.pascalCase(component.value.name)
-						componentMap.set(componentKey, componentValue)
+						const componentValue = component.value.name
+						componentMap.set(`"${componentKey}"`, componentValue)
 					}
 				})
 			}
@@ -836,10 +836,10 @@ linter.defineRule("my-rule", {
 						computedMap.set(computedName, computedInfo)
 
 						// emit 事件 update:propName
-						const emitName = `update:${propName}`
+						const emitName = `"update:${propName}"`
 						const emitInfo = {
 							emitName,
-							emitType: propType,
+							emitType: [propType],
 							emitComment: propComment
 						}
 						emitMap.set(emitName, emitInfo)
@@ -914,7 +914,7 @@ linter.defineRule("my-rule", {
 						// emit
 						const emitInfo = {
 							emitName: modelEvent,
-							emitType: propType,
+							emitType: [propType],
 							emitComment: propComment
 						}
 						emitMap.set(modelEvent, emitInfo)
@@ -947,7 +947,7 @@ linter.defineRule("my-rule", {
 						const emitName = 'input'
 						const emitInfo = {
 							emitName,
-							emitType: propType,
+							emitType: [propType],
 							emitComment: propComment
 						}
 						emitMap.set(emitName, emitInfo)
@@ -1056,19 +1056,19 @@ linter.defineRule("my-rule", {
 								const type = tsUtils.inferRuntimeType(context, typeAnnotation.typeAnnotation)
 								return type
 							}
-							return undefined
+							return [undefined]
 						})
 						const emitFunBody = emitFun.value.body.body
 						// FIXME：无法获取函数 return 的推导类型，只先获取标注了具体类型
 						const emitFunRet = emitFunBody.find(e => e.type === 'ReturnStatement')
 						if (emitFunRet) {
-							let type = undefined
+							let type = [undefined]
 							const emitFunRetParams = emitFunRet.argument
 							if (emitFunRetParams.typeAnnotation) {
 								type = tsUtils.inferRuntimeType(context, emitFunRet.argument.typeAnnotation)
 							} else {
 								if (emitFunRetParams.type === 'Literal') {
-									type = emitFunRetParams.raw
+									type = [emitFunRetParams.raw]
 								}
 							}
 							emitType.unshift(type)
@@ -1081,7 +1081,7 @@ linter.defineRule("my-rule", {
 							emitType,
 							emitComment
 						}
-						emitMap.set(emitName, emitInfo)
+						emitMap.set(`"${emitName}"`, emitInfo)
 					},
 					// class组件@component得参数,
 					'Decorator[expression.callee.name=Component]'(node) {
@@ -1098,8 +1098,8 @@ linter.defineRule("my-rule", {
 					},
 					// export default class HomeView extends SuperClass {}
 					'ClassDeclaration'(node) {
-						if (node.superClass) {
-							extend = casing.pascalCase(node.superClass.name)
+						if (node.superClass && node.superClass.name !== 'Vue') {
+							extend = node.superClass.name
 						}
 					},
 
@@ -1138,7 +1138,7 @@ linter.defineRule("my-rule", {
 
 							// extend
 							if (optionKeyName === 'extends') {
-								extend = casing.pascalCase(optionValue.name)
+								extend = optionValue.name
 							}
 
 							// 生命周期
@@ -1371,7 +1371,7 @@ linter.defineRule("my-rule", {
 
 					// import MyComponent1 from "./ClassComponent.vue";
 					ImportDefaultSpecifier(node) {
-						const importName = casing.pascalCase(node.local.name)
+						const importName = node.local.name
 						const importNode = node.parent
 						const importPath = importNode.source.value
 						importMap.set(importName, importPath)
@@ -1396,8 +1396,8 @@ linter.defineRule("my-rule", {
 						provideMap,
 						injectMap,
 						modelOption,
-						componentMap,
 						componentName,
+						componentMap,
 						extend,
 						mixinSet
 					}
@@ -1453,6 +1453,5 @@ module.exports = function loader(source) {
 		return p
 	}, {})
 	newCode += `export default ${objToCode(newSourceObj)}`
-	console.log(newCode)
 	return newCode;
 }
