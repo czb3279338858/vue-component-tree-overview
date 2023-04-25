@@ -23,53 +23,6 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.vue$/,
-        include: [path.resolve(__dirname, './App.vue')],
-        use: [
-          {
-            loader: 'vue-loader',
-            options: {
-              compilerOptions: {
-                whitespace: 'condense'
-              }
-            }
-          }
-        ]
-      },
-      {
-        test: /\.vue$/,
-        resourceQuery: /type=style/,
-        sideEffects: true
-      },
-      {
-        test: /\.pug$/,
-        oneOf: [
-          /* config.module.rule('pug').oneOf('pug-vue') */
-          {
-            resourceQuery: /vue/,
-            use: [
-              /* config.module.rule('pug').oneOf('pug-vue').use('pug-plain-loader') */
-              {
-                loader: 'pug-plain-loader'
-              }
-            ]
-          },
-          /* config.module.rule('pug').oneOf('pug-template') */
-          {
-            use: [
-              /* config.module.rule('pug').oneOf('pug-template').use('raw') */
-              {
-                loader: 'raw-loader'
-              },
-              /* config.module.rule('pug').oneOf('pug-template').use('pug-plain-loader') */
-              {
-                loader: 'pug-plain-loader'
-              }
-            ]
-          }
-        ]
-      },
-      {
         test: /\.(vue)$/,
         include: [path.resolve(__dirname, 'src')],
         use: [
