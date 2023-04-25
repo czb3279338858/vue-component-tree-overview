@@ -1,5 +1,6 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const { VueLoaderPlugin } = require('vue-loader')
 
 module.exports = {
   entry: {
@@ -26,12 +27,45 @@ module.exports = {
         include: [path.resolve(__dirname, './App.vue')],
         use: [
           {
-            loader: 'vue-loader-v15',
+            loader: 'vue-loader',
             options: {
               compilerOptions: {
                 whitespace: 'condense'
               }
             }
+          }
+        ]
+      },
+      {
+        test: /\.vue$/,
+        resourceQuery: /type=style/,
+        sideEffects: true
+      },
+      {
+        test: /\.pug$/,
+        oneOf: [
+          /* config.module.rule('pug').oneOf('pug-vue') */
+          {
+            resourceQuery: /vue/,
+            use: [
+              /* config.module.rule('pug').oneOf('pug-vue').use('pug-plain-loader') */
+              {
+                loader: 'pug-plain-loader'
+              }
+            ]
+          },
+          /* config.module.rule('pug').oneOf('pug-template') */
+          {
+            use: [
+              /* config.module.rule('pug').oneOf('pug-template').use('raw') */
+              {
+                loader: 'raw-loader'
+              },
+              /* config.module.rule('pug').oneOf('pug-template').use('pug-plain-loader') */
+              {
+                loader: 'pug-plain-loader'
+              }
+            ]
           }
         ]
       },
@@ -76,6 +110,7 @@ module.exports = {
   devtool: "source-map",
   mode: 'development',
   plugins: [
+    new VueLoaderPlugin(),
     new HtmlWebpackPlugin({
       chunks: ['main', 'routes'],
       template: './public/index.html'

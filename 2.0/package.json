@@ -33,10 +33,13 @@
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3",
     "html-webpack-plugin": "^5.5.1",
+    "pug-plain-loader": "^1.1.0",
+    "raw-loader": "^4.0.2",
     "sass": "^1.32.7",
     "sass-loader": "^12.0.0",
     "ts-loader": "^9.4.2",
     "typescript": "~4.5.5",
+    "vue-loader": "^15.10.0",
     "vue-template-compiler": "^2.6.14"
   }
 }
