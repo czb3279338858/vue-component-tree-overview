@@ -1,19 +1,19 @@
 
 import { RouteConfig } from 'vue-router'
-import HomeView from '../views/OptionsComponent.vue'
+import Home from '../views/Home.vue'
+import OptionsComponent from '../views/OptionsComponent.vue'
 const routes: Array<RouteConfig> = [
     {
-        path: '/',
+        path: '/home',
         name: 'home',
-        component: HomeView
+        component: Home,
+        children: [
+            {
+                path: '/options',
+                component: OptionsComponent
+            }
+        ]
     },
-    // {
-    //     path: '/about',
-    //     name: 'about',
-    //     // route level code-splitting
-    //     // this generates a separate chunk (about.[hash].js) for this route
-    //     // which is lazy-loaded when the route is visited.
-    //     component: () => import(/* webpackChunkName: "about" */ '../views/AboutView.vue')
-    // }
 ]
+console.log(JSON.stringify(routes))
 export default routes

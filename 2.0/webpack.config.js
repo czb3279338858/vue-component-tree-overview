@@ -1,6 +1,5 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const { VueLoaderPlugin } = require('vue-loader')
 
 module.exports = {
   entry: {
@@ -10,10 +9,6 @@ module.exports = {
         name: 'routes',
         type: 'var',
       }
-    },
-    main: {
-      dependOn: 'routes',
-      import: path.join(__dirname, './main.ts')
     }
   },
   output: {
@@ -24,10 +19,9 @@ module.exports = {
     rules: [
       {
         test: /\.(vue)$/,
-        include: [path.resolve(__dirname, 'src')],
         use: [
           {
-            loader: 'example-loader',
+            loader: 'vue-overview-loader',
             options: {},
           },
         ],
@@ -54,18 +48,13 @@ module.exports = {
   },
   resolveLoader: {
     alias: {
-      'example-loader': require.resolve('../vue-overview-loader/src/'),
+      'vue-overview-loader': require.resolve('../vue-overview-loader/src/'),
     },
   },
-  optimization: {
-    minimize: false
-  },
-  devtool: "source-map",
   mode: 'development',
   plugins: [
-    new VueLoaderPlugin(),
     new HtmlWebpackPlugin({
-      chunks: ['main', 'routes'],
+      chunks: ['routes'],
       template: './public/index.html'
     })
   ]

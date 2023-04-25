@@ -1,13 +1,40 @@
 <template>
-  <div id="app">{{ msg }}</div>
+  <div>
+    <div>
+      <el-input v-model="url"></el-input>
+      <el-button @click="checkUrl">查询</el-button>
+    </div>
+    <el-tree></el-tree>
+  </div>
 </template>
 <script lang="ts">
 import Vue from "vue";
+import routes from "./routes";
+import VueRouter from "vue-router";
+const router = new VueRouter({
+  routes,
+  mode: "hash",
+});
+import { Tree, Input, Button } from "element-ui";
 export default Vue.extend({
+  components: {
+    [Tree.name]: Tree,
+    [Input.name]: Input,
+    [Button.name]: Button,
+  },
+  methods: {
+    checkUrl() {
+      console.log(routes);
+      if (!this.url) return;
+      const route = router.match(this.url);
+      console.log(route);
+    },
+  },
   data() {
     return {
-      msg: "Welcome to Your Vue.js App",
+      url: "",
     };
   },
+  computed: {},
 });
 </script>
