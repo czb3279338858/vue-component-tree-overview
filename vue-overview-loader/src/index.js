@@ -764,12 +764,13 @@ linter.defineRule("my-rule", {
 					'VElement>VExpressionContainer'(node) {
 						const [templateName, templateType, , templateCallNames] = getExpressionInfo(node)
 						const templateInfo = {
-							templateName,
-							templateCallNames,
+							templateValue: `${sourceCode.getText(node)}`,
 							templateType,
 							attributes: undefined,
 							templateComment: getTemplateCommentBefore(node),
-							children: undefined
+							children: undefined,
+							templateName,
+							templateCallNames,
 						}
 						addTemplateMap(node, templateInfo, templateMap)
 					}
