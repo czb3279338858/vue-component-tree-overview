@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve2.1": "vue-cli-service serve",
-    "build2.1": "vue-cli-service build",
+    "serve-html-template": "vue-cli-service serve",
+    "build-html-template": "vue-cli-service build",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {

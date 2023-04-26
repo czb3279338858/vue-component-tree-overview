@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "lint": "vue-cli-service lint",
-    "build2.0": "webpack build --config=./webpack.config.js",
-    "serve2.0": "webpack serve --config=./webpack.config.js",
+    "build-loader": "webpack build --config=./webpack.config.js",
+    "serve-loader": "webpack serve --config=./webpack.config.js",
     "webpackConfig": "vue inspect > vue-cli-webpack-config-output.js",
     "eslintConfig": "eslint --print-config ./.eslintrc.js"
   },
