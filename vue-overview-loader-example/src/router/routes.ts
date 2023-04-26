@@ -9,7 +9,7 @@ const routes: Array<RouteConfig> = [
         component: Home,
         children: [
             {
-                path: '/options',
+                path: 'options',
                 component: OptionsComponent
             }
         ]
