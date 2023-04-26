@@ -13,8 +13,10 @@ import routes from "./routes";
 import VueRouter from "vue-router";
 const router = new VueRouter({
   routes,
-  mode: "hash",
 });
+const route = router.match("/home/options");
+console.log(route);
+debugger;
 import { Tree, Input, Button } from "element-ui";
 export default Vue.extend({
   components: {
@@ -24,7 +26,6 @@ export default Vue.extend({
   },
   methods: {
     checkUrl() {
-      console.log(routes);
       if (!this.url) return;
       const route = router.match(this.url);
       console.log(route);
