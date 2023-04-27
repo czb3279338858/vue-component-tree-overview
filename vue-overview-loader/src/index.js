@@ -166,6 +166,10 @@ linter.defineRule("my-rule", {
 			})
 			return scopeName
 		}
+		function sourceCodeGetText(node) {
+			const ret = sourceCode.getText(node)
+			return ret.replace(/\n/g, '').replace(/\s+/g, ' ')
+		}
 		/**
 		 * 获取函数调用的函数名和参数
 		 * 支持连续调用，不支持多个参数
@@ -182,7 +186,7 @@ linter.defineRule("my-rule", {
 				if (param.type === 'CallExpression') {
 					return getCallExpressionNamesAndParam(param, names)
 				} else {
-					const callParam = param.type === 'MemberExpression' ? sourceCode.getText(param) : undefined
+					const callParam = param.type === 'MemberExpression' ? sourceCodeGetText(param) : undefined
 					return [callParam, names]
 				}
 			} else {
@@ -211,7 +215,7 @@ linter.defineRule("my-rule", {
 
 			// 表达式(e.a)直接返回文本
 			if (['MemberExpression'].includes(expression.expression.type)) {
-				return [sourceCode.getText(expression.expression), expression.expression.type]
+				return [sourceCodeGetText(expression.expression), expression.expression.type]
 			}
 
 			// 绑定值是函数调用,[函数名,'CallExpression']
@@ -302,7 +306,7 @@ linter.defineRule("my-rule", {
 							const key = d.key.name
 							switch (key) {
 								case 'default':
-									propDefault = sourceCode.getText(d.value)
+									propDefault = sourceCodeGetText(d.value)
 									break;
 								case 'type':
 									propType = getPropType(d.value)
@@ -375,7 +379,7 @@ linter.defineRule("my-rule", {
 				const propName = prop.propName
 
 				const propDefaultNode = propDefaultNodes.find(p => p.key.name === propName)
-				const propDefault = propDefaultNode ? sourceCode.getText(propDefaultNode.value) : undefined
+				const propDefault = propDefaultNode ? sourceCodeGetText(propDefaultNode.value) : undefined
 
 				const propType = prop.types
 				const propRequired = prop.required
@@ -495,12 +499,12 @@ linter.defineRule("my-rule", {
 		function getEmitTypeFromObjectParamValue(paramValue) {
 			const paramValueType = paramValue.type
 
-			if (paramValueType === 'ArrayExpression') return [paramValue.elements.map(element => getEmitTypeFromObjectParamValue(element)[0])]
+			if (paramValueType === 'ArrayExpression') return paramValue.elements.map(element => getEmitTypeFromObjectParamValue(element)[0])
 
-			if (['FunctionExpression'].includes(paramValueType)) return [sourceCode.getText(paramValue.parent)]
+			if (['FunctionExpression'].includes(paramValueType)) return [sourceCodeGetText(paramValue.parent)]
 
 			// ArrowFunctionExpression 箭头函数
-			if ('ArrowFunctionExpression' === paramValueType) return [sourceCode.getText(paramValue)]
+			if ('ArrowFunctionExpression' === paramValueType) return [sourceCodeGetText(paramValue)]
 
 			if (paramValueType === 'Identifier') return [paramValue.name]
 		}
@@ -508,10 +512,10 @@ linter.defineRule("my-rule", {
 		function getEmitType(emit) {
 			const defineEmitsParamType = emit.type
 			// defineEmits参数是数组
-			if (defineEmitsParamType === 'array') return undefined
+			if (defineEmitsParamType === 'array') return [undefined]
 			// 参数是对象
 			if (defineEmitsParamType === 'object') {
-				return getEmitTypeFromObjectParamValue(emit.value)
+				return [getEmitTypeFromObjectParamValue(emit.value)]
 			}
 			// 类型
 			if (defineEmitsParamType === 'type') {
@@ -523,14 +527,16 @@ linter.defineRule("my-rule", {
 				}, [])
 			}
 		}
-
+		function isGoodType(type) {
+			return ['Object', 'Array', 'String', 'Number', 'Boolean', 'Function', 'RegExp'].includes(type)
+		}
 		function setEmitMap(emitMap, emitName, emitType, emitComment) {
 			const oldEmit = emitMap.get(emitName)
 			if (oldEmit) {
 				oldEmit.emitComment = `${oldEmit.emitComment}\n\n${emitComment}`
 				const oldEmitType = oldEmit.emitType
 				emitType && emitType.forEach((type, index) => {
-					if (type) oldEmitType[index] = type
+					if (type && isGoodType(type)) oldEmitType[index] = type
 				})
 			} else {
 				const emitInfo = {
@@ -543,13 +549,14 @@ linter.defineRule("my-rule", {
 		}
 		function getRuntimeType(node) {
 			if (node.typeAnnotation) {
-				return tsUtils.inferRuntimeType(context, node.typeAnnotation)
+				const ret = tsUtils.inferRuntimeType(context, node.typeAnnotation.typeAnnotation)
+				return ret
 			}
 			if (['ObjectExpression'].includes(node.type)) return 'Object'
 			if (['ArrayExpression'].includes(node.type)) return 'Array'
 			if (['FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)) return 'Function'
-			if (node.type === 'Literal') return node.raw
-			if (node.type === 'MemberExpression') return sourceCode.getText(node)
+			if (node.type === 'Literal') return casing.pascalCase(typeof node.raw)
+			if (node.type === 'MemberExpression') return sourceCodeGetText(node)
 			if (node.type === 'Identifier') return node.name
 			return undefined
 		}
@@ -603,7 +610,7 @@ linter.defineRule("my-rule", {
 				if (provide.computed) {
 					provideName = `[${provideName}]`
 				}
-				const provideFromKey = sourceCode.getText(provide.value)
+				const provideFromKey = sourceCodeGetText(provide.value)
 				const provideComments = sourceCode.getCommentsBefore(provide)
 				const provideComment = commentsToText(provideComments)
 				const provideInfo = {
@@ -627,7 +634,7 @@ linter.defineRule("my-rule", {
 			if (injectOption.type === 'ObjectExpression') {
 				const ret = injectOption.properties.reduce((p, c) => {
 					if (c.key.name === 'from') p[0] = c.value.raw
-					if (c.key.name === 'default') p[1] = sourceCode.getText(c.value)
+					if (c.key.name === 'default') p[1] = sourceCodeGetText(c.value)
 					return p
 				}, [undefined, undefined])
 				if (!ret[0]) ret = injectName
@@ -725,7 +732,7 @@ linter.defineRule("my-rule", {
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
 							// FIXME: 支持动态绑定
-							const name = sourceCode.getText(a.key)
+							const name = sourceCodeGetText(a.key)
 							const [valueName, valueType, scopeNames, callNames] = getExpressionInfo(a.value)
 							return {
 								name,
@@ -737,7 +744,7 @@ linter.defineRule("my-rule", {
 						})
 						const templateComment = getTemplateCommentBefore(element)
 						const templateInfo = {
-							templateValue,
+							templateValue: `<${templateValue}>`,
 							templateType: 'VElement',
 							attributes,
 							templateComment,
@@ -752,7 +759,7 @@ linter.defineRule("my-rule", {
 					'VElement>VText'(node) {
 						if (isEmptyVText(node)) return
 						const templateInfo = {
-							templateValue: vTextGetTemplateValue(node.value),
+							templateValue: `"${vTextGetTemplateValue(node.value)}"`,
 							templateType: 'VText',
 							attributes: undefined,
 							templateComment: getTemplateCommentBefore(node),
@@ -764,7 +771,7 @@ linter.defineRule("my-rule", {
 					'VElement>VExpressionContainer'(node) {
 						const [templateName, templateType, , templateCallNames] = getExpressionInfo(node)
 						const templateInfo = {
-							templateValue: `${sourceCode.getText(node)}`,
+							templateValue: `${sourceCodeGetText(node)}`,
 							templateType,
 							attributes: undefined,
 							templateComment: getTemplateCommentBefore(node),
@@ -1124,7 +1131,7 @@ linter.defineRule("my-rule", {
 							if (['FunctionExpression', 'ArrowFunctionExpression'].includes(emitValue.type)) {
 								const emitFunParams = emitValue.params
 								emitType = emitFunParams.map(p => {
-									return getRuntimeType(p)
+									return [getRuntimeType(p)]
 								})
 							}
 							setEmitMap(emitMap, emitName, emitType, emitComment)
@@ -1283,7 +1290,7 @@ linter.defineRule("my-rule", {
 							const emitName = calleeParams[0].value
 							const emitComments = sourceCode.getCommentsBefore(node)
 							const emitComment = commentsToText(emitComments)
-							const emitType = calleeParams.slice(1).map(p => { return getRuntimeType(p) })
+							const emitType = calleeParams.slice(1).map(p => { return [getRuntimeType(p)] })
 							setEmitMap(emitMap, emitName, emitType, emitComment)
 						}
 					},
@@ -1384,20 +1391,22 @@ linter.defineRule("my-rule", {
 				"Program:exit"() {
 					sourceMetaMap = {
 						importMap,
+						componentName,
 						templateMap,
-						slotSet,
 						propMap,
+						emitMap,
+						modelOption,
+						slotSet,
+
 						setupMap,
 						lifecycleHookMap,
+						provideMap,
+						injectMap,
+
 						filterMap,
-						emitMap,
 						dataMap,
 						computedMap,
 						methodMap,
-						provideMap,
-						injectMap,
-						modelOption,
-						componentName,
 						componentMap,
 						extend,
 						mixinSet

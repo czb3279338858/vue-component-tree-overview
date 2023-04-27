@@ -1,39 +1,174 @@
 <template>
-  <div>
-    <el-tree
-      :data="template"
-      default-expand-all
-      show-checkbox
-      check-strictly
-      accordion
-      @check="checkTemplate"
-    >
-      <span slot-scope="{ data }">
-        <span>{{ data.templateValue }}</span>
-      </span>
-    </el-tree>
+  <div class="tw-flex tw-border-black tw-border tw-p-2">
+    <div class="tw-overflow-auto tw-border-black tw-border">
+      <el-tree
+        :data="treeData"
+        node-key="_id"
+        default-expand-all
+        show-checkbox
+        check-strictly
+        accordion
+        @check="checkTemplate"
+        ref="templateTree"
+        class="tw-p-2"
+      >
+        <span slot-scope="{ data }">
+          <span>{{ data.templateValue }}</span>
+        </span>
+      </el-tree>
+    </div>
+    <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto">
+      <div v-if="isFirstTemplate">
+        <div class="tw-border-black tw-border tw-p-2">
+          <div>name：{{ componentData.componentName || "无" }}</div>
+          <!-- model -->
+          <el-card v-if="model" class="tw-mt-2">
+            <div slot="header">model</div>
+            <div>
+              <div>prop:{{ model.prop }}</div>
+              <div>event:{{ model.event }}</div>
+            </div>
+          </el-card>
+        </div>
+        <!-- prop -->
+        <div
+          v-if="props.length"
+          class="tw-border-black tw-border tw-mt-2 tw-p-2"
+        >
+          <h1 class="tw-mb-2">props</h1>
+          <el-table :data="props" border>
+            <el-table-column prop="propName" label="prop"></el-table-column>
+            <el-table-column
+              prop="propDefault"
+              label="默认值"
+            ></el-table-column>
+            <el-table-column
+              prop="propRequired"
+              label="是否必填"
+            ></el-table-column>
+            <el-table-column prop="propType" label="类型">
+              <template slot-scope="{ row }">
+                <span>{{ getPropTypeText(row.propType) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="propComment" label="注释" width="300">
+              <template slot-scope="{ row }">
+                <span v-html="getBrFromLineBreak(row.propComment)"></span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <!-- emit -->
+        <div
+          v-if="emits.length"
+          class="tw-border-black tw-border tw-mt-2 tw-p-2"
+        >
+          <h1 class="tw-mb-2">emits</h1>
+          <el-table :data="emits" border>
+            <el-table-column prop="emitName" label="事件名"></el-table-column>
+            <el-table-column prop="emitType" label="参数类型">
+              <template slot-scope="{ row }">
+                <span v-html="getEmitTypeText(row.emitType)"></span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="emitComment" label="注释">
+              <template slot-scope="{ row }">
+                <span v-html="getBrFromLineBreak(row.emitComment)"></span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <!-- slot -->
+      </div>
+      <div v-else></div>
+    </div>
   </div>
 </template>
 <script>
-import { Tree, Input, Button, Tooltip } from "element-ui";
+import { Tree, Tooltip, Table, TableColumn, Card } from "element-ui";
+function getTreeDataFromTemplateTree(templates, id, parent) {
+  return templates.map((template, index) => {
+    const _id = id ? `${id}_${index}` : `${index}`;
+    let ret = {
+      ...template,
+      _id,
+      parent: parent || undefined,
+    };
+    ret["children"] = template.children
+      ? getTreeDataFromTemplateTree(template.children, _id, ret)
+      : undefined;
+    return ret;
+  });
+}
 export default {
   components: {
     [Tree.name]: Tree,
     [Tooltip.name]: Tooltip,
+    [Table.name]: Table,
+    [TableColumn.name]: TableColumn,
+    [Card.name]: Card,
   },
-  props: ["data"],
+  props: ["componentData"],
   computed: {
-    template() {
-      return this.data.template ? [this.data.template] : [];
+    model() {
+      return this.componentData.modelOption;
     },
+    props() {
+      return this.componentData.propMap
+        ? Object.values(this.componentData.propMap)
+        : [];
+    },
+    emits() {
+      return this.componentData.emitMap
+        ? Object.values(this.componentData.emitMap)
+        : [];
+    },
+    templateTree() {
+      return this.componentData.template ? [this.componentData.template] : [];
+    },
+    treeData() {
+      return getTreeDataFromTemplateTree(this.templateTree);
+    },
+    isFirstTemplate() {
+      return this.currentTemplate ? this.currentTemplate._id === "0" : false;
+    },
+  },
+  data() {
+    return {
+      currentTemplate: null,
+      cs: `a\nb`,
+    };
   },
   methods: {
+    getBrFromLineBreak(str) {
+      return str.replace(/\n/g, "<br/>");
+    },
+    getEmitTypeText(emitType) {
+      const ret = emitType
+        ? this.getBrFromLineBreak(
+            emitType
+              .map((types) => {
+                return types && types.length ? types.join(" | ") : "undefined";
+              })
+              .join("\n")
+          )
+        : "";
+      return ret;
+    },
+    getPropTypeText(propType) {
+      return propType ? propType.join(" | ") : "undefined";
+    },
     checkTemplate(template) {
-      debugger;
+      this.currentTemplate = template;
+      console.log(this.componentData, this.currentTemplate);
+      this.$refs.templateTree.setCheckedKeys([template._id]);
+    },
+    checkFirstTemplate() {
+      this.checkTemplate(this.treeData[0]);
     },
   },
-  updated() {
-    console.log(this.data);
+  mounted() {
+    this.checkFirstTemplate();
   },
 };
 </script>
