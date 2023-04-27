@@ -140,24 +140,29 @@ function getSlotTemplatesFromTreeData(treeData) {
     return ret;
   }, []);
 }
-function getAttrValueFrom(attrValue, slot) {
+function getAttrValueFrom(attrValue, slot, pre) {
   const parent = slot.parent;
   if (parent) {
     if (parent.attributes) {
       const scopeAttr = parent.attributes.find(
         (attr) => attr.scopeNames && attr.scopeNames.includes(attrValue)
       );
+      console.log(scopeAttr);
+      debugger;
       if (scopeAttr) {
+        const nextPre = pre
+          ? `${pre}\n${attrValue}来源于${scopeAttr.valueName}`
+          : `${attrValue}来源于${scopeAttr.valueName}`;
         if (scopeAttr.valueType === "Identifier") {
-          return getAttrValueFrom(scopeAttr.valueName, parent);
+          return getAttrValueFrom(scopeAttr.valueName, parent, nextPre);
         }
-        return scopeAttr.valueName;
+        return nextPre;
       }
     } else {
-      return getAttrValueFrom(attrValue, parent);
+      return getAttrValueFrom(attrValue, parent, pre);
     }
   }
-  return attrValue;
+  return pre ? `${pre}\n${attrValue}` : attrValue;
 }
 export default {
   components: {
@@ -205,7 +210,7 @@ export default {
   methods: {
     getSlotAttrValue(attr, slot) {
       if (attr.valueType === "Identifier") {
-        return getAttrValueFrom(attr.valueName, slot);
+        return this.getBrFromLineBreak(getAttrValueFrom(attr.valueName, slot));
       }
       return attr.valueName;
     },
