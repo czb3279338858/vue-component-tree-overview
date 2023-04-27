@@ -42,7 +42,9 @@
       }}</div11>
       <!-- 定义 -->
       <slot name="header"></slot>
-      <slot name="footer" :item="item" :index="index"></slot>
+      <div14 v-for="item in dataB" :key="item">
+        <slot name="footer" :item="item" :index="dataA"></slot>
+      </div14>
     </div5>
     <!-- 2.6之后 -->
     <div8 v-slot:header></div8>

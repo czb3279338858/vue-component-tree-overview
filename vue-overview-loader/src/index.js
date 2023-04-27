@@ -267,14 +267,11 @@ linter.defineRule("my-rule", {
 		}
 
 
-		// {templateName,templateCallNames,templateType,attributes,templateComment,children}
+		// {templateValue,templateCallNames,templateType,attributes,templateComment,children}
 		const templateMap = new Map()
 
 		// ——————————————————————————————————————————————————————————————
 
-		const slotSet = new Set()
-
-		// ——————————————————————————————————————————————————————————————
 
 		function getPropType(typeValue) {
 			switch (typeValue.type) {
@@ -749,9 +746,6 @@ linter.defineRule("my-rule", {
 							attributes,
 							templateComment,
 							children: []
-						}
-						if (templateValue === 'slot') {
-							slotSet.add(templateInfo)
 						}
 						addTemplateMap(element, templateInfo, templateMap)
 					},
@@ -1396,7 +1390,6 @@ linter.defineRule("my-rule", {
 						propMap,
 						emitMap,
 						modelOption,
-						slotSet,
 
 						setupMap,
 						lifecycleHookMap,
