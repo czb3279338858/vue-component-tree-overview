@@ -14,6 +14,7 @@
         - 常量：`class="tw-p-2"`
         - 变量绑定：`:class="dataA"`
         - 函数调用绑定：`:attr-b="getAttrB1(getAttrB2(dataA, dataB))"`
+          - 不支持`:attr-b="getAttrB1(getAttrB2(dataA),getAttrB3(dataB))"`
         - 属性表达式绑定：`:attr-c="dataB.a"`
         - filter绑定：`:attr-d="myClass | filterA | filterB"`
         - v-if,v-else-if,v-else
@@ -30,6 +31,8 @@
     - 支持
       - 变量绑定
       - 函数调用绑定
+        - 支持`{{ getAttrB1(getAttrB2(data, dataB)) }}`
+        - 不支持`getAttrB1(getAttrB2(dataA),getAttrB3(dataB))`
       - 属性表达式绑定
       - filter绑定
   - 字符串
@@ -62,6 +65,7 @@
     - emits
       - 数组
       - 对象
+      - 参数的类型更好的话，会覆盖 emit，$emit 的参数类型
     - methods
       - 支持 emit，$emit调用
     - setup

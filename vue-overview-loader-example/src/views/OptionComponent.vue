@@ -13,7 +13,7 @@
     {{ data | filterA }}
     {{ data }}
     {{ dataB.a }}
-    {{ getAttrB1() }}
+    {{ getAttrB1(getAttrB2(data, dataB)) }}
     <!-- 常量注释 -->
     我是字符串
     <div v-if="dataA">v-if</div>
@@ -74,32 +74,32 @@ export default defineComponent({
   mounted() {
     console.log("mounted");
   },
-  // provide: {
-  //   // provideA注释
-  //   provideA: "provideAFrom",
+  provide: {
+    // provideA注释
+    provideA: "provideAFrom",
+  },
+  // provide() {
+  //   let s = Symbol();
+  //   return {
+  //     // provideSymbol注释
+  //     [s]: "provideSymbolFrom",
+  //     // provideA注释，来源于 provide
+  //     provideA: "provideAFrom",
+  //   };
   // },
-  provide() {
-    let s = Symbol();
-    return {
-      // provideSymbol注释
-      [s]: "provideSymbolFrom",
-      // provideA注释，来源于 provide
-      provideA: "provideAFrom",
-    };
-  },
-  // inject: [
-  //   // injectA注释
-  //   "injectA",
-  // ],
-  inject: {
+  inject: [
     // injectA注释
-    injectA: {
-      from: "injectAFrom",
-      default: () => "injectADefault",
-    },
-    // injectB注释
-    injectB: injectSymbol,
-  },
+    "injectA",
+  ],
+  // inject: {
+  //   // injectA注释
+  //   injectA: {
+  //     from: "injectAFrom",
+  //     default: () => "injectADefault",
+  //   },
+  //   // injectB注释
+  //   injectB: injectSymbol,
+  // },
   // emits: [
   //   // emitA注释
   //   "emitA",
@@ -108,7 +108,7 @@ export default defineComponent({
     // emitA注释
     emitA: null,
     // emitB注释1
-    emitB(emitValueA: string, emitValueB) {
+    emitB(emitValueA: string | number, emitValueB) {
       return typeof emitValueA === "string" && emitValueB;
     },
     // emitC注释1
@@ -171,26 +171,27 @@ export default defineComponent({
         // dataB 属性 a 注释
         a: "",
       },
+      // provideSymbolFrom，来源于 data
       provideSymbolFrom: "",
       // provideA注释，来源于 data
       provideAFrom: "",
     };
   },
-  props: {
-    // propA 注释
-    propA: {
-      default: "",
-      type: String as PropType<string>,
-      required: true,
-    },
-    // propB 注释
-    propB: Number,
-    // propC 注释
-    propC: [Number, String],
-  },
-  // props: [
+  // props: {
   //   // propA 注释
-  //   "propA",
-  // ],
+  //   propA: {
+  //     default: "propADefault",
+  //     type: String as PropType<string>,
+  //     required: true,
+  //   },
+  //   // propB 注释
+  //   propB: Number,
+  //   // propC 注释
+  //   propC: [Number, String],
+  // },
+  props: [
+    // propA 注释
+    "propA",
+  ],
 });
 </script>

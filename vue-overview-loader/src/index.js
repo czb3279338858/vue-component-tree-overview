@@ -182,13 +182,17 @@ linter.defineRule("my-rule", {
 			const funName = callExpression.callee.name
 			const params = callExpression.arguments
 			names.push(funName)
-			if (params && params.length === 1) {
-				const param = params[0]
-				if (param.type === 'CallExpression') {
-					return getCallExpressionNamesAndParam(param, names)
+			if (params) {
+				if (params.length === 1) {
+					const param = params[0]
+					if (param.type === 'CallExpression') {
+						return getCallExpressionNamesAndParam(param, names)
+					} else {
+						const callParam = param.type === 'MemberExpression' ? sourceCodeGetText(param) : undefined
+						return [[callParam], names]
+					}
 				} else {
-					const callParam = param.type === 'MemberExpression' ? sourceCodeGetText(param) : undefined
-					return [callParam, names]
+					return [params.map(param => sourceCodeGetText(param)), names]
 				}
 			} else {
 				return [undefined, names]
@@ -224,28 +228,28 @@ linter.defineRule("my-rule", {
 			// 不支持 :style="c(d(a.b), a)"，:style="c()"
 			// 支持 c(d(a.b))
 			if (expression.expression.type === 'CallExpression') {
-				const [valueName, callNames] = getCallExpressionNamesAndParam(expression.expression)
-				return [valueName, expression.expression.type, undefined, callNames]
+				const [callParams, callNames] = getCallExpressionNamesAndParam(expression.expression)
+				return [sourceCodeGetText(expression.expression), expression.expression.type, undefined, callNames, callParams]
 			}
 
 			// filter filter的顺序做了颠倒和函数一致符合它的调用顺序
 			if ('VFilterSequenceExpression' === expression.expression.type) {
 				const callNames = expression.expression.filters.map(f => f.callee.name).reverse()
-				const valueName = expression.expression.expression.name
-				return [valueName, expression.expression.type, undefined, callNames]
+				const callParam = expression.expression.expression.name
+				return [sourceCodeGetText(expression.expression), expression.expression.type, undefined, callNames, [callParam]]
 			}
 
 			// 绑定值是v-for的值，[遍历的对象，'VForExpression'，遍历的项名[]]
 			// 遍历的对象只支持变量
 			// 遍历的项名[]，例如 (val, name, index) in object => [val,name,index]
 			if (expression.expression.type === 'VForExpression') {
-				return [expression.expression.right.type === 'Identifier' ? expression.expression.right.name : undefined, expression.expression.type, getPatternNames(expression.expression.left)]
+				return [sourceCodeGetText(expression.expression), expression.expression.type, getPatternNames(expression.expression.left), undefined, undefined, expression.expression.right.name]
 			}
 
 			// 绑定值是slot-scope或v-slot
 			if (expression.expression.type === 'VSlotScopeExpression') {
 				const scopeNames = getPatternNames(expression.expression.params)
-				return [expression.parent.key.name.name, expression.expression.type, scopeNames]
+				return [sourceCodeGetText(expression.expression), expression.expression.type, scopeNames]
 			}
 
 			// 其他，不支持
@@ -280,6 +284,8 @@ linter.defineRule("my-rule", {
 					return [typeValue.name]
 				case 'ArrayExpression':
 					return typeValue.elements.map(e => e.name)
+				case 'TSAsExpression':
+					return tsUtils.inferRuntimeType(context, typeValue.typeAnnotation.typeParameters.params[0])
 				default:
 					return []
 			}
@@ -550,12 +556,15 @@ linter.defineRule("my-rule", {
 				const ret = tsUtils.inferRuntimeType(context, node.typeAnnotation.typeAnnotation)
 				return ret
 			}
-			if (['ObjectExpression'].includes(node.type)) return 'Object'
-			if (['ArrayExpression'].includes(node.type)) return 'Array'
+			if (['ObjectExpression', 'ObjectPattern'].includes(node.type)) return 'Object'
+			if (['ArrayExpression', 'ArrayPattern'].includes(node.type)) return 'Array'
 			if (['FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)) return 'Function'
-			if (node.type === 'Literal') return casing.pascalCase(typeof node.raw)
-			if (node.type === 'MemberExpression') return sourceCodeGetText(node)
-			if (node.type === 'Identifier') return node.name
+			if (node.type === 'Literal') {
+				const value = node.value
+				if (Array.isArray(value)) return 'Array'
+				if (value === null) return 'null'
+				return casing.pascalCase(typeof node.value)
+			}
 			return undefined
 		}
 		// {emitName,emitType,emitComment}
@@ -639,7 +648,7 @@ linter.defineRule("my-rule", {
 				return ret
 			}
 			// 变量名
-			if (injectOption.type === 'Identifier') return [`[${injectOption.name}]`, undefined]
+			if (injectOption.type === 'Identifier') return [`${injectOption.name}`, undefined]
 			return [undefined, undefined]
 		}
 		// {injectName,injectFrom,injectDefault,injectComment}
@@ -732,14 +741,23 @@ linter.defineRule("my-rule", {
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
 							// FIXME: 支持动态绑定
-							const name = sourceCodeGetText(a.key)
-							const [valueName, valueType, scopeNames, callNames] = getExpressionInfo(a.value)
+							const keyName = sourceCodeGetText(a.key)
+							const [valueName, valueType, scopeNames, callNames, callParams, vForName] = getExpressionInfo(a.value)
 							return {
-								name,
+								// attr左边
+								keyName,
+								// attr右边
 								valueName,
+								// attr右边的类型
 								valueType,
+								// v-for,v-slot,slot-scope有作用域
 								scopeNames,
-								callNames
+								// attr右边是函数调用或filter
+								callNames,
+								// attr右边是函数调用或filter的参数
+								callParams,
+								// v-for的值
+								vForName
 							}
 						})
 						const templateComment = getTemplateCommentBefore(element)
@@ -766,15 +784,18 @@ linter.defineRule("my-rule", {
 					},
 					// 标签内{{ }}
 					'VElement>VExpressionContainer'(node) {
-						const [templateName, templateType, , templateCallNames] = getExpressionInfo(node)
+						const [templateName, templateType, , templateCallNames, templateCallParams,] = getExpressionInfo(node)
 						const templateInfo = {
+							// 包含{{}}的值
 							templateValue: `${sourceCodeGetText(node)}`,
 							templateType,
 							attributes: undefined,
 							templateComment: getTemplateCommentBefore(node),
 							children: undefined,
+							// {{}}内的值
 							templateName,
 							templateCallNames,
+							templateCallParams
 						}
 						addTemplateMap(node, templateInfo, templateMap)
 					}
@@ -783,513 +804,330 @@ linter.defineRule("my-rule", {
 				// FIXME:所有的 装饰器参数、prop option 必须是字面量对象
 				{
 					// class component
-					// 以下为Prop相关装饰器
-					// class component @Prop
-					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Prop]'(node) {
-						const decoratorParams = node.expression.arguments
-						const prop = node.parent
+					...{
+						// class component @Prop
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Prop]'(node) {
+							const decoratorParams = node.expression.arguments
+							const prop = node.parent
 
-						const propName = prop.key.name
-						const propOption = decoratorParams[0]
+							const propName = prop.key.name
+							const propOption = decoratorParams[0]
 
-						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
+							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
 
-						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const propNameComments = sourceCode.getCommentsAfter(node)
-						const propComment = commentsToText([...decoratorComments, ...propNameComments])
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const propNameComments = sourceCode.getCommentsAfter(node)
+							const propComment = commentsToText([...decoratorComments, ...propNameComments])
 
-						const propInfo = {
-							propName,
-							propDefault,
-							propType,
-							propRequired,
-							propComment
-						}
-						propMap.set(propName, propInfo)
-					},
-					// class component @PropSync
-					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=PropSync]'(node) {
-						// prop
-						const decoratorParams = node.expression.arguments
-						const computed = node.parent
-
-						const propName = decoratorParams[0].value
-						const propOption = decoratorParams[1]
-
-						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
-
-						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const computedComments = sourceCode.getCommentsAfter(node)
-						const propComment = commentsToText([...decoratorComments, ...computedComments])
-
-						const propInfo = {
-							propName,
-							propDefault,
-							propType,
-							propRequired,
-							propComment
-						}
-						propMap.set(propName, propInfo)
-
-						// computed
-						const computedComment = `all:${propComment}`
-						const computedName = computed.key.name
-						const computedInfo = {
-							computedName,
-							computedComment
-						}
-						computedMap.set(computedName, computedInfo)
-
-						// emit 事件 update:propName
-						const emitName = `"update:${propName}"`
-						const emitInfo = {
-							emitName,
-							emitType: [propType],
-							emitComment: propComment
-						}
-						emitMap.set(emitName, emitInfo)
-					},
-					// class component @Model
-					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Model]'(node) {
-						const decoratorParams = node.expression.arguments
-						const prop = node.parent
-
-						const propName = prop.key.name
-						const propOption = decoratorParams[1]
-
-						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
-
-						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const propComments = sourceCode.getCommentsAfter(node)
-						const propComment = commentsToText([...decoratorComments, ...propComments])
-
-						const propInfo = {
-							propName,
-							propDefault,
-							propType,
-							propRequired,
-							propComment
-						}
-						propMap.set(propName, propInfo)
-
-						// modelOption
-						const modelEvent = decoratorParams[0].value
-						modelOption.event = modelEvent
-						modelOption.prop = propName
-					},
-					// class component @ModelSync
-					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]'(node) {
-						// prop
-						const computed = node.parent
-						const decoratorParams = node.expression.arguments
-
-						const propName = decoratorParams[0].value
-						const propOption = decoratorParams[2]
-
-						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
-
-						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const propComments = sourceCode.getCommentsBefore(decoratorParams[0])
-						const computedComments = sourceCode.getCommentsAfter(node)
-						const propComment = commentsToText([...decoratorComments, ...propComments, ...computedComments])
-
-						const propInfo = {
-							propName,
-							propDefault,
-							propType,
-							propRequired,
-							propComment
-						}
-						propMap.set(propName, propInfo)
-
-						// modelOption
-						modelOption.prop = propName
-						const modelEvent = decoratorParams[1].value
-						modelOption.event = modelEvent
-
-						// computed
-						const computedComment = `all:${propComment}`
-						const computedName = computed.key.name
-						const computedInfo = {
-							computedName,
-							computedComment
-						}
-						computedMap.set(computedName, computedInfo)
-
-						// emit
-						const emitInfo = {
-							emitName: modelEvent,
-							emitType: [propType],
-							emitComment: propComment
-						}
-						emitMap.set(modelEvent, emitInfo)
-
-					},
-					// class component @VModel
-					'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=VModel]'(node) {
-						const computed = node.parent
-						const decoratorParams = node.expression.arguments
-
-						const propName = 'value'
-						const propOption = decoratorParams[0]
-
-						const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
-
-						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const computedComments = sourceCode.getCommentsAfter(node)
-						const propComment = commentsToText([...decoratorComments, ...computedComments])
-
-						const propInfo = {
-							propName,
-							propDefault,
-							propType,
-							propRequired,
-							propComment
-						}
-						propMap.set(propName, propInfo)
-
-						// emit this.$emit('input', value)
-						const emitName = 'input'
-						const emitInfo = {
-							emitName,
-							emitType: [propType],
-							emitComment: propComment
-						}
-						emitMap.set(emitName, emitInfo)
-					},
-					// 属性定义 dataA = "1"
-					'ClassDeclaration > ClassBody > PropertyDefinition[decorators=undefined]'(node) {
-						const dataName = node.key.name
-						const dataComments = sourceCode.getCommentsBefore(node)
-						const dataComment = commentsToText(dataComments)
-						const dataInfo = {
-							dataName,
-							dataComment
-						}
-						dataMap.set(dataName, dataInfo)
-					},
-					// 方法定义，包括计算属性和方法
-					'ClassDeclaration > ClassBody > MethodDefinition'(node) {
-						// 有装饰器的不在这里处理
-						if (node.decorators) return
-
-						const kind = node.kind
-						// 计算属性 get computedA() {}
-						if (['get', 'set'].includes(kind)) {
-							const computedName = node.key.name
-							const computedComments = sourceCode.getCommentsBefore(node)
-							const computedComment = `${kind}:${commentsToText(computedComments)}`
-							setComputedMap(computedMap, computedName, computedComment)
-						}
-						if (kind === 'method') {
-							const methodName = node.key.name
-							const methodComments = sourceCode.getCommentsBefore(node)
-							const methodComment = commentsToText(methodComments)
-							if (LIFECYCLE_HOOKS.includes(methodName)) {
-								// 生命周期
-								const lifecycleHookInfo = {
-									lifecycleHookName: methodName,
-									lifecycleHookComment: methodComment
-								}
-								lifecycleHookMap.set(methodName, lifecycleHookInfo)
-							} else {
-								// 方法 methodA() {}
-
-								const methodInfo = {
-									methodName,
-									methodComment
-								}
-								methodMap.set(methodName, methodInfo)
-
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
 							}
-						}
-					},
-					// @Provide/@ProvideReactive
-					':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Provide],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ProvideReactive])'(node) {
-						// provide
-						const provide = node.parent
+							propMap.set(propName, propInfo)
+						},
+						// class component @PropSync
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=PropSync]'(node) {
+							// prop
+							const decoratorParams = node.expression.arguments
+							const computed = node.parent
 
-						const provideName = node.expression.arguments.length ? node.expression.arguments[0].value : provide.key.name
-						const dataName = provide.key.name
+							const propName = decoratorParams[0].value
+							const propOption = decoratorParams[1]
 
-						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const dataComments = sourceCode.getCommentsAfter(node)
-						const provideComment = commentsToText([...decoratorComments, ...dataComments])
+							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
 
-						const provideInfo = {
-							provideName,
-							provideFromKey: dataName,
-							provideComment
-						}
-						provideMap.set(provideName, provideInfo)
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const computedComments = sourceCode.getCommentsAfter(node)
+							const propComment = commentsToText([...decoratorComments, ...computedComments])
 
-						// data
-						const dataComment = commentsToText(dataComments)
-
-						const dataInfo = {
-							dataName,
-							dataComment
-						}
-						dataMap.set(dataName, dataInfo)
-					},
-					// @Inject/@InjectReactive
-					':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=InjectReactive])'(node) {
-						const inject = node.parent
-						const injectName = inject.key.name
-						const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(node.expression.arguments[0], injectName)
-						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const injectComments = sourceCode.getCommentsAfter(node)
-						const injectComment = commentsToText([...decoratorComments, ...injectComments])
-						const injectInfo = {
-							injectName,
-							injectFrom,
-							injectDefault,
-							injectComment
-						}
-						injectMap.set(injectName, injectInfo)
-					},
-					// @Emit
-					'ClassDeclaration > ClassBody > MethodDefinition > Decorator[expression.callee.name=Emit]'(node) {
-						const decoratorParams = node.expression.arguments[0]
-						const emitFun = node.parent
-						const emitName = casing.kebabCase(decoratorParams ? decoratorParams.value : emitFun.key.name)
-						const emitFunParams = emitFun.value.params
-
-						const emitType = emitFunParams.map(e => {
-							const typeAnnotation = e.typeAnnotation
-							if (typeAnnotation) {
-								const type = tsUtils.inferRuntimeType(context, typeAnnotation.typeAnnotation)
-								return type
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
 							}
-							return [undefined]
-						})
-						const emitFunBody = emitFun.value.body.body
-						// FIXME：无法获取函数 return 的推导类型，只先获取标注了具体类型
-						const emitFunRet = emitFunBody.find(e => e.type === 'ReturnStatement')
-						if (emitFunRet) {
-							let type = [undefined]
-							const emitFunRetParams = emitFunRet.argument
-							if (emitFunRetParams.typeAnnotation) {
-								type = tsUtils.inferRuntimeType(context, emitFunRet.argument.typeAnnotation)
-							} else {
-								if (emitFunRetParams.type === 'Literal') {
-									type = [emitFunRetParams.raw]
-								}
+							propMap.set(propName, propInfo)
+
+							// computed
+							const computedComment = `all:${propComment}`
+							const computedName = computed.key.name
+							const computedInfo = {
+								computedName,
+								computedComment
 							}
-							emitType.unshift(type)
-						}
-						const decoratorComments = sourceCode.getCommentsBefore(node)
-						const emitComments = sourceCode.getCommentsAfter(node)
-						const emitComment = commentsToText([...decoratorComments, ...emitComments])
-						const emitInfo = {
-							emitName,
-							emitType,
-							emitComment
-						}
-						emitMap.set(`"${emitName}"`, emitInfo)
-					},
-					// class组件@component得参数,
-					'Decorator[expression.callee.name=Component]'(node) {
-						if (node.expression.type === 'CallExpression') {
-							const componentOption = node.expression.arguments[0]
-							if (componentOption) {
-								componentOption.properties.forEach(p => {
-									const optionKeyName = p.key.name
-									const optionValue = p.value
-									setMapFromComponentCommonOption(optionKeyName, optionValue)
-								})
+							computedMap.set(computedName, computedInfo)
+
+							// emit 事件 update:propName
+							const emitName = `"update:${propName}"`
+							const emitInfo = {
+								emitName,
+								emitType: [propType],
+								emitComment: propComment
 							}
-						}
-					},
-					// export default class HomeView extends SuperClass {}
-					'ClassDeclaration'(node) {
-						if (node.superClass && node.superClass.name !== 'Vue') {
-							extend = node.superClass.name
-						}
-					},
+							emitMap.set(emitName, emitInfo)
+						},
+						// class component @Model
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Model]'(node) {
+							const decoratorParams = node.expression.arguments
+							const prop = node.parent
 
-					// option component
-					// 可以在一个Vue组件 option 上执行一个回调函数
-					...utils.executeOnVueComponent(context, (optionNode) => {
-						// props
-						// FIXME: utils.getComponentPropsFromOptions(optionNode) 只能获取 props 中的字面量
-						// FIXME: utils.getComponentPropsFromOptions(optionNode) 返回中包含 PropType 指向的具体类型，目前只获取运行时类型，不获取ts类型
-						const propList = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
-						propMap = new Map([...propMap, ...getPropMapFromPropList(propList)])
+							const propName = prop.key.name
+							const propOption = decoratorParams[1]
 
-						// emit，只能获取 emits 配置项中的
-						const emits = utils.getComponentEmitsFromOptions(optionNode)
-						emits.forEach(emit => {
-							const emitName = emit.key.name
-							const emitComments = sourceCode.getCommentsBefore(emit.node)
-							const emitComment = commentsToText(emitComments)
-							let emitType
-							const emitValue = emit.value
-							if (['FunctionExpression', 'ArrowFunctionExpression'].includes(emitValue.type)) {
-								const emitFunParams = emitValue.params
-								emitType = emitFunParams.map(p => {
-									return [getRuntimeType(p)]
-								})
+							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
+
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const propComments = sourceCode.getCommentsAfter(node)
+							const propComment = commentsToText([...decoratorComments, ...propComments])
+
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
 							}
-							setEmitMap(emitMap, emitName, emitType, emitComment)
-						})
+							propMap.set(propName, propInfo)
 
-						// 其他项
-						optionNode.properties.forEach(option => {
-							const optionKeyName = option.key.name
-							const optionValue = option.value
+							// modelOption
+							const modelEvent = decoratorParams[0].value
+							modelOption.event = modelEvent
+							modelOption.prop = propName
+						},
+						// class component @ModelSync
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]'(node) {
+							// prop
+							const computed = node.parent
+							const decoratorParams = node.expression.arguments
 
-							setMapFromComponentCommonOption(optionKeyName, optionValue)
+							const propName = decoratorParams[0].value
+							const propOption = decoratorParams[2]
 
-							// extend
-							if (optionKeyName === 'extends') {
-								extend = optionValue.name
+							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
+
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const propComments = sourceCode.getCommentsBefore(decoratorParams[0])
+							const computedComments = sourceCode.getCommentsAfter(node)
+							const propComment = commentsToText([...decoratorComments, ...propComments, ...computedComments])
+
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
 							}
+							propMap.set(propName, propInfo)
 
-							// 生命周期
-							if (LIFECYCLE_HOOKS.includes(optionKeyName)) {
-								const lifecycleHookComments = sourceCode.getCommentsBefore(option)
-								const lifecycleHookComment = commentsToText(lifecycleHookComments)
-								const lifecycleHookInfo = {
-									lifecycleHookName: optionKeyName,
-									lifecycleHookComment
-								}
-								lifecycleHookMap.set(optionKeyName, lifecycleHookInfo)
+							// modelOption
+							modelOption.prop = propName
+							const modelEvent = decoratorParams[1].value
+							modelOption.event = modelEvent
+
+							// computed
+							const computedComment = `all:${propComment}`
+							const computedName = computed.key.name
+							const computedInfo = {
+								computedName,
+								computedComment
 							}
+							computedMap.set(computedName, computedInfo)
 
-							// provide
-							if (optionKeyName === 'provide') {
-								// provide是对象
-								if (optionValue.type === 'ObjectExpression') {
-									forEachProvideOptionSetProvideMap(optionValue.properties, provideMap)
-								}
-								if (optionValue.type === 'FunctionExpression') {
-									const funBody = optionValue.body.body
-									const funRet = funBody.find(f => f.type === 'ReturnStatement')
-									forEachProvideOptionSetProvideMap(funRet.argument.properties, provideMap)
-								}
+							// emit
+							const emitInfo = {
+								emitName: modelEvent,
+								emitType: [propType],
+								emitComment: propComment
 							}
+							emitMap.set(modelEvent, emitInfo)
 
-							// inject
-							if (optionKeyName === 'inject') {
-								if (optionValue.type === 'ArrayExpression') {
-									optionValue.elements.forEach(inject => {
-										const injectName = inject.value
-										const injectComments = sourceCode.getCommentsBefore(inject)
-										const injectComment = commentsToText(injectComments)
-										const injectInfo = {
-											injectName,
-											injectFrom: injectName,
-											injectDefault: undefined,
-											injectComment
-										}
-										injectMap.set(injectName, injectInfo)
-									})
-								}
-								if (optionValue.type === 'ObjectExpression') {
-									optionValue.properties.forEach(inject => {
-										const injectName = inject.key.name
-										const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(inject.value, injectName)
-										const injectComments = sourceCode.getCommentsBefore(inject)
-										const injectComment = commentsToText(injectComments)
-										const injectInfo = {
-											injectName,
-											injectFrom,
-											injectDefault,
-											injectComment
-										}
-										injectMap.set(injectName, injectInfo)
-									})
-								}
+						},
+						// class component @VModel
+						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=VModel]'(node) {
+							const computed = node.parent
+							const decoratorParams = node.expression.arguments
+
+							const propName = 'value'
+							const propOption = decoratorParams[0]
+
+							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
+
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const computedComments = sourceCode.getCommentsAfter(node)
+							const propComment = commentsToText([...decoratorComments, ...computedComments])
+
+							const propInfo = {
+								propName,
+								propDefault,
+								propType,
+								propRequired,
+								propComment
 							}
+							propMap.set(propName, propInfo)
 
-							// methods
-							if (optionKeyName === 'methods') {
-								optionValue.properties.forEach(method => {
-									const methodName = method.key.name
-									const methodComments = sourceCode.getCommentsBefore(method)
-									const methodComment = commentsToText(methodComments)
+							// emit this.$emit('input', value)
+							const emitName = 'input'
+							const emitInfo = {
+								emitName,
+								emitType: [propType],
+								emitComment: propComment
+							}
+							emitMap.set(emitName, emitInfo)
+						},
+						// 属性定义 dataA = "1"
+						'ClassDeclaration > ClassBody > PropertyDefinition[decorators=undefined]'(node) {
+							const dataName = node.key.name
+							const dataComments = sourceCode.getCommentsBefore(node)
+							const dataComment = commentsToText(dataComments)
+							const dataInfo = {
+								dataName,
+								dataComment
+							}
+							dataMap.set(dataName, dataInfo)
+						},
+						// 方法定义，包括计算属性和方法
+						'ClassDeclaration > ClassBody > MethodDefinition'(node) {
+							// 有装饰器的不在这里处理
+							if (node.decorators) return
+
+							const kind = node.kind
+							// 计算属性 get computedA() {}
+							if (['get', 'set'].includes(kind)) {
+								const computedName = node.key.name
+								const computedComments = sourceCode.getCommentsBefore(node)
+								const computedComment = `${kind}:${commentsToText(computedComments)}`
+								setComputedMap(computedMap, computedName, computedComment)
+							}
+							if (kind === 'method') {
+								const methodName = node.key.name
+								const methodComments = sourceCode.getCommentsBefore(node)
+								const methodComment = commentsToText(methodComments)
+								if (LIFECYCLE_HOOKS.includes(methodName)) {
+									// 生命周期
+									const lifecycleHookInfo = {
+										lifecycleHookName: methodName,
+										lifecycleHookComment: methodComment
+									}
+									lifecycleHookMap.set(methodName, lifecycleHookInfo)
+								} else {
+									// 方法 methodA() {}
+
 									const methodInfo = {
 										methodName,
 										methodComment
 									}
 									methodMap.set(methodName, methodInfo)
-								})
-							}
 
-							// computed
-							if (optionKeyName === 'computed') {
-								const allComments = sourceCode.getCommentsBefore(option)
-								const allComment = `all:${commentsToText(allComments)}`
-								optionValue.properties.forEach(computed => {
-									const computedName = computed.key.name
-									const computedComments = sourceCode.getCommentsBefore(computed)
-									const computedComment = `all:${commentsToText(computedComments)}`
-									const computedValue = computed.value
-									setComputedMap(computedMap, computedName, computedComment)
-									if (computedValue.type === 'ObjectExpression') {
-										computedValue.properties.forEach(item => {
-											const kind = item.key.name
-											const kindComments = sourceCode.getCommentsBefore(item)
-											const kindComment = `${kind}:${commentsToText(kindComments)}`
-											setComputedMap(computedMap, computedName, kindComment)
-										})
-									}
-								})
+								}
 							}
+						},
+						// @Provide/@ProvideReactive
+						':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Provide],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ProvideReactive])'(node) {
+							// provide
+							const provide = node.parent
+
+							const provideName = node.expression.arguments.length ? node.expression.arguments[0].value : provide.key.name
+							const dataName = provide.key.name
+
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const dataComments = sourceCode.getCommentsAfter(node)
+							const provideComment = commentsToText([...decoratorComments, ...dataComments])
+
+							const provideInfo = {
+								provideName,
+								provideFromKey: dataName,
+								provideComment
+							}
+							provideMap.set(provideName, provideInfo)
 
 							// data
-							if (optionKeyName === 'data') {
-								if (optionValue.type === 'FunctionExpression') {
-									const funBody = optionValue.body.body
-									const funRet = funBody.find(f => f.type === 'ReturnStatement')
-									forEachDataOptionSetDataMap(funRet.argument.properties, dataMap)
+							const dataComment = commentsToText(dataComments)
+
+							const dataInfo = {
+								dataName,
+								dataComment
+							}
+							dataMap.set(dataName, dataInfo)
+						},
+						// @Inject/@InjectReactive
+						':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=InjectReactive])'(node) {
+							const inject = node.parent
+							const injectName = inject.key.name
+							const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(node.expression.arguments[0], injectName)
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const injectComments = sourceCode.getCommentsAfter(node)
+							const injectComment = commentsToText([...decoratorComments, ...injectComments])
+							const injectInfo = {
+								injectName,
+								injectFrom,
+								injectDefault,
+								injectComment
+							}
+							injectMap.set(injectName, injectInfo)
+						},
+						// @Emit
+						'ClassDeclaration > ClassBody > MethodDefinition > Decorator[expression.callee.name=Emit]'(node) {
+							const decoratorParams = node.expression.arguments[0]
+							const emitFun = node.parent
+							const emitName = casing.kebabCase(decoratorParams ? decoratorParams.value : emitFun.key.name)
+							const emitFunParams = emitFun.value.params
+
+							const emitType = emitFunParams.map(e => {
+								const typeAnnotation = e.typeAnnotation
+								if (typeAnnotation) {
+									const type = tsUtils.inferRuntimeType(context, typeAnnotation.typeAnnotation)
+									return type
 								}
-								if (optionValue.type === 'ObjectExpression') {
-									forEachDataOptionSetDataMap(optionValue.properties, dataMap)
+								return [undefined]
+							})
+							const emitFunBody = emitFun.value.body.body
+							// FIXME：无法获取函数 return 的推导类型，只先获取标注了具体类型
+							const emitFunRet = emitFunBody.find(e => e.type === 'ReturnStatement')
+							if (emitFunRet) {
+								let type = [undefined]
+								const emitFunRetParams = emitFunRet.argument
+								if (emitFunRetParams.typeAnnotation) {
+									type = tsUtils.inferRuntimeType(context, emitFunRet.argument.typeAnnotation)
+								} else {
+									if (emitFunRetParams.type === 'Literal') {
+										type = [emitFunRetParams.raw]
+									}
+								}
+								emitType.unshift(type)
+							}
+							const decoratorComments = sourceCode.getCommentsBefore(node)
+							const emitComments = sourceCode.getCommentsAfter(node)
+							const emitComment = commentsToText([...decoratorComments, ...emitComments])
+							const emitInfo = {
+								emitName,
+								emitType,
+								emitComment
+							}
+							emitMap.set(`"${emitName}"`, emitInfo)
+						},
+						// class组件@component得参数,
+						'Decorator[expression.callee.name=Component]'(node) {
+							if (node.expression.type === 'CallExpression') {
+								const componentOption = node.expression.arguments[0]
+								if (componentOption) {
+									componentOption.properties.forEach(p => {
+										const optionKeyName = p.key.name
+										const optionValue = p.value
+										setMapFromComponentCommonOption(optionKeyName, optionValue)
+									})
 								}
 							}
-
-							// setup函数
-							if (optionKeyName === 'setup') {
-								const setupFunBody = optionValue.body.body
-								const setupFunReturn = setupFunBody.find(f => f.type === 'ReturnStatement')
-								const setupFunReturnProperties = setupFunReturn.argument.properties
-								setupFunReturnProperties.forEach(item => {
-									const setupName = item.key.name
-									const setupValue = item.value
-									const keyComments = sourceCode.getCommentsBefore(item)
-									const keyComment = commentsToText(keyComments)
-									const variable = findVariable(context.getScope(), setupValue)
-									const variableDef = variable.defs[0]
-									let variableComment = ''
-									if (variableDef) {
-										forEachDeclarations([variableDef.node], (leftName, allComment) => {
-											variableComment = allComment
-										})
-									}
-									const setupComment = [keyComment, variableComment].filter(f => f).join('\n')
-									const setupInfo = {
-										setupName,
-										setupComment
-									}
-									setupMap.set(setupName, setupInfo)
-								})
+						},
+						// export default class HomeView extends SuperClass {}
+						'ClassDeclaration'(node) {
+							if (node.superClass && node.superClass.name !== 'Vue') {
+								extend = node.superClass.name
 							}
-						})
-					}),
-
-					// emit函数调用，option\setup\class
-					CallExpression(node) {
-						const calleeName = node.callee.property && node.callee.property.name
-						if (['$emit', 'emit'].includes(calleeName)) {
-							const calleeParams = node.arguments
-							const emitName = calleeParams[0].value
-							const emitComments = sourceCode.getCommentsBefore(node)
-							const emitComment = commentsToText(emitComments)
-							const emitType = calleeParams.slice(1).map(p => { return [getRuntimeType(p)] })
-							setEmitMap(emitMap, emitName, emitType, emitComment)
-						}
+						},
 					},
 
 					// script setup 中
@@ -1374,10 +1212,194 @@ linter.defineRule("my-rule", {
 						}
 					}),
 
+					// option component
+					// 可以在一个Vue组件 option 上执行一个回调函数
+					...utils.executeOnVueComponent(context, (optionNode) => {
+						// props
+						// FIXME: utils.getComponentPropsFromOptions(optionNode) 只能获取 props 中的字面量
+						// FIXME: utils.getComponentPropsFromOptions(optionNode) 返回中包含 PropType 指向的具体类型，目前只获取运行时类型，不获取ts类型
+						const propList = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
+						propMap = new Map([...propMap, ...getPropMapFromPropList(propList)])
+
+						// emit，只能获取 emits 配置项中的
+						const emits = utils.getComponentEmitsFromOptions(optionNode)
+						emits.forEach(emit => {
+							const emitName = emit.key.name
+							const emitComments = sourceCode.getCommentsBefore(emit.node)
+							const emitComment = commentsToText(emitComments)
+							let emitType
+							const emitValue = emit.value
+							if (['FunctionExpression', 'ArrowFunctionExpression'].includes(emitValue.type)) {
+								const emitFunParams = emitValue.params
+								emitType = emitFunParams.map(p => {
+									return [getRuntimeType(p)]
+								})
+							}
+							setEmitMap(emitMap, emitName, emitType, emitComment)
+						})
+
+						// 其他项
+						optionNode.properties.forEach(option => {
+							const optionKeyName = option.key.name
+							const optionValue = option.value
+
+							setMapFromComponentCommonOption(optionKeyName, optionValue)
+
+							// extend
+							if (optionKeyName === 'extends') {
+								extend = optionValue.name
+							}
+
+							// 生命周期
+							if (LIFECYCLE_HOOKS.includes(optionKeyName)) {
+								const lifecycleHookComments = sourceCode.getCommentsBefore(option)
+								const lifecycleHookComment = commentsToText(lifecycleHookComments)
+								const lifecycleHookInfo = {
+									lifecycleHookName: optionKeyName,
+									lifecycleHookComment
+								}
+								lifecycleHookMap.set(optionKeyName, lifecycleHookInfo)
+							}
+
+							// provide
+							if (optionKeyName === 'provide') {
+								// provide是对象
+								if (optionValue.type === 'ObjectExpression') {
+									forEachProvideOptionSetProvideMap(optionValue.properties, provideMap)
+								}
+								if (optionValue.type === 'FunctionExpression') {
+									const funBody = optionValue.body.body
+									const funRet = funBody.find(f => f.type === 'ReturnStatement')
+									forEachProvideOptionSetProvideMap(funRet.argument.properties, provideMap)
+								}
+							}
+
+							// inject
+							if (optionKeyName === 'inject') {
+								if (optionValue.type === 'ArrayExpression') {
+									optionValue.elements.forEach(inject => {
+										const injectName = inject.value
+										const injectComments = sourceCode.getCommentsBefore(inject)
+										const injectComment = commentsToText(injectComments)
+										const injectInfo = {
+											injectName,
+											injectFrom: `"${injectName}"`,
+											injectDefault: undefined,
+											injectComment
+										}
+										injectMap.set(injectName, injectInfo)
+									})
+								}
+								if (optionValue.type === 'ObjectExpression') {
+									optionValue.properties.forEach(inject => {
+										const injectName = inject.key.name
+										const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(inject.value, injectName)
+										const injectComments = sourceCode.getCommentsBefore(inject)
+										const injectComment = commentsToText(injectComments)
+										const injectInfo = {
+											injectName,
+											injectFrom,
+											injectDefault,
+											injectComment
+										}
+										injectMap.set(injectName, injectInfo)
+									})
+								}
+							}
+
+							// methods
+							if (optionKeyName === 'methods') {
+								optionValue.properties.forEach(method => {
+									const methodName = method.key.name
+									const methodComments = sourceCode.getCommentsBefore(method)
+									const methodComment = commentsToText(methodComments)
+									const methodInfo = {
+										methodName,
+										methodComment
+									}
+									methodMap.set(methodName, methodInfo)
+								})
+							}
+
+							// computed
+							if (optionKeyName === 'computed') {
+								const allComments = sourceCode.getCommentsBefore(option)
+								const allComment = `all:${commentsToText(allComments)}`
+								optionValue.properties.forEach(computed => {
+									const computedName = computed.key.name
+									const computedComments = sourceCode.getCommentsBefore(computed)
+									const computedComment = `all:${commentsToText(computedComments)}`
+									const computedValue = computed.value
+									setComputedMap(computedMap, computedName, computedComment)
+									if (computedValue.type === 'ObjectExpression') {
+										computedValue.properties.forEach(item => {
+											const kind = item.key.name
+											const kindComments = sourceCode.getCommentsBefore(item)
+											const kindComment = `${kind}:${commentsToText(kindComments)}`
+											setComputedMap(computedMap, computedName, kindComment)
+										})
+									}
+								})
+							}
+
+							// data
+							if (optionKeyName === 'data') {
+								if (optionValue.type === 'FunctionExpression') {
+									const funBody = optionValue.body.body
+									const funRet = funBody.find(f => f.type === 'ReturnStatement')
+									forEachDataOptionSetDataMap(funRet.argument.properties, dataMap)
+								}
+								if (optionValue.type === 'ObjectExpression') {
+									forEachDataOptionSetDataMap(optionValue.properties, dataMap)
+								}
+							}
+
+							// setup函数
+							if (optionKeyName === 'setup') {
+								const setupFunBody = optionValue.body.body
+								const setupFunReturn = setupFunBody.find(f => f.type === 'ReturnStatement')
+								const setupFunReturnProperties = setupFunReturn.argument.properties
+								setupFunReturnProperties.forEach(item => {
+									const setupName = item.key.name
+									const setupValue = item.value
+									const keyComments = sourceCode.getCommentsBefore(item)
+									const keyComment = commentsToText(keyComments)
+									const variable = findVariable(context.getScope(), setupValue)
+									const variableDef = variable.defs[0]
+									let variableComment = ''
+									if (variableDef) {
+										forEachDeclarations([variableDef.node], (leftName, comment) => {
+											variableComment = comment
+										})
+									}
+									const setupComment = [keyComment, variableComment].filter(f => f).join('\n')
+									const setupInfo = {
+										setupName,
+										setupComment
+									}
+									setupMap.set(setupName, setupInfo)
+								})
+							}
+						})
+					}),
+
+					// emit函数调用，option\setup\class
+					CallExpression(node) {
+						const calleeName = node.callee.property && node.callee.property.name
+						if (['$emit', 'emit'].includes(calleeName)) {
+							const calleeParams = node.arguments
+							const emitName = calleeParams[0].value
+							const emitComments = sourceCode.getCommentsBefore(node)
+							const emitComment = commentsToText(emitComments)
+							const emitType = calleeParams.slice(1).map(p => { return [getRuntimeType(p)] })
+							setEmitMap(emitMap, emitName, emitType, emitComment)
+						}
+					},
+
 					// import MyComponent1 from "./ClassComponent.vue";
-					ImportDefaultSpecifier(node) {
-						const importNode = node.parent
-						importSet.add(sourceCode.getText(importNode))
+					// import { mixinA, mixinB } from "./mixinOption";
+					'ImportDeclaration'(node) {
+						importSet.add(sourceCodeGetText(node))
 					},
 				},
 			),
