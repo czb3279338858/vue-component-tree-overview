@@ -55,8 +55,9 @@
 </template>
 <script lang="ts">
 import { defineAsyncComponent, defineComponent, PropType, ref } from "vue";
-import MyComponent1 from "./ClassComponent.vue";
+import MyComponent1 from "./ClassComponent";
 import MyComponent2 from "./SetupComponent.vue";
+// import mixin from "./mixin.ts?type=vue";
 // const MyComponent2 = require("./ClassComponent.vue");
 // require(["./ClassComponent.vue"], function (MyComponent3) {
 //   // 使用 MyModule...
@@ -79,7 +80,9 @@ const s = Symbol();
 export default defineComponent({
   name: "my-define-Component",
   extends: MyComponent1,
-  mixins: [MyComponent1, MyComponent2],
+  mixins: [
+    // mixin
+  ],
   components: {
     ...modules,
     "my-component-name": MyComponent1,

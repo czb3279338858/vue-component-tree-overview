@@ -147,8 +147,6 @@ function getAttrValueFrom(attrValue, slot, pre) {
       const scopeAttr = parent.attributes.find(
         (attr) => attr.scopeNames && attr.scopeNames.includes(attrValue)
       );
-      console.log(scopeAttr);
-      debugger;
       if (scopeAttr) {
         const nextPre = pre
           ? `${pre}\n${attrValue}来源于${scopeAttr.valueName}`

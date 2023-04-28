@@ -658,8 +658,8 @@ linter.defineRule("my-rule", {
 
 		// ——————————————————————————————————————————————————————————————
 
-		// {importName,importPath}
-		const importMap = new Map()
+		// string
+		const importSet = new Set()
 
 		// ——————————————————————————————————————————————————————————————
 
@@ -670,10 +670,12 @@ linter.defineRule("my-rule", {
 
 		// ——————————————————————————————————————————————————————————————
 
+		// 可以是配置对象或构造函数
 		let extend = undefined
 
 		// ——————————————————————————————————————————————————————————————
 
+		// 配置对象
 		const mixinSet = new Set()
 
 		// ——————————————————————————————————————————————————————————————
@@ -1373,18 +1375,16 @@ linter.defineRule("my-rule", {
 
 					// import MyComponent1 from "./ClassComponent.vue";
 					ImportDefaultSpecifier(node) {
-						const importName = node.local.name
 						const importNode = node.parent
-						const importPath = importNode.source.value
-						importMap.set(importName, importPath)
+						importSet.add(sourceCode.getText(importNode))
 					},
 				},
 			),
 			{
 
-				"Program:exit"() {
+				"Program:exit"(node) {
 					sourceMetaMap = {
-						importMap,
+						importSet,
 						componentName,
 						templateMap,
 						propMap,
@@ -1430,11 +1430,11 @@ module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
 	linter.verify(source, config)
 	let newCode = ''
-	const importMap = sourceMetaMap.importMap
-	if (importMap) {
+	const importSet = sourceMetaMap.importSet
+	if (importSet) {
 		let importCode = ''
-		importMap.forEach((value, key) => {
-			importCode += `import ${key} from '${value}';\n`
+		importSet.forEach((value) => {
+			importCode += `${value}\n`
 		})
 		newCode += importCode
 	}

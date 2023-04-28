@@ -15,10 +15,27 @@ module.exports = {
     path: path.join(__dirname, 'dist'),
     filename: '[name].chunk.js',
   },
+  resolve: {
+    extensions: [
+      '.ts',
+      '.js',
+      '.vue',
+    ],
+  },
   module: {
     rules: [
       {
-        test: /\.(vue)$/,
+        test: /\.vue$/,
+        use: [
+          {
+            loader: 'vue-overview-loader',
+            options: {},
+          },
+        ],
+      },
+      {
+        test: /\.(ts|js)$/,
+        resourceQuery: /type=vue/,
         use: [
           {
             loader: 'vue-overview-loader',
