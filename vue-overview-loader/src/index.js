@@ -2,6 +2,7 @@
  * See the webpack docs for more information about loaders:
  * https://webpack.js.org/contribute/writing-a-loader
  */
+
 const { Linter } = require('eslint')
 const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')

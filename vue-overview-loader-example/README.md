@@ -1,24 +1,132 @@
-# 2.0
-
-## Project setup
-```
-yarn install
-```
-
-### Compiles and hot-reloads for development
-```
-yarn serve
-```
-
-### Compiles and minifies for production
-```
-yarn build
-```
-
-### Lints and fixes files
-```
-yarn lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+- 支持 option 组件、class 组件、<script setup> 组件
+- template
+  - 支持：
+    - 标签、{{}}、字符串 前注释
+    - 注释支持多行
+    - 支持解构
+  - 标签：`<div></div>`
+    - attrs
+      - 不支持
+        - 运算符：`:style="a+b"`
+        - 常量绑定：`:attr-a="'tw-m-2'"`
+        - 模板语法
+      - 支持
+        - 常量：`class="tw-p-2"`
+        - 变量绑定：`:class="dataA"`
+        - 函数调用绑定：`:attr-b="getAttrB1(getAttrB2(dataA, dataB))"`
+        - 属性表达式绑定：`:attr-c="dataB.a"`
+        - filter绑定：`:attr-d="myClass | filterA | filterB"`
+        - v-if,v-else-if,v-else
+        - v-for
+        - slot
+        - slot-scope
+        - v-slot
+  - {{}}
+    - 不支持
+      - 运算符
+      - 常量
+      - 模板语法
+      - 括号内注释
+    - 支持
+      - 变量绑定
+      - 函数调用绑定
+      - 属性表达式绑定
+      - filter绑定
+  - 字符串
+- script
+  - import 导入
+  - 支持解构
+  - 所有配置项不持支，除非特殊说明
+    - `props:[...propNames]`
+  - option
+    - name
+    - extends
+      - TODO 配置对象
+      - 组件构造函数
+    - mixins
+      - TODO 配置对象
+    - components
+      - TODO require.context
+    - filters
+      - import 来的 filter
+      - 组件内定义的
+    - 生命周期
+    - provide
+      - 对象
+      - 函数
+        - key为变量
+        - key为常量
+    - inject
+      - 数组
+      - 对象
+    - emits
+      - 数组
+      - 对象
+    - methods
+      - 支持 emit，$emit调用
+    - setup
+      - 支持 context.emit
+      - return内的
+        - ref
+        - TODO 需要检查支持什么
+    - computed
+      - 对象 get，set
+      - 函数
+    - data
+      - 不支持对象
+      - 函数
+      - TODO 对象递归
+    - props
+      - 对象
+        - default
+        - type
+          - PropType
+        - required
+      - 构造函数
+      - 数组
+  - class
+    - @Component
+      - 参数
+        - props
+        - filters
+        - components
+        - name
+        - mixins
+    - 生命周期
+    - data
+    - get computed
+    - set computed
+    - methods
+    - @Provide
+    - @Inject
+      - 支持 symbol
+    - @ProvideReactive
+    - @InjectReactive
+    - @Emit
+    - 不支持@Watch
+    - 不支持@Ref
+    - TODO mixins 
+    - @VModel
+    - @PropSync
+    - @Prop
+    - @ModelSync
+    - @Model
+  - <script setup>
+    - defineEmits
+      - 只支持 defineEmits 定义时的注释
+      - 不支持`emit('emitA',value)`的注释
+    - 生命周期
+      - 支持相同周期注释整合
+    - provide
+    - ref
+    - inject
+    - 函数返回赋值都会获取`const [dataB] = getDataB()`
+    - 方法
+    - computed
+      - 函数
+      - 对象
+    - defineProps
+- TODO
+  - 根据 ts 获取具体类型
+  - import 引入的注释
+  - class 多个装饰器

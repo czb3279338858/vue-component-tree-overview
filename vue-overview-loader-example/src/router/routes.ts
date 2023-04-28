@@ -1,22 +1,22 @@
 
 import { RouteConfig } from 'vue-router'
 import ClassComponent from '../views/ClassComponent.vue'
-import OptionsComponent from '../views/OptionsComponent.vue'
+import OptionComponent from '../views/OptionComponent.vue'
 import SetupComponent from '../views/SetupComponent.vue'
 const routes: Array<RouteConfig> = [
     {
-        path: '/classComponent',
-        name: 'ClassComponent',
-        component: ClassComponent,
+        path: '/options-component',
+        component: OptionComponent,
         children: [
             {
-                path: 'optionsComponent',
-                component: OptionsComponent
+                path: 'class-component',
+                name: 'ClassComponent',
+                component: ClassComponent,
             }
         ]
     },
     {
-        path: '/setupComponent',
+        path: '/setup-component',
         component: SetupComponent
     }
 ]

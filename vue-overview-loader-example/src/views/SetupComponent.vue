@@ -1,230 +1,104 @@
 <template>
-  <div>setupComponent</div>
+  <div>setup-component</div>
 </template>
-
-
-<script setup lang="ts">
+<script setup lang='ts'>
 import { computed, inject, onMounted, provide, reactive, ref } from "vue";
-// 其他可能要考虑的
-// ignoredElements 需要忽略组件查找的 Web Components APIs
-// keyCodes
-// 全局搜索类型，类型的ts具体形态
-// vue.use 注册的全局东西,不考虑
-// Vue.myGlobalMethod Vue方法、属性，不考虑
-// Vue.prototype.$myMethod 实例方法或属性，不考虑
-// Vue.observable 让一个对象可响应，不考虑
-// bus总线 vue.$on vue.$emit 等,不考虑
-// directive 自定义指令的含义
-// class组件中有多个装饰器时
-// calss组件只允许有一个class定义
-// import 及其他导入，现在只支持import MyComponent from './MyComponent.vue'
 
-// import————————————————————————
-// 组件注释
-// import OtherComponent from "./OtherComponent.vue";
-
-// ————————————————————————
-// 指令注释
-import { directiveA } from "./directiveA";
-
-// emit————————————————————————
 const emit1 = defineEmits([
-  // emitA类型注释
+  // emitA注释
   "emitA",
 ]);
-function emitA(value) {
-  // emitA触发注释，获取不到
-  emit1("emitA", value);
-}
-
 const emit2 = defineEmits({
-  // emitB类型注释
-  emitB(payload) {
-    return typeof payload === "string";
+  // emitB注释
+  // type === emitB(value){return typeof value==='string'}
+  emitB(value) {
+    return typeof value === "string";
   },
-  // emitC注释，校验满足数组的其中一个就行
+  // emitC注释
+  // type === String | Number | (value) => typeof value === 'number'
   emitC: [String, Number, (value) => typeof value === "number"],
 });
-
-interface EmitD {
-  // 类型注释
-  (e: "emitD", value: string[] | number, value2: number): void;
-}
-const emit4 = defineEmits<EmitD>();
-
-// 生命周期————————————————————————
+const emit3 = defineEmits<{
+  // emit('emit-d',String | Number , Number)
+  (e: "emitD", value1: string | number, value2: number): void;
+}>();
 
 // 生命周期注释1
 onMounted(() => {
-  console.log("onMounted");
+  console.log("onMounted1");
 });
 // 生命周期注释2
 onMounted(() => {
-  console.log("onMounted");
+  console.log("onMounted2");
 });
-
-// provide/inject————————————————————————
-
-// provideData注释;
-const provideData = ref("");
-// provide注释
-provide("provideName", provideData);
-// injdectA注释
-const injectA = inject("provideName");
-
-function getInjectBAndC(): [[number, number], number] {
-  return [[1, 2], 3];
-}
-const [
-  [
-    // injectB注释
-    injectB,
-    // injectC注释
-    injectC,
-  ],
-  // injectD注释
-  injectD,
-] = getInjectBAndC();
-
-const [
-  {
-    // injectE注释
-    injectE,
-    // injectG注释
-    injectG: [
-      // injectH注释
-      injectH,
-    ],
-  },
-  // injectF注释
-  injectF,
-] = [{ injectE: ref(""), injectG: [ref("2")] }, 1];
-
-// ————————————————————————
-
-// methodA注释
-function methodA() {
-  console.log("method");
-}
-// methodB注释
-const methodB = () => {
-  console.log("method");
-};
-
-// computed————————————————————————
-
-// computdA注释
-const computedA = computed(() => dataA.value);
-// computedB注释
-const computedB = defineComputed({
-  get: () => dataA.value,
-  set: (val) => {
-    dataA.value = `${val} - 1`;
-  },
-});
-
-// data Identifier————————————————————————
-
 // dataA注释
 const dataA = ref("");
-// dataB注释
-const dataB = reactive({});
-function getDataC() {
-  const ret = ref("");
-  return ret;
-}
-// dataC注释
-const dataC = getDataC();
+// provide注释,provide:{provideName:dataA}
+// 会获取dataA的注释，共3条
+provide("provideName", dataA);
 
-// node.declarations 有两个值
-let // dataF注释
-  dataF,
-  // dataG注释
-  dataG = ref("");
+// inject注释
+const injectA = inject("provideName");
 
-// data ArrayPattern——————————
-
-const [
-  // dataD注释
-  dataD,
-  // dataE注释
-  dataE,
-] = [ref(""), "1"];
-
-function getDataM() {
+// getDataB注释
+function getDataB() {
   return [1];
 }
 const [
-  // dataM注释
-  dataM,
-] = getDataM();
+  // dataB注释
+  dataB,
+] = getDataB();
 
-// data ObjectPattern——————————
-
-function getDataHAndI() {
-  return {
-    dataH: ref(""),
-    dataI: "",
-  };
+// getDataC注释
+function getDataC() {
+  return { data: 1 };
 }
 const {
-  // dataH注释
-  dataH,
-  // dataI注释
-  dataI,
-} = getDataHAndI();
+  // dataC注释
+  data: dataC,
+} = getDataC();
 
-const {
-  // dataJ注释
-  dataH: dataJ,
-} = getDataHAndI();
+// 计算属性A注释
+const computedA = computed(() => dataA.value);
+// 计算属性B注释
+const computedB = computed({
+  // 计算属性B的get注释
+  get: () => dataA.value,
+  // 计算属性B的set注释
+  set: (val) => {
+    dataA.value = val;
+  },
+});
+// dataD注释
+const dataD = reactive({});
+let dataE,
+  // dataF注释
+  dataF = ref("");
 
-const {
-  // dataO注释
-  dataO,
-  // dataK注释
-  a: dataK,
-  b: [
-    // dataL注释
-    dataL,
-    {
-      // dataN注释
-      a: dataN,
-    },
-  ],
-} = { a: ref(""), dataO: ref(""), b: [ref(""), { a: ref("") }] };
-
-// prop ————————————————————————
-interface Props {
-  // 类型注释
-  propA: boolean | string;
-  propB?: string[];
-}
-defineProps<Props>();
-
-// defineProps({
-//   /** propA注释 */
-//   propA: {
-//     type: Boolean,
-//     default: false,
-//     required: true,
-//   },
-//   // propB注释
-//   propB: Boolean,
-//   // propC注释
-//   propC: [Array, Boolean],
-// });
-
-// interface Props {
-//   // 类型注释
-//   propA: boolean | string;
-//   propB?: string[];
-// }
-// withDefaults(defineProps<Props>(), {
-//   // 默认值注释
-//   propA: false,
-//   propB: () => {
-//     return ["one", "two"];
-//   },
-// });
+defineProps<{
+  // propA注释
+  propA: string;
+}>();
+defineProps({
+  // propB注释
+  propB: {
+    type: Boolean,
+    default: false,
+    required: true,
+  },
+  // propC注释
+  propC: Boolean,
+  // propD注释
+  propD: [String, Number],
+});
+withDefaults(
+  defineProps<{
+    // propE注释1
+    propE: string;
+  }>(),
+  {
+    // 默认值注释
+    propE: "",
+  }
+);
 </script>

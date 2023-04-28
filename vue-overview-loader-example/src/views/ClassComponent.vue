@@ -1,8 +1,6 @@
-<!-- 测试1 -->
 <template>
-  <div>classComponent</div>
+  <div>class-component</div>
 </template>
-
 <script lang="ts">
 import {
   Component,
@@ -16,197 +14,200 @@ import {
   Provide,
   ProvideReactive,
   VModel,
-  Vue,
 } from "vue-property-decorator";
-// import HelloWorld from "@/components/HelloWorld.vue"; // @ is an alias to /src
-
-type CDE = ABC;
-interface BCD {
-  a: number;
-}
-type ABC = string[];
-
+import ExtendClassComponent from "./ExtendClassComponent.vue";
 const symbol = Symbol("injectD");
-
 @Component({
-  components: {
-    // HelloWorld,
-  },
+  props: [
+    // propA注释
+    "propA",
+  ],
 })
-export default class HomeView extends Vue {
+export default class ClassComponent extends ExtendClassComponent {
   // 生命周期
   mounted() {
     console.log("mounted");
   }
-
-  /** dataA注释 */
+  // dataA注释
   dataA = "1";
-
-  /** computedA注释1 */
+  // computedA注释 get
   get computedA() {
     return this.dataA;
   }
-  /** computedA注释2 */
+  // computedA注释 set
   set computedA(a: string) {
     this.dataA = a;
   }
-
-  // 方法1
+  // methodA 注释
   methodA() {
     console.log("methodA");
   }
 
   // provideA注释1
   @Provide()
-  // provideA注释2
-  provideA = "";
+  // data provideA
+  // provide:{provideA:this.provideA}
+  provideA = "1";
 
   // provideB注释1
   @Provide("provideBName")
-  // provideB注释2
-  provideB = "";
+  // data provideB
+  // provide:{provideBName:this.provideB}
+  provideB = "2";
 
-  // injectA注释
+  // InjectA注释1
   @Inject()
-  // injectA
+  // inject:{injectA:'injectA'}
   readonly injectA!: string;
 
-  @Inject("injectB") readonly injectB!: string;
+  // InjectB注释1
+  @Inject({ from: "injectBFrom", default: "injectBDefault" })
+  // inject:{injectB:{from:'injectBFrom',default:'injectBDefault'}}
+  injectB!: string;
 
-  @Inject({ from: "injectCFrom", default: "default" })
-  readonly injectC!: string;
+  // InjectC注释1
+  @Inject("injectCName")
+  // inject:{injectC:'injectCName'}
+  injectC!: string;
 
-  // 支持 injectFrom = [symbol]
-  @Inject(symbol) readonly injectD!: string;
+  // InjectD注释1
+  @Inject(symbol)
+  // inject:{injectD:symbol}
+  injectD!: string;
 
   // ProvideReactiveA注释
-  @ProvideReactive() ProvideReactiveA = "ProvideReactiveA";
+  @ProvideReactive("provideName")
+  // data:{provideReactiveA:'provideReactiveA'},provide:{provideName:this.provideReactiveA}
+  provideReactiveA = "provideReactiveA";
 
   // InjectReactiveA注释
-  @InjectReactive() InjectReactiveA!: string;
+  @InjectReactive()
+  // inject:{injectReactiveA:'InjectReactiveAFrom'}
+  injectReactiveA!: string;
+
   // InjectReactiveB注释
-  @InjectReactive("InjectReactiveBFrom") InjectReactiveB!: string;
+  @InjectReactive("InjectReactiveBFrom")
+  // inject:{injectReactiveB:'InjectReactiveBFrom'}
+  injectReactiveB!: string;
+
   // InjectReactiveC注释
   @InjectReactive({ from: "InjectReactiveCFrom", default: () => "1" })
-  InjectReactiveC!: string;
-
-  // ——————————————————————————————————————
+  // inject:{injectReactiveC:{from:'InjectReactiveCFrom',default:()=>1}}}
+  injectReactiveC!: string;
 
   // emitA注释1
   @Emit()
-  // emitA注释2
-  emit1(n: number, m: string | number, o) {
-    return n as number;
-  }
-
-  @Emit("emit2")
-  emit2() {
-    console.log("emit2");
-  }
-
-  @Emit()
-  // emit('emit3',10)
-  emit3() {
+  // emit('emit-a',10,n,m,o)
+  // emit('emit-a',Number,String,[String,Number],undefined)
+  emitA(n: string, m: string | number, o) {
     return 10;
   }
 
+  // emitB注释1
+  @Emit("emitB")
+  // emit('emit-b')
+  emitB() {
+    console.log("emit2");
+  }
+
+  // emitC注释1
   @Emit()
-  // emit('emit-four',e.target.value,e)
-  emitFour(e) {
+  // emit('emit-c',Number)
+  emitC() {
+    return 10;
+  }
+
+  // emitD注释1
+  @Emit()
+  // emit('emit-d',e.target.value,e)
+  // emit('emit-d',undefined,undefined)
+  emitD(e) {
     return e.target.value;
   }
 
-  // ——————————————————————————————————————
-
-  // 装饰器器注释
+  // VModel注释1
   @VModel({
-    default: () => {
-      return [];
-    },
-    type: [Array, Number],
+    default: "default",
+    type: String,
     required: true,
   })
-  // 计算属性注释 return this.value
-  computedValue?: number;
+  // prop:{value:{default:'default',type:String,required:true}}
+  // computed:{computedValue:{get:this.value,set:val=>this.$emit('input',val)}}
+  computedValue?: string;
 
-  // ——————————————————————————————————————
-
-  // 装饰器注释
-  @ModelSync(
-    // prop 注释
-    "propJ",
-    // emit 注释
-    "change",
-    {
-      default: () => {
-        return [];
-      },
-      type: [Array, Number],
-      required: true,
-    }
-  )
-  // 计算属性注释 return this.propJ
-  readonly computedPropJ!: string[];
-
-  // ——————————————————————————————————————
-
-  // 装饰器注释
-  @Model("changePropI", {
-    default: () => {
-      return [];
-    },
-    type: [Array, Number],
-    required: true,
-  })
-  // prop 注释
-  readonly propI!: string[];
-
-  // ——————————————————————————————————————
-
-  /** 装饰器注释 */
-  @PropSync("propH", {
+  // PropSync注释1
+  @PropSync("propA", {
     default: 0,
-    type: [Array, Number],
+    type: Number,
     required: true,
   })
-  // 计算属性注释 return this.propH
-  computedPropH!: string[];
+  // props:{propA:{default:0,type:Number,required:true}}
+  // computed:{computedPropA:{get:this.propA,set:val=>this.$emit('update:propA',val)}}
+  computedPropA?: number;
 
-  // ——————————————————————————————————————
-
-  // propG propOption 是个构造函数
+  // PropA注释1
   @Prop(Number)
-  propG!: number;
+  // PropA注释2
+  propA!: number;
 
-  // propF propOption 是个数组时
+  // PropB注释1
   @Prop([Number])
-  propF!: number;
+  // PropB注释2
+  propB!: number;
 
-  // propE ts类型嵌套type,required:true
+  // PropC注释1
   @Prop()
-  propE!: CDE;
+  // {required:false,type:Number}
+  propC?: number;
 
-  // propD ts类型常量,required:true
   @Prop()
-  propD!: string[];
+  // {type:Array}
+  propD!: number[];
 
-  // propC ts类型interface,required:false
   @Prop()
-  propC?: BCD;
+  // {type:Object}
+  propE!: { a: string };
 
-  // propB ts类型type,required:true
-  @Prop()
-  propB: ABC;
-
-  // 装饰器注释
   @Prop({
     default: () => {
       return [];
     },
-    type: [Array, Number],
+    type: Array,
     required: true,
   })
-  // prop 注释
-  readonly propA: string[];
+  propF: string[];
+
+  // ModelSync注释1
+  @ModelSync(
+    // props:[propG]
+    "propG",
+    // emit('change-g',Array)
+    "changeG",
+    {
+      default: () => {
+        return [];
+      },
+      type: Array,
+      required: true,
+    }
+  )
+  // computed:{computedPropG:{get:this.propG,set:val=>this.$emit('change-g',val)}
+  readonly computedPropG!: string[];
+
+  // Model注释1
+  @Model(
+    // emit('change-h',Array)
+    "changeH",
+    {
+      default: () => {
+        return [];
+      },
+      type: Array,
+      required: true,
+    }
+  )
+  // mode:{prop:'propH',event:'changeH'}
+  // props:{propH:{default:()=>[],type:Array,required:true}}
+  readonly propH!: string[];
 }
 </script>
