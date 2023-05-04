@@ -1,7 +1,8 @@
-- 支持 option 组件、class 组件、<script setup> 组件
+# 支持的语法及待办事项
+- 支持 option 组件、class 组件、`<script setup>` 组件
 - template
   - 支持：
-    - 标签、{{}}、字符串 前注释
+    - 标签、{{}}、字符串注释
     - 注释支持多行
     - 支持解构
   - 标签：`<div></div>`
@@ -15,6 +16,8 @@
         - 变量绑定：`:class="dataA"`
         - 函数调用绑定：`:attr-b="getAttrB1(getAttrB2(dataA, dataB))"`
           - 不支持`:attr-b="getAttrB1(getAttrB2(dataA),getAttrB3(dataB))"`
+          - 临时：method\filter\extend\mixin\setup输出
+
         - 属性表达式绑定：`:attr-c="dataB.a"`
         - filter绑定：`:attr-d="myClass | filterA | filterB"`
         - v-if,v-else-if,v-else
@@ -37,10 +40,20 @@
       - filter绑定
   - 字符串
 - script
-  - import 导入
   - 支持解构
   - 所有配置项不持支，除非特殊说明
     - `props:[...propNames]`
+  - 所有组件定义，不管是option还是class只支持字面量定义，包括 extend 和 mixin
+  - import、export 语法
+    - import {a} from ''
+    - import a from ''
+    - import * as a from '' 不支持
+    - import {a as b} from ''
+    - `export const a={}`
+    - `export default {}`
+    - `export {a}`
+    - `export {a as b}`
+    - `export {a} from ''`
   - option
     - name
     - extends
@@ -77,9 +90,10 @@
       - 对象 get，set
       - 函数
     - data
-      - 不支持对象
+      - 对象
       - 函数
-      - TODO 对象递归
+      - 支持当前文件的初始化方法`dataB: getDataB()`，getDataB 的定义需要在当前文件中
+      - 支持对象递归`dataA:{a:''}`=>能够获取`data.a`的注释，初始化方法中也支持
     - props
       - 对象
         - default
@@ -115,7 +129,7 @@
     - @Prop
     - @ModelSync
     - @Model
-  - <script setup>
+  - `<script setup>`
     - defineEmits
       - 只支持 defineEmits 定义时的注释
       - 不支持`emit('emitA',value)`的注释
@@ -134,3 +148,41 @@
   - 根据 ts 获取具体类型
   - import 引入的注释
   - class 多个装饰器
+
+# 转换后的数据格式
+- template
+  - 标签
+    - templateValue:`'<div>'`
+    - templateType:固定值`'VElement'`
+    - attributes:`Attr[]`，Attr 包含以下属性
+      - keyName:`':class'`
+      - valueName:`'(dataB,key,index) in dataA'`
+      - valueType:vue-eslint-parser 解析出来的 ast 类型`'VForExpression'`
+      - scopeNames: v-for,v-slot,slot-scope 产生的作用域`['dataB','key','index']`
+      - callNames:filter 或绑定函数调用中的函数名`:attr-a="getAttrB1(getAttrB2(dataA, dataB))"`=>`['getAttrB1','getAttrB2']`
+      - callParams:filter 或绑定函数调用中的参数`getAttrB1(getAttrB2(dataA, dataB))`=>`['dataA','dataB']`
+      - vForName:`v-for="(dataB, key, index) in dataA"`=>`'dataA'`
+    - templateComment:当前标签的注释
+    - children:`标签[]`
+  - {{}}
+    - templateValue:`'{{ dataA }}'`
+    - templateType::vue-eslint-parser 解析出来的 ast 类型`'VFilterSequenceExpression'`
+    - attributes:`undefined`
+    - templateComment:{{}}的注释，不支持{{}}内的注释
+    - children:`undefined`
+    - templateName:`{{ dataB.a }}`=>`'dataB.a'`
+    - templateCallNames:`{{ dataA | filterA }}`=>`['filterA']`
+    - templateCallParams:`{{ dataA | filterA }}`=>`['dataA']`
+  - 文本
+    - templateValue:换行符或连续空格会被转为单个空格
+    - templateType:`'VText'`
+    - attributes:`undefined`
+    - templateComment:注释
+    - children:`undefined`
+- script
+  - prop
+    - propName:`'propA'`
+    - propDefault:默认值，没有的话为`undefined`
+    - propType:允许传入的数据类型，一个数组，目前只获取了运行时类型`[''Number]`
+    - propRequired:布尔值，是否必填
+    - propComment：注释

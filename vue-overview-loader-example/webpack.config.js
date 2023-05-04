@@ -25,21 +25,13 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.vue$/,
+        test: /\.(ts|js|vue)$/,
         use: [
           {
             loader: 'vue-overview-loader',
-            options: {},
-          },
-        ],
-      },
-      {
-        test: /\.(ts|js)$/,
-        resourceQuery: /type=vue/,
-        use: [
-          {
-            loader: 'vue-overview-loader',
-            options: {},
+            options: {
+              exclude: /routes.ts$/
+            },
           },
         ],
       },

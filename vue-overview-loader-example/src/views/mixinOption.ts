@@ -1,3 +1,4 @@
+// mixinA export 注释
 export const mixinA = {
   props: [
     // mixinA中mixinAPropA
@@ -10,7 +11,9 @@ export const mixinA = {
     'propA'
   ]
 }
-export const mixinB = {
+
+// export default 注释
+export default {
   props: [
     // mixinB中mixinPropA
     'mixinPropA',
@@ -20,3 +23,4 @@ export const mixinB = {
     'propA'
   ]
 }
+

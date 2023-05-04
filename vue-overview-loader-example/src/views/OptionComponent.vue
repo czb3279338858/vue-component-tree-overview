@@ -10,10 +10,10 @@
     :attr-d="myClass | filterA | filterB"
   >
     <!-- 绑定值注释 -->
-    {{ data | filterA }}
-    {{ data }}
+    {{ dataA | filterA }}
+    {{ dataA }}
     {{ dataB.a }}
-    {{ getAttrB1(getAttrB2(data, dataB)) }}
+    {{ getAttrB1(getAttrB2(dataA, dataB)) }}
     <!-- 常量注释 -->
     我是字符串
     <div v-if="dataA">v-if</div>
@@ -49,10 +49,17 @@
   </div>
 </template>
 <script lang='ts'>
+import filterDefault, {
+  filterB,
+  filterC,
+  filterD,
+  filterE,
+  filterF,
+  filterF as filterF2,
+} from "./filter";
 import extendOption from "./extendOption.js";
-import { mixinA, mixinB } from "./mixinOption";
+import mixinB, { mixinA } from "./mixinOption";
 import ClassComponent from "./ClassComponent.vue";
-import { filterB } from "./filters";
 import { defineComponent, PropType, ref } from "vue";
 const injectSymbol = Symbol();
 export default defineComponent({
@@ -69,6 +76,14 @@ export default defineComponent({
     },
     // filterB注释，来源于组件
     filterB,
+    // filterC注释，来源于组件
+    filterC,
+    // filterD注释，来源于组件
+    filterD,
+    filterDefault,
+    filterF,
+    filterE,
+    filterF2,
   },
   // 生命周期注释
   mounted() {
@@ -163,14 +178,20 @@ export default defineComponent({
     },
   },
   data() {
+    function getDataB() {
+      return {
+        // 初始化函数中的注释
+        a: "",
+      };
+    }
     return {
       // dataA 注释
-      dataA: "",
-      // dataB 注释
-      dataB: {
-        // dataB 属性 a 注释
+      dataA: {
+        // data是对象递归的注释
         a: "",
       },
+      // dataB 注释
+      dataB: getDataB(),
       // provideSymbolFrom，来源于 data
       provideSymbolFrom: "",
       // provideA注释，来源于 data
