@@ -11,8 +11,9 @@ const casing = require('eslint-plugin-vue/lib/utils/casing')
 const tsUtils = require('./utils/ts-ast-utils')
 const { findVariable } = require('eslint-utils')
 const { getVueMetaFromMiddleData, getCodeFromVueMeta } = require('./utils/code')
-const { commentNodesToText, getPatternNames, forEachVariableNodes } = require('./utils/commont')
-const { isEmptyVText, formatVText, getTemplateCommentsBefore, getTemplateCommentBefore } = require('./utils/template')
+const { commentNodesToText, getPatternNames, forEachVariableNodes, getCallExpressionParamsAndFunNames, getFormatJsCode, } = require('./utils/commont')
+const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
+const { getExpressionContainerInfo, addTemplateMap, getPropTypeFromPropTypeOption, getPropInfoFromPropOption } = require('./utils/script')
 
 const linter = new Linter()
 const parserOptions = {
@@ -38,312 +39,21 @@ linter.defineRule("my-rule", {
 	create(context) {
 		const sourceCode = context.getSourceCode()
 
-		function sourceCodeGetText(node) {
-			const ret = sourceCode.getText(node)
-			return ret.replace(/\n/g, '').replace(/\s+/g, ' ')
-		}
-		/**
-		 * 获取函数调用的函数名和参数
-		 * 支持连续调用，不支持多个参数
-		 * 不支持多参数 :style="c(d(a.b), a)"，支持 c(d(a.b))=>[a.b,[c,d]]
-		 * @param {*} callExpression 
-		 * @param {*} names 
-		 */
-		function getCallExpressionNamesAndParam(callExpression, names = []) {
-			const funName = callExpression.callee.name
-			const params = callExpression.arguments
-			names.push(funName)
-			if (params) {
-				if (params.length === 1) {
-					const param = params[0]
-					if (param.type === 'CallExpression') {
-						return getCallExpressionNamesAndParam(param, names)
-					} else {
-						const callParam = param.type === 'MemberExpression' ? sourceCodeGetText(param) : undefined
-						return [[callParam], names]
-					}
-				} else {
-					return [params.map(param => sourceCodeGetText(param)), names]
-				}
-			} else {
-				return [undefined, names]
-			}
-		}
-		/**
-		 * 获取绑定值的信息
-		 * @param {*} expression 
-		 * @returns [valueName, valueType,scopeName, callNames]
-		 */
-		function getExpressionInfo(expression) {
-			// 只有属性没有值时，例如 v-else
-			if (!expression) return []
-
-			// 没有绑定，直接是赋值常量，数值、字符串、布尔值，[常量文本,'VLiteral']
-			if (expression.type === 'VLiteral') return [expression.value, expression.type]
-
-			// 绑定指是常量
-			if (expression.expression.type === 'Literal') {
-				return [expression.expression.raw, expression.expression.type]
-			}
-
-			// 绑定值是变量（函数或变量），[变量名(不带引号),'Identifier']
-			if (expression.expression.type === 'Identifier') return [expression.expression.name, expression.expression.type]
-
-			// 表达式(e.a)直接返回文本
-			if (['MemberExpression'].includes(expression.expression.type)) {
-				return [sourceCodeGetText(expression.expression), expression.expression.type]
-			}
-
-			// 绑定值是函数调用,[函数名,'CallExpression']
-			// 函数调用可以层层嵌套的，这里不支持嵌套，只读取第一层的函数名
-			// 不支持 :style="c(d(a.b), a)"，:style="c()"
-			// 支持 c(d(a.b))
-			if (expression.expression.type === 'CallExpression') {
-				const [callParams, callNames] = getCallExpressionNamesAndParam(expression.expression)
-				return [sourceCodeGetText(expression.expression), expression.expression.type, undefined, callNames, callParams]
-			}
-
-			// filter filter的顺序做了颠倒和函数一致符合它的调用顺序
-			if ('VFilterSequenceExpression' === expression.expression.type) {
-				const callNames = expression.expression.filters.map(f => f.callee.name).reverse()
-				const callParam = expression.expression.expression.name
-				return [sourceCodeGetText(expression.expression), expression.expression.type, undefined, callNames, [callParam]]
-			}
-
-			// 绑定值是v-for的值，[遍历的对象，'VForExpression'，遍历的项名[]]
-			// 遍历的对象只支持变量
-			// 遍历的项名[]，例如 (val, name, index) in object => [val,name,index]
-			if (expression.expression.type === 'VForExpression') {
-				return [sourceCodeGetText(expression.expression), expression.expression.type, getPatternNames(expression.expression.left), undefined, undefined, expression.expression.right.name]
-			}
-
-			// 绑定值是slot-scope或v-slot
-			if (expression.expression.type === 'VSlotScopeExpression') {
-				const scopeNames = getPatternNames(expression.expression.params)
-				return [sourceCodeGetText(expression.expression), expression.expression.type, scopeNames]
-			}
-
-			// 其他，不支持
-			// 例如：:a="'1'"，:class1="{ a }"
-			return [undefined, expression.expression.type]
-		}
-		/**
-		 * 添加 templateInfo 信息到 templateMap 中
-		 * @param {*} node 
-		 * @param {*} templateInfo 
-		 * @param {*} templateMap 
-		 */
-		function addTemplateMap(node, templateInfo, templateMap) {
-			const parent = node.parent
-			const parentInfo = templateMap.get(parent)
-			if (parentInfo) {
-				parentInfo.children.push(templateInfo)
-			}
-			templateMap.set(node, templateInfo)
-		}
-
-
 		// {templateValue,templateCallNames,templateType,attributes,templateComment,children}
 		const templateMap = new Map()
 
-		// ——————————————————————————————————————————————————————————————
-
-
-		function getPropType(typeValue) {
-			switch (typeValue.type) {
-				case 'Identifier':
-					return [typeValue.name]
-				case 'ArrayExpression':
-					return typeValue.elements.map(e => e.name)
-				case 'TSAsExpression':
-					return tsUtils.inferRuntimeType(context, typeValue.typeAnnotation.typeParameters.params[0])
-				default:
-					return []
-			}
-		}
-		/**
-		 * 从 propOption 的参数和 ts 类型来获取 default、type、required
-		 * @param {*} propOption 
-		 * @param {*} prop 
-		 * @returns 
-		 */
-		function getPropInfoFromOption(propOption, prop) {
-			let propDefault, propType, propRequired
-			// option 中的 prop 可以没有参数
-			if (propOption) {
-				// 通过prop配置项获取
-				switch (propOption.type) {
-					case 'Identifier':
-						propType = getPropType(propOption)
-						break;
-					case 'ObjectExpression':
-						propOption.properties.forEach(d => {
-							const key = d.key.name
-							switch (key) {
-								case 'default':
-									propDefault = sourceCodeGetText(d.value)
-									break;
-								case 'type':
-									propType = getPropType(d.value)
-									break;
-								case 'required':
-									if (d.value.raw === 'true') {
-										propRequired = true
-									} else {
-										propRequired = false
-									}
-									break;
-							}
-						})
-						break;
-					case 'ArrayExpression':
-						propType = getPropType(propOption)
-						break;
-				}
-			}
-			// 如果没有类型，尝试从ts中获取
-			if (prop && prop.typeAnnotation) {
-				if (!propType) {
-					const typeAnnotation = prop.typeAnnotation.typeAnnotation
-					// FIXME: tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
-					// tsUtils.inferRuntimeType 支持在本文件递归查找类型的实际定义，从而获取对应的运行时类型
-					propType = tsUtils.inferRuntimeType(context, typeAnnotation)
-				}
-				if (propRequired === undefined) {
-					propRequired = !prop.optional
-				}
-			}
-			return [propDefault, propType, propRequired]
-		}
-		/**
-		 * 从 utils.getComponentPropsFromOptions 返回的 props 中提取 propInfo
-		 * @param {*} propList 
-		 * @returns 
-		 */
-		function getPropMapFromPropList(propList) {
-			const propMap = new Map()
-
-			propList.forEach(propOption => {
-				const propName = propOption.propName
-				const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption.value)
-				const propComments = sourceCode.getCommentsBefore(propOption.key)
-				const propComment = commentNodesToText(propComments)
-				const propInfo = {
-					propName,
-					propDefault,
-					propType,
-					propRequired,
-					propComment
-				}
-				propMap.set(propName, propInfo)
-			})
-			return propMap
-		}
-		/**
-		 * script setup 中 withDefaults(defineProps<Props>(), {}) 获取 propInfo
-		 * @param {*} props 
-		 * @param {*} withDefaultsParams 
-		 * @returns 
-		 */
-		function getPropMapFromTypePropList(props, withDefaultsParams) {
-			const propMap = new Map()
-
-			const propDefaultNodes = (withDefaultsParams && withDefaultsParams[1]) ? withDefaultsParams[1].properties : []
-
-			props.forEach(prop => {
-				const propName = prop.propName
-
-				const propDefaultNode = propDefaultNodes.find(p => p.key.name === propName)
-				const propDefault = propDefaultNode ? sourceCodeGetText(propDefaultNode.value) : undefined
-
-				const propType = prop.types
-				const propRequired = prop.required
-
-				const typeComments = sourceCode.getCommentsBefore(prop.key)
-				const defaultComments = propDefaultNode ? sourceCode.getCommentsBefore(propDefaultNode) : []
-				const propComment = commentNodesToText([...typeComments, ...defaultComments])
-
-				const propInfo = {
-					propName,
-					propDefault,
-					propType,
-					propRequired,
-					propComment
-				}
-				propMap.set(propName, propInfo)
-			})
-			return propMap
-		}
-
+		// {propName,propDefault,propType,propRequired,propComment}
 		let propMap = new Map()
 
-
-		// ——————————————————————————————————————————————————————————————
-
-		// setup中的变量定义不需要添加setupMap中的项
-		// 1.没有初始化的变量
-		// 2.初始化是函数调用，函数名为特定项
-		// 3.初始化是常量
-		function initUnAddSetupMap(init) {
-			return !init
-				|| (
-					init
-					&& (
-						(init.type === 'CallExpression' && ['defineEmits', 'defineProps', 'useContext'].includes(init.callee.name))
-						|| init.type === 'Literal'
-					)
-				)
-		}
-
-		// 从变量定义中添加 setupMap,支持 const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
-		function addSetupMapFromDeclarations(declarations, setupMap) {
-			const needAddSetupMapDeclarations = declarations.filter(d => {
-				return !initUnAddSetupMap(d.init)
-			})
-			// 遍历允许添加到 setupMap 的变量定义
-			// declarations:例如：const provideData = ref(""); => provideData = ref("")
-			forEachVariableNodes(needAddSetupMapDeclarations, (setupName, setupComment) => {
-				const setupInfo = {
-					setupName,
-					setupComment
-				}
-				setupMap.set(setupName, setupInfo)
-			})
-		}
 		// {setupName,setupComment}
 		let setupMap = new Map()
 
-		// ——————————————————————————————————————————————————————————————
-
-		// 生命周期
-		// {lifecycleHookName,lifecycleHookComment}
-		// lifecycleHookName在setup中带on，在options、class中不带，
-		// 生命周期
-		const LIFECYCLE_HOOKS = [
-			'beforeCreate',
-			'created',
-			'beforeMount',
-			'mounted',
-			'beforeUpdate',
-			'updated',
-			'activated',
-			'deactivated',
-			'beforeUnmount', // for Vue.js 3.x
-			'unmounted', // for Vue.js 3.x
-			'beforeDestroy',
-			'destroyed',
-			'renderTracked', // for Vue.js 3.x
-			'renderTriggered', // for Vue.js 3.x
-			'errorCaptured' // for Vue.js 2.5.0+
-		]
+		// {lifecycleHookName,lifecycleHookComment} 
+		// lifecycleHookName在setup中带on，在options、class中不带
 		const lifecycleHookMap = new Map()
-
-		// ——————————————————————————————————————————————————————————————
 
 		// filters
 		const filterMap = new Map()
-
-		// ——————————————————————————————————————————————————————————————
 
 		// 当 defineEmits 参数是对像时获取 value 的类型
 		function getEmitTypeFromObjectParamValue(paramValue) {
@@ -351,10 +61,10 @@ linter.defineRule("my-rule", {
 
 			if (paramValueType === 'ArrayExpression') return paramValue.elements.map(element => getEmitTypeFromObjectParamValue(element)[0])
 
-			if (['FunctionExpression'].includes(paramValueType)) return [sourceCodeGetText(paramValue.parent)]
+			if (['FunctionExpression'].includes(paramValueType)) return [getFormatJsCode(sourceCode, paramValue.parent)]
 
 			// ArrowFunctionExpression 箭头函数
-			if ('ArrowFunctionExpression' === paramValueType) return [sourceCodeGetText(paramValue)]
+			if ('ArrowFunctionExpression' === paramValueType) return [getFormatJsCode(sourceCode, paramValue)]
 
 			if (paramValueType === 'Identifier') return [paramValue.name]
 		}
@@ -488,7 +198,7 @@ linter.defineRule("my-rule", {
 				if (provide.computed) {
 					provideName = `[${provideName}]`
 				}
-				const provideFromKey = sourceCodeGetText(provide.value)
+				const provideFromKey = getFormatJsCode(sourceCode, provide.value)
 				const provideComments = sourceCode.getCommentsBefore(provide)
 				const provideComment = commentNodesToText(provideComments)
 				const provideInfo = {
@@ -512,7 +222,7 @@ linter.defineRule("my-rule", {
 			if (injectOption.type === 'ObjectExpression') {
 				const ret = injectOption.properties.reduce((p, c) => {
 					if (c.key.name === 'from') p[0] = c.value.raw
-					if (c.key.name === 'default') p[1] = sourceCodeGetText(c.value)
+					if (c.key.name === 'default') p[1] = getFormatJsCode(sourceCode, c.value)
 					return p
 				}, [undefined, undefined])
 				if (!ret[0]) ret = injectName
@@ -622,7 +332,7 @@ linter.defineRule("my-rule", {
 			// FIXME: utils.getComponentPropsFromOptions(optionNode) 只能获取 props 中的字面量
 			// FIXME: utils.getComponentPropsFromOptions(optionNode) 返回中包含 PropType 指向的具体类型，目前只获取运行时类型，不获取ts类型
 			const propList = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
-			propMap = new Map([...propMap, ...getPropMapFromPropList(propList)])
+			propMap = new Map([...propMap, ...getPropMapFromPropList(sourceCode, propList)])
 
 			// emit，只能获取 emits 配置项中的
 			const emits = utils.getComponentEmitsFromOptions(optionNode)
@@ -767,7 +477,7 @@ linter.defineRule("my-rule", {
 						const variableNode = getVariableNode(setupValue)
 						let variableComment = ''
 						if (variableNode) {
-							forEachVariableNodes([variableNode], (leftName, comment) => {
+							forEachVariableNodes(sourceCode, [variableNode], (leftName, comment) => {
 								variableComment = comment
 							})
 						}
@@ -853,23 +563,32 @@ linter.defineRule("my-rule", {
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
 							// FIXME: 支持动态绑定
-							const keyName = sourceCodeGetText(a.key)
-							const [valueName, valueType, scopeNames, callNames, callParams, vForName] = getExpressionInfo(a.value)
-							return {
-								// attr左边
-								keyName,
-								// attr右边
-								valueName,
-								// attr右边的类型
-								valueType,
-								// v-for,v-slot,slot-scope有作用域
-								scopeNames,
-								// attr右边是函数调用或filter
-								callNames,
-								// attr右边是函数调用或filter的参数
-								callParams,
-								// v-for的值
-								vForName
+							const keyName = getFormatJsCode(sourceCode, a.key)
+							const value = a.value
+							if (value.type === "VLiteral") {
+								return {
+									keyName,
+									valueName: value.value,
+									valueType: value.type
+								}
+							} else {
+								const [valueName, valueType, scopeNames, callNames, callParams, vForName] = getExpressionContainerInfo(sourceCode, value)
+								return {
+									// attr左边
+									keyName,
+									// attr右边
+									valueName,
+									// attr右边的类型
+									valueType,
+									// v-for,v-slot,slot-scope有作用域
+									scopeNames,
+									// attr右边是函数调用或filter
+									callNames,
+									// attr右边是函数调用或filter的参数
+									callParams,
+									// v-for的值
+									vForName
+								}
 							}
 						})
 						const templateComment = getTemplateCommentBefore(element)
@@ -895,10 +614,10 @@ linter.defineRule("my-rule", {
 					},
 					// 标签内{{ }}
 					'VElement>VExpressionContainer'(node) {
-						const [templateName, templateType, , templateCallNames, templateCallParams,] = getExpressionInfo(node)
+						const [templateName, templateType, , templateCallNames, templateCallParams,] = getExpressionContainerInfo(sourceCode, node)
 						const templateInfo = {
 							// 包含{{}}的值
-							templateValue: `${sourceCodeGetText(node)}`,
+							templateValue: `${getFormatJsCode(sourceCode, node)}`,
 							templateType,
 							attributes: undefined,
 							templateComment: getTemplateCommentBefore(node),
@@ -924,7 +643,7 @@ linter.defineRule("my-rule", {
 							const propName = prop.key.name
 							const propOption = decoratorParams[0]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
+							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(propOption, prop)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const propNameComments = sourceCode.getCommentsAfter(node)
@@ -948,7 +667,7 @@ linter.defineRule("my-rule", {
 							const propName = decoratorParams[0].value
 							const propOption = decoratorParams[1]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
+							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(propOption, computed)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const computedComments = sourceCode.getCommentsAfter(node)
@@ -989,7 +708,7 @@ linter.defineRule("my-rule", {
 							const propName = prop.key.name
 							const propOption = decoratorParams[1]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, prop)
+							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(propOption, prop)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const propComments = sourceCode.getCommentsAfter(node)
@@ -1018,7 +737,7 @@ linter.defineRule("my-rule", {
 							const propName = decoratorParams[0].value
 							const propOption = decoratorParams[2]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
+							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(propOption, computed)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const propComments = sourceCode.getCommentsBefore(decoratorParams[0])
@@ -1065,7 +784,7 @@ linter.defineRule("my-rule", {
 							const propName = 'value'
 							const propOption = decoratorParams[0]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromOption(propOption, computed)
+							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(propOption, computed)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const computedComments = sourceCode.getCommentsAfter(node)
@@ -1246,16 +965,16 @@ linter.defineRule("my-rule", {
 								if (prop.type === 'type') typePropList.push(prop)
 								else optionPropList.push(prop)
 							})
-							const optionPropMap = getPropMapFromPropList(optionPropList)
-							const typePropMap = getPropMapFromTypePropList(typePropList, node.parent.arguments)
+							const optionPropMap = getPropMapFromPropList(sourceCode, optionPropList)
+							const typePropMap = getPropMapFromTypePropList(sourceCode, typePropList, node.parent.arguments)
 
 							propMap = new Map([...propMap, ...optionPropMap, ...typePropMap])
 						},
 						// 变量定义，包括 data\computed\inject\箭头函数methods 表现为 const dataA = ref('')
 						'Program>VariableDeclaration'(node) {
 							// 过滤掉没有初始化和初始化不允许添加进setupMap的变量定义，针对 let dataF,dataG=ref('')
-							const declarations = node.declarations
-							addSetupMapFromDeclarations(declarations, setupMap)
+							const variable = node.declarations
+							addSetupMapFromVariable(sourceCode, variable, setupMap)
 						},
 						// 函数定义 methods，表现为 function methodA(){}
 						'Program>FunctionDeclaration'(node) {
@@ -1338,7 +1057,7 @@ linter.defineRule("my-rule", {
 					// import MyComponent1 from "./ClassComponent.vue";
 					// import { mixinA, mixinB } from "./mixinOption";
 					'ImportDeclaration'(node) {
-						importSet.add(sourceCodeGetText(node))
+						importSet.add(getFormatJsCode(sourceCode, node))
 					},
 				},
 			),

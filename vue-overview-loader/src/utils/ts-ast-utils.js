@@ -1,3 +1,4 @@
+// tsUtils 来源于 eslint-plugin-vue 中，但是官方没有提供 inferRuntimeType 供外部使用，所以拷贝了整个代码过来
 const { findVariable } = require('eslint-utils')
 /**
  * @typedef {import('@typescript-eslint/types').TSESTree.TypeNode} TypeNode

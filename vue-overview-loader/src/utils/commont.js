@@ -4,7 +4,7 @@
  * @param {*} comments 
  * @returns 
  */
-export function commentNodesToText(comments) {
+function commentNodesToText(comments) {
   return comments.reduce((p, c) => {
     p = p ? `${p}\n${c.value}` : c.value
     return p
@@ -52,7 +52,7 @@ function forEachPattern(pattern, callBack) {
  * @param {*} expression 
  * @returns 
  */
-export function getPatternNames(expression) {
+function getPatternNames(expression) {
   const scopeName = []
   forEachPattern(expression, (item) => {
     if (item.type === 'Identifier') {
@@ -71,7 +71,7 @@ export function getPatternNames(expression) {
  * @param {*} variableNodes 
  * @param {*} callBack 
  */
-export function forEachVariableNodes(variableNodes, callBack) {
+function forEachVariableNodes(sourceCode, variableNodes, callBack) {
   variableNodes.forEach(declaration => {
     const left = declaration.id
     // 当变量的左边是常量时
@@ -95,4 +95,55 @@ export function forEachVariableNodes(variableNodes, callBack) {
       })
     }
   })
+}
+
+// TODO：需要检查c(d(e)) e能不能正确获取
+/**
+     * 获取函数调用的函数名和参数
+     * 支持连续调用，不支持中途多个参数
+     * 支持 c(d(a.b,e)) => [[a.b,e],[c,d]]
+     * 不支持 c(d(a.b), a)
+     * @param {*} callExpression 
+     * @param {*} funNames 
+     */
+function getCallExpressionParamsAndFunNames(callExpression, funNames = []) {
+  const funName = callExpression.callee.name
+  const params = callExpression.arguments
+  funNames.push(funName)
+  if (params) {
+    if (params.length === 1) {
+      const param = params[0]
+      if (param.type === 'CallExpression') {
+        return getCallExpressionParamsAndFunNames(param, funNames)
+      } else {
+        const callParam = param.type === 'MemberExpression' ? getFormatJsCode(sourceCode, param) : undefined
+        return [[callParam], funNames]
+      }
+    } else {
+      return [params.map(param => getFormatJsCode(sourceCode, param)), funNames]
+    }
+  } else {
+    return [undefined, funNames]
+  }
+}
+
+
+/**
+ * 把代码节点格式化为代码单行文本
+ * 1、把多个空格和换行符转换为单个空格
+ * @param {*} sourceCode 
+ * @param {*} node 
+ * @returns 
+ */
+function getFormatJsCode(sourceCode, node) {
+  const ret = sourceCode.getText(node)
+  return ret.replace(/[\n\s]+/g, ' ')
+}
+
+module.exports = {
+  getFormatJsCode,
+  getCallExpressionParamsAndFunNames,
+  forEachVariableNodes,
+  getPatternNames,
+  commentNodesToText
 }

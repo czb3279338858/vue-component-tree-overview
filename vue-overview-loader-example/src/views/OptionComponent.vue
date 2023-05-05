@@ -198,21 +198,21 @@ export default defineComponent({
       provideAFrom: "",
     };
   },
-  // props: {
-  //   // propA 注释
-  //   propA: {
-  //     default: "propADefault",
-  //     type: String as PropType<string>,
-  //     required: true,
-  //   },
-  //   // propB 注释
-  //   propB: Number,
-  //   // propC 注释
-  //   propC: [Number, String],
-  // },
-  props: [
+  props: {
     // propA 注释
-    "propA",
-  ],
+    propA: {
+      default: "propADefault",
+      type: String as PropType<string>,
+      required: true,
+    },
+    // propB 注释
+    propB: Number,
+    // propC 注释
+    propC: [Number, String],
+  },
+  // props: [
+  //   // propA 注释
+  //   "propA",
+  // ],
 });
 </script>

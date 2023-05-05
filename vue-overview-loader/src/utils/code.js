@@ -3,7 +3,7 @@
  * @param {*} vueMeta 
  * @returns 
  */
-export function getVueMetaFromMiddleData(vueMeta) {
+function getVueMetaFromMiddleData(vueMeta) {
   return Object.keys(vueMeta).reduce((p, key) => {
     // vueMeta数据中包含importSet，是因为它是用来从rule传递到loader中的，在其他地方已经单独处理了获取代码对象时舍弃
     if (key === 'importSet') return p
@@ -24,6 +24,7 @@ export function getVueMetaFromMiddleData(vueMeta) {
   }, {})
 }
 
+// TODO:把字符串和变量在元数据阶段就分出来，这里就不需要单独处理了
 /**
  * 把 vue 元数据转为 code，
  * 'componentMap', 'mixinSet', 'extend'会保留引用，而不是把引用转为字符串
@@ -31,7 +32,7 @@ export function getVueMetaFromMiddleData(vueMeta) {
  * @param {*} noHandle 
  * @returns 
  */
-export function getCodeFromVueMeta(vueMeta, noHandle) {
+function getCodeFromVueMeta(vueMeta, noHandle) {
   if (typeof vueMeta === 'object' && vueMeta !== null) {
     if (Array.isArray(vueMeta)) return `[${vueMeta.map(item => getCodeFromVueMeta(item, noHandle)).join(',')}]`
     else return `{${Object.entries(vueMeta).map(
@@ -42,4 +43,9 @@ export function getCodeFromVueMeta(vueMeta, noHandle) {
     ).join(',')}}`
   }
   return noHandle ? vueMeta : JSON.stringify(vueMeta)
+}
+
+module.exports = {
+  getVueMetaFromMiddleData,
+  getCodeFromVueMeta
 }

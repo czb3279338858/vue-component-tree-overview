@@ -1,11 +1,11 @@
-import { commentNodesToText } from "./commont"
+const { commentNodesToText } = require("./commont")
 
 /**
      * 当前节点是否只有换行符和空格组成的 VText
      * @param {*} node 
      * @returns 
      */
-export function isEmptyVText(node) {
+function isEmptyVText(node) {
   return node.type === 'VText' && /^[\n\s]*$/.test(node.value)
 }
 
@@ -14,7 +14,7 @@ export function isEmptyVText(node) {
      * @param {*} text 
      * @returns 
      */
-export function formatVText(text) {
+function formatVText(text) {
   return text.replace(/[\n\s]+/g, ' ')
 }
 
@@ -88,8 +88,14 @@ function getTemplateCommentNodesBefore(node) {
      * @param {*} node 
      * @returns 
      */
-export function getTemplateCommentBefore(node) {
+function getTemplateCommentBefore(node) {
   const elementComments = getTemplateCommentNodesBefore(node)
   const elementComment = commentNodesToText(elementComments)
   return elementComment
+}
+
+module.exports = {
+  getTemplateCommentBefore,
+  formatVText,
+  isEmptyVText,
 }
