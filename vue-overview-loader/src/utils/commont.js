@@ -1,11 +1,14 @@
+const tsUtils = require('./ts-ast-utils')
+const casing = require('eslint-plugin-vue/lib/utils/casing')
+const { findVariable } = require('eslint-utils')
 /**
  * 将注释节点拼装成注释字符串
  * template和js中通用
- * @param {*} comments 
+ * @param {*} commentNodes 
  * @returns 
  */
-function commentNodesToText(comments) {
-  return comments.reduce((p, c) => {
+function commentNodesToText(commentNodes) {
+  return commentNodes.reduce((p, c) => {
     p = p ? `${p}\n${c.value}` : c.value
     return p
   }, '')
@@ -99,14 +102,14 @@ function forEachVariableNodes(sourceCode, variableNodes, callBack) {
 
 // TODO：需要检查c(d(e)) e能不能正确获取
 /**
-     * 获取函数调用的函数名和参数
-     * 支持连续调用，不支持中途多个参数
-     * 支持 c(d(a.b,e)) => [[a.b,e],[c,d]]
-     * 不支持 c(d(a.b), a)
-     * @param {*} callExpression 
-     * @param {*} funNames 
-     */
-function getCallExpressionParamsAndFunNames(callExpression, funNames = []) {
+ * 获取函数调用的函数名和参数
+ * 支持连续调用，不支持中途多个参数
+ * 支持 c(d(a.b,e)) => [[a.b,e],[c,d]]
+ * 不支持 c(d(a.b), a)
+ * @param {*} callExpression 
+ * @param {*} funNames 
+ */
+function getCallExpressionParamsAndFunNames(sourceCode, callExpression, funNames = []) {
   const funName = callExpression.callee.name
   const params = callExpression.arguments
   funNames.push(funName)
@@ -114,7 +117,7 @@ function getCallExpressionParamsAndFunNames(callExpression, funNames = []) {
     if (params.length === 1) {
       const param = params[0]
       if (param.type === 'CallExpression') {
-        return getCallExpressionParamsAndFunNames(param, funNames)
+        return getCallExpressionParamsAndFunNames(sourceCode, param, funNames)
       } else {
         const callParam = param.type === 'MemberExpression' ? getFormatJsCode(sourceCode, param) : undefined
         return [[callParam], funNames]
@@ -139,11 +142,71 @@ function getFormatJsCode(sourceCode, node) {
   const ret = sourceCode.getText(node)
   return ret.replace(/[\n\s]+/g, ' ')
 }
+/**
+ * 获取当前节点运行时类型
+ * @param {*} node 
+ * @param {*} context 
+ * @returns 'Object' | 'Array' 等
+ */
+function getRuntimeTypeFromNode(node, context) {
+  if (node.typeAnnotation) {
+    const ret = tsUtils.inferRuntimeType(context, node.typeAnnotation.typeAnnotation)
+    return ret
+  }
+  if (['ObjectExpression', 'ObjectPattern'].includes(node.type)) return 'Object'
+  if (['ArrayExpression', 'ArrayPattern'].includes(node.type)) return 'Array'
+  if (['FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)) return 'Function'
+  if (node.type === 'Literal') {
+    const value = node.value
+    if (Array.isArray(value)) return 'Array'
+    if (value === null) return 'null'
+    return casing.pascalCase(typeof node.value)
+  }
+  return undefined
+}
 
+/**
+ * 获取函数参数的运行时类型
+ * @param {*} params 
+ * @returns [['String','Number'],['String']]
+ */
+function getFunParamsRuntimeType(params, context) {
+  return params.map(p => {
+    let type = getRuntimeTypeFromNode(p, context)
+    if (!type && p.right) {
+      type = getRuntimeTypeFromNode(p.right, context)
+    }
+    return [type]
+  })
+}
+/**
+ * 获取函数第一个 return 节点
+ * @param {*} funNode 
+ * @returns 
+ */
+function getFunFirstReturnNode(funNode) {
+  const funBody = funNode.body.body
+  const funRet = funBody.find(f => f.type === 'ReturnStatement')
+  return funRet
+}
+/**
+ * 获取变量在当前作用域（文档）的定义节点
+ * @param {*} identifierNode 
+ * @param {*} context 
+ * @returns 
+ */
+function getVariableNode(identifierNode, context) {
+  const variable = findVariable(context.getScope(), identifierNode)
+  return variable && variable.defs[0] && variable.defs[0].node
+}
 module.exports = {
+  getVariableNode,
+  getFunFirstReturnNode,
+  getRuntimeTypeFromNode,
+  getFunParamsRuntimeType,
   getFormatJsCode,
   getCallExpressionParamsAndFunNames,
   forEachVariableNodes,
-  getPatternNames,
-  commentNodesToText
+  commentNodesToText,
+  getPatternNames
 }

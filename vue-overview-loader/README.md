@@ -72,6 +72,7 @@
       - 函数
         - key为变量
         - key为常量
+        - 函数只允许有一个return
     - inject
       - 数组
       - 对象
@@ -83,6 +84,7 @@
       - 支持 emit，$emit调用
     - setup
       - 支持 context.emit
+      - 只允许有一个return
       - return内的
         - ref
         - TODO 需要检查支持什么
@@ -92,6 +94,7 @@
     - data
       - 对象
       - 函数
+        - 函数只允许只有一个return
       - 支持当前文件的初始化方法`dataB: getDataB()`，getDataB 的定义需要在当前文件中
       - 支持对象递归`dataA:{a:''}`=>能够获取`data.a`的注释，初始化方法中也支持
     - props

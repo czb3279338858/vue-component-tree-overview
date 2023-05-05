@@ -1,12 +1,13 @@
-const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, forEachVariableNodes } = require("./commont")
-const tsUtils = require('./utils/ts-ast-utils')
+const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, forEachVariableNodes, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode } = require("./commont")
+const tsUtils = require('./ts-ast-utils')
+const casing = require('eslint-plugin-vue/lib/utils/casing')
 /**
-     * 获取表达式容器的信息
-     * 1、适用于标签属性的绑定值
-     * 2、适用于{{}}中的绑定值
-     * @param {*} container 
-     * @returns [valueName, valueType,scopeNames, callNames，callParams,vForName]
-     */
+ * 获取表达式容器的信息
+ * 1、适用于标签属性的绑定值
+ * 2、适用于{{}}中的绑定值
+ * @param {*} container 
+ * @returns [valueName, valueType,scopeNames, callNames，callParams,vForName]
+ */
 function getExpressionContainerInfo(sourceCode, container) {
   // 没有绑定值时，例如 v-else
   if (!container) return []
@@ -26,7 +27,7 @@ function getExpressionContainerInfo(sourceCode, container) {
 
   // 绑定值是函数调用
   if (container.expression.type === 'CallExpression') {
-    const [callParams, callNames] = getCallExpressionParamsAndFunNames(container.expression)
+    const [callParams, callNames] = getCallExpressionParamsAndFunNames(sourceCode, container.expression)
     return [getFormatJsCode(sourceCode, container.expression), container.expression.type, undefined, callNames, callParams]
   }
 
@@ -54,12 +55,12 @@ function getExpressionContainerInfo(sourceCode, container) {
 }
 
 /**
-     * 添加 templateInfo 信息到 templateMap 中
-     * 会把当前节点添加到父节点的children中
-     * @param {*} node 
-     * @param {*} templateInfo 
-     * @param {*} templateMap 
-     */
+ * 添加 templateInfo 信息到 templateMap 中
+ * 会把当前节点添加到父节点的children中
+ * @param {*} node 
+ * @param {*} templateInfo 
+ * @param {*} templateMap 
+ */
 function addTemplateMap(node, templateInfo, templateMap) {
   const parent = node.parent
   const parentInfo = templateMap.get(parent)
@@ -70,11 +71,12 @@ function addTemplateMap(node, templateInfo, templateMap) {
 }
 
 /**
-     * 通过 propOption 中type 的配置获取 prop 的运行时的类型
-     * @param {*} typeValue 
-     * @returns ['Number','String']
-     */
-function getPropTypeFromPropTypeOption(typeValue) {
+ * 通过 propOption 中 type 的配置获取 prop 的运行时的类型
+ * 支持 ts
+ * @param {*} typeValue 
+ * @returns ['Number','String']
+ */
+function getPropTypeFromPropTypeOption(context, typeValue) {
   switch (typeValue.type) {
     // Number
     case 'Identifier':
@@ -89,12 +91,13 @@ function getPropTypeFromPropTypeOption(typeValue) {
 }
 
 /**
-     * 从 propOption 获取 default、type、required
-     * @param {*} propOption 
-     * @param {*} propNode 
-     * @returns [propDefault, propType, propRequired]
-     */
-function getPropInfoFromPropOption(propOption, propNode) {
+ * 从 propOption 获取 default、type、required
+ * @param {*} propOption 
+ * @param {*} propNode 
+ * @returns [propDefault, propType, propRequired]
+ */
+function getPropInfoFromPropOption(context, propOption, propNode) {
+  const sourceCode = context.getSourceCode()
   let propDefault, propType, propRequired
   // option 中的 prop 可以没有参数
   if (propOption) {
@@ -102,7 +105,7 @@ function getPropInfoFromPropOption(propOption, propNode) {
     switch (propOption.type) {
       // propB: Number
       case 'Identifier':
-        propType = getPropTypeFromPropTypeOption(propOption)
+        propType = getPropTypeFromPropTypeOption(context, propOption)
         break;
       // propA:{default:'propADefault',type:String,require:true}
       case 'ObjectExpression':
@@ -114,7 +117,7 @@ function getPropInfoFromPropOption(propOption, propNode) {
               // TODO: 根据 default 推断 propType
               break;
             case 'type':
-              propType = getPropTypeFromPropTypeOption(d.value)
+              propType = getPropTypeFromPropTypeOption(context, d.value)
               break;
             case 'required':
               if (d.value.raw === 'true') {
@@ -128,7 +131,7 @@ function getPropInfoFromPropOption(propOption, propNode) {
         break;
       // propC: [Number, String]
       case 'ArrayExpression':
-        propType = getPropTypeFromPropTypeOption(propOption)
+        propType = getPropTypeFromPropTypeOption(context, propOption)
         break;
     }
   }
@@ -146,16 +149,17 @@ function getPropInfoFromPropOption(propOption, propNode) {
 }
 
 /**
-     * 从 utils.getComponentPropsFromOptions 返回的 props 中提取 propInfo 生成 propMap 并返回
-     * @param {*} propList 
-     * @returns 返回 map key:{propName,propDefault,propType,propRequired,propComment}
-     */
-function getPropMapFromPropList(sourceCode, propList) {
+ * 从 utils.getComponentPropsFromOptions 返回的 props 中提取 propInfo 生成 propMap 并返回
+ * @param {*} propList 
+ * @returns 返回 map key:{propName,propDefault,propType,propRequired,propComment}
+ */
+function getPropMapFromPropList(context, propList) {
+  const sourceCode = context.getSourceCode()
   const propMap = new Map()
 
   propList.forEach(propOption => {
     const propName = propOption.propName
-    const [propDefault, propType, propRequired] = getPropInfoFromPropOption(propOption.value)
+    const [propDefault, propType, propRequired] = getPropInfoFromPropOption(context, propOption.value)
     const propComments = sourceCode.getCommentsBefore(propOption.key)
     const propComment = commentNodesToText(propComments)
     const propInfo = {
@@ -177,7 +181,7 @@ function getPropMapFromPropList(sourceCode, propList) {
  * @param {*} init 
  * @returns 
  */
-function initUnAddSetupMap(init) {
+function isUnAddSetupMap(init) {
   return !init
     || (
       init
@@ -197,7 +201,7 @@ function initUnAddSetupMap(init) {
  */
 function addSetupMapFromVariable(sourceCode, variable, setupMap) {
   const needAddSetupMapDeclarations = variable.filter(d => {
-    return !initUnAddSetupMap(d.init)
+    return !isUnAddSetupMap(d.init)
   })
   // 遍历允许添加到 setupMap 的变量定义
   // declarations:例如：const provideData = ref(""); => provideData = ref("")
@@ -210,11 +214,11 @@ function addSetupMapFromVariable(sourceCode, variable, setupMap) {
   })
 }
 /**
-     * script setup 中 withDefaults(defineProps<Props>(), {}) 提取 propInfo 生成 propMap 返回
-     * @param {*} props 
-     * @param {*} withDefaultsParams
-     * @returns 返回 map key:{propName,propDefault,propType,propRequired,propComment}
-     */
+ * script setup 中 withDefaults(defineProps<Props>(), {}) 提取 propInfo 生成 propMap 返回
+ * @param {*} props 
+ * @param {*} withDefaultsParams
+ * @returns 返回 map key:{propName,propDefault,propType,propRequired,propComment}
+ */
 function getPropMapFromTypePropList(sourceCode, props, withDefaultsParams) {
   const propMap = new Map()
 
@@ -266,14 +270,285 @@ const LIFECYCLE_HOOKS = [
   'errorCaptured' // for Vue.js 2.5.0+
 ]
 
+/**
+ * defineEmits 中获取 emit 的校验函数文本
+ * @param {*} emit 
+ * @param {*} sourceCode 
+ * @returns 
+ */
+function getEmitParamsVerifyFromDefineEmits(emit, sourceCode) {
+  const defineEmitsParamType = emit.type
+  if (['array', 'type'].includes(defineEmitsParamType)) return undefined
+  const emitValue = emit.value
+  const emitValueType = emitValue.type
+
+  if (['FunctionExpression'].includes(emitValueType)) return getFormatJsCode(sourceCode, emitValue.parent)
+
+  // ArrowFunctionExpression 箭头函数
+  if ('ArrowFunctionExpression' === emitValueType) return getFormatJsCode(sourceCode, emitValue)
+
+  return undefined
+}
+/**
+ * 获取 OnDefineEmitsEnter 选择器中 emits 中单个 emit 的参数的类型
+ * @param {*} context 
+ * @param {*} emit 
+ * @returns // 2个参数的话[['String','Number'],['Number']]
+ */
+function getEmitParamsTypeFromDefineEmits(context, emit) {
+  const defineEmitsParamType = emit.type
+
+  // 参数是对象
+  if (defineEmitsParamType === 'object') {
+    const emitValue = emit.value
+    if (['ArrowFunctionExpression', 'FunctionExpression'].includes(emitValue.type)) return getFunParamsRuntimeType(emitValue.params, context)
+    return undefined
+  }
+  // 类型
+  if (defineEmitsParamType === 'type') {
+    const typeFunParams = emit.node.params.slice(1)
+    if (typeFunParams) {
+      return typeFunParams.reduce((p, param) => {
+        const type = tsUtils.inferRuntimeType(context, param.typeAnnotation.typeAnnotation)
+        p.push(type)
+        return p
+      }, [])
+    }
+  }
+  return undefined
+}
+/**
+ * emit分为定义时和调用时，都可以获取注释和参数类型，统一在这里整合
+ * @param {*} emitMap 
+ * @param {*} emitName 
+ * @param {*} emitType 
+ * @param {*} emitComment 
+ * @param {*} emitParamsVerify 
+ */
+function setEmitMap(emitMap, emitName, emitType, emitComment, emitParamsVerify) {
+  const oldEmit = emitMap.get(emitName)
+  if (oldEmit) {
+    oldEmit.emitComment = `${oldEmit.emitComment}\n\n${emitComment}`
+    const oldEmitType = oldEmit.emitType
+    emitType && emitType.forEach((type, index) => {
+      if (type && !oldEmitType[index]) oldEmitType[index] = type
+    })
+    if (emitParamsVerify && !oldEmit.emitParamsVerify) {
+      oldEmit.emitParamsVerify = emitParamsVerify
+    }
+  } else {
+    const emitInfo = {
+      emitName,
+      emitType,
+      emitComment,
+      emitParamsVerify
+    }
+    emitMap.set(emitName, emitInfo)
+  }
+}
+
+/**
+ * eslintPluginVue提供了几种方法获取emits，这些emit的数据格式是一致的
+ * 1、utils.getComponentEmitsFromOptions
+ * 2、onDefineEmitsEnter
+ * @param {*} emits 
+ * @param {*} context 
+ * @param {*} emitMap 
+ */
+function setEmitMapFromEslintPluginVueEmits(emits, context, emitMap) {
+  const sourceCode = context.getSourceCode()
+  emits.forEach(emit => {
+    const emitName = emit.emitName
+    const emitComments = sourceCode.getCommentsBefore(emit.node)
+    const emitComment = commentNodesToText(emitComments)
+    const emitType = getEmitParamsTypeFromDefineEmits(context, emit)
+    const emitParamsVerify = getEmitParamsVerifyFromDefineEmits(emit, sourceCode)
+    setEmitMap(emitMap, emitName, emitType, emitComment, emitParamsVerify)
+  })
+}
+/**
+ * 如果 data 的 value 是对象或函数调用，则会递归遍历其内部的属性，设置dataMap
+ * data:{a:{b:1}} => dataMap {a:{dataName:'a',dataComment:'xxx'},a.b:{dataName:'a.b',dataComment:'xxx'}}
+ * a.b的dataComment是a的dataComment和b的dataComment的合并
+ * @param {*} dataOption 
+ * @param {*} dataMap 
+ * @param {*} dataName 
+ * @param {*} parentDataComment 
+ */
+function deepSetDataMap(context, dataOption, dataMap, dataName, parentDataComment) {
+  const dataValue = dataOption.value
+  if (dataValue.type === 'ObjectExpression') {
+    forEachDataOptionSetDataMap(context, dataValue.properties, dataMap, parentDataComment, dataName)
+  }
+  if (dataValue.type === 'CallExpression') {
+    const variableNode = getVariableNode(dataValue.callee, context)
+    if (variableNode) {
+      const returnNode = getFunFirstReturnNode(variableNode)
+      if (returnNode && returnNode.argument.type === "ObjectExpression") {
+        forEachDataOptionSetDataMap(context, returnNode.argument.properties, dataMap, parentDataComment, dataName)
+      }
+    }
+  }
+}
+/**
+ * 遍历dataOption，设置dataMap，
+ * 如果 data 的 value 是对象或函数调用，则会递归遍历其内部的属性，设置dataMap
+ * data:{a:{b:1}} => dataMap {a:{dataName:'a',dataComment:'xxx'},a.b:{dataName:'a.b',dataComment:'xxx'}}
+ * @param {*} dataOptions 
+ * @param {*} dataMap 
+ * @param {*} parentComment 
+ * @param {*} parentName 
+ */
+function forEachDataOptionSetDataMap(context, dataOptions, dataMap, parentComment, parentName) {
+  const sourceCode = context.getSourceCode()
+  dataOptions.forEach(dataOption => {
+    const dataName = parentName ? `${parentName}.${dataOption.key.name}` : dataOption.key.name
+    const dataComments = sourceCode.getCommentsBefore(dataOption)
+    const dataComment = commentNodesToText(dataComments)
+    const dataInfo = {
+      dataName,
+      dataComment: parentComment ? `${parentComment}\n\n${dataComment}` : dataComment
+    }
+    dataMap.set(dataName, dataInfo)
+    deepSetDataMap(context, dataOption, dataMap, dataName, dataInfo.dataComment)
+  })
+}
+/**
+ * 计算属性的注释可能有多个来源，专门在这里处理
+ * @param {*} computedMap 
+ * @param {*} computedName 
+ * @param {*} computedComment 
+ */
+function setComputedMap(computedMap, computedName, computedComment) {
+  const oldComputed = computedMap.get(computedName)
+  if (oldComputed) {
+    oldComputed.computedComment = `${oldComputed.computedComment}\n\n${computedComment}`
+  } else {
+    const computedInfo = {
+      computedName,
+      computedComment
+    }
+    computedMap.set(computedName, computedInfo)
+  }
+}
+/**
+ * 遍历provide的配置对象 set provideMap
+ * @param {*} properties 
+ * @param {*} provideMap 
+ * @returns 
+ */
+function forEachProvideOptionSetProvideMap(properties, provideMap, sourceCode) {
+  return properties.forEach(provide => {
+    let provideName = provide.key.name
+    // 如果对象中的key是[变量]的形式
+    if (provide.computed) {
+      provideName = `[${provideName}]`
+    }
+    const provideFromKey = getFormatJsCode(sourceCode, provide.value)
+    const provideComments = sourceCode.getCommentsBefore(provide)
+    const provideComment = commentNodesToText(provideComments)
+    const provideInfo = {
+      provideName,
+      provideFromKey,
+      provideComment
+    }
+    provideMap.set(provideName, provideInfo)
+  })
+}
+/**
+ * 从 injectOption 中获取 from 和 default
+ * @param {*} injectOption 
+ * @param {*} injectName 
+ * @returns 
+ */
+function getInjectFromAndDefaultFromInjectOption(injectOption, injectName, sourceCode) {
+  if (injectOption === undefined) return [injectName, undefined]
+  // 常量字符串
+  if (injectOption.type === 'Literal') return [injectOption.raw, undefined]
+  // 对象
+  if (injectOption.type === 'ObjectExpression') {
+    const ret = injectOption.properties.reduce((p, c) => {
+      if (c.key.name === 'from') p[0] = c.value.raw
+      if (c.key.name === 'default') p[1] = getFormatJsCode(sourceCode, c.value)
+      return p
+    }, [undefined, undefined])
+    if (!ret[0]) ret = injectName
+    return ret
+  }
+  // 变量名
+  if (injectOption.type === 'Identifier') return [`${injectOption.name}`, undefined]
+  return [undefined, undefined]
+}
+
+/**
+ * 根据vue option设置对应的map
+ * 包括filter,components,name,mixins
+ * @param {*} optionKeyName 
+ * @param {*} optionValue 
+ * @param {*} mixinSet 
+ * @param {*} componentMap 
+ * @param {*} filterMap 
+ * @param {*} otherOptionMap 
+ */
+function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet, componentMap, filterMap, otherOptionMap) {
+  const sourceCode = context.getSourceCode()
+  if (optionKeyName === 'mixins') {
+    optionValue.elements.forEach(mixin => {
+      const mixinName = mixin.name
+      mixinSet.add(mixinName)
+    })
+  }
+
+  if (optionKeyName === 'name') {
+    otherOptionMap.set('componentName', optionValue.value)
+  }
+
+  if (optionKeyName === 'components') {
+    optionValue.properties.forEach(component => {
+      if (component.type === 'Property') {
+        const componentKey = casing.kebabCase(component.key.value || component.key.name)
+        const componentValue = component.value.name
+        componentMap.set(`"${componentKey}"`, componentValue)
+      }
+    })
+  }
+
+  // filters只能传对象
+  if (optionKeyName === 'filters') {
+    optionValue.properties.forEach(filter => {
+      const filterName = filter.key.name
+      const filterComments = sourceCode.getCommentsBefore(filter)
+      const filterComment = commentNodesToText(filterComments)
+      const filterValueNode = getVariableNode(filter.value, context)
+      let filterValue = undefined
+      if (filterValueNode && ['ImportSpecifier', 'ImportDefaultSpecifier'].includes(filterValueNode.type)) {
+        filterValue = filter.value.name
+      }
+      const filterInfo = {
+        filterName,
+        filterComment,
+        filterValue
+      }
+      filterMap.set(filterName, filterInfo)
+    })
+  }
+}
 module.exports = {
+  setMapFromVueCommonOption,
+  getInjectFromAndDefaultFromInjectOption,
+  forEachProvideOptionSetProvideMap,
+  setComputedMap,
+  deepSetDataMap,
+  forEachDataOptionSetDataMap,
+  setEmitMapFromEslintPluginVueEmits,
+  setEmitMap,
+  getEmitParamsTypeFromDefineEmits,
+  getEmitParamsVerifyFromDefineEmits,
   LIFECYCLE_HOOKS,
   getPropMapFromTypePropList,
   addSetupMapFromVariable,
   getPropMapFromPropList,
   addTemplateMap,
   getExpressionContainerInfo,
-  getPropTypeFromPropTypeOption,
-  getPropInfoFromPropOption,
-  initUnAddSetupMap
+  getPropInfoFromPropOption
 }

@@ -7,18 +7,18 @@ const routes: Array<RouteConfig> = [
     {
         path: '/options-component',
         component: OptionComponent,
-        // children: [
-        //     {
-        //         path: 'class-component',
-        //         name: 'ClassComponent',
-        //         component: ClassComponent,
-        //     }
-        // ]
+        children: [
+            {
+                path: 'class-component',
+                name: 'ClassComponent',
+                component: ClassComponent,
+            }
+        ]
     },
-    // {
-    //     path: '/setup-component',
-    //     component: SetupComponent
-    // }
+    {
+        path: '/setup-component',
+        component: SetupComponent
+    }
 ]
 console.log(JSON.stringify(routes))
 export default routes

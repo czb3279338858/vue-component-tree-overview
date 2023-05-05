@@ -1,29 +1,29 @@
 const { commentNodesToText } = require("./commont")
 
 /**
-     * 当前节点是否只有换行符和空格组成的 VText
-     * @param {*} node 
-     * @returns 
-     */
+ * 当前节点是否只有换行符和空格组成的 VText
+ * @param {*} node 
+ * @returns 
+ */
 function isEmptyVText(node) {
   return node.type === 'VText' && /^[\n\s]*$/.test(node.value)
 }
 
 /**
-     * 格式化文本，去掉换行符和多余空格
-     * @param {*} text 
-     * @returns 
-     */
+ * 格式化文本，去掉换行符和多余空格
+ * @param {*} text 
+ * @returns 
+ */
 function formatVText(text) {
   return text.replace(/[\n\s]+/g, ' ')
 }
 
 let templateAllComments
 /**
-     * 获取 template 中的所有注释节点，template 所有注释节点都在 <template> 上
-     * @param {*} node 
-     * @returns 
-     */
+ * 获取 template 中的所有注释节点，ast 中所有注释节点都在 <template> 节点上
+ * @param {*} node 
+ * @returns 
+ */
 function getTemplateAllCommentNodes(node) {
   if (templateAllComments) return templateAllComments
   if (node.comments) return templateAllComments = node.comments
@@ -31,10 +31,10 @@ function getTemplateAllCommentNodes(node) {
 }
 
 /**
-     * 根据当前节点所在行和列以及上一级（父级或兄弟上级）的行和列来查找当前节点前的注释节点 
-     * @param {*} node 一个 template 节点，不是 startTag 节点
-     * @returns 
-     */
+ * 根据当前节点所在行和列以及上一级（父级或兄弟上级）的行和列来查找当前节点前的注释节点 
+ * @param {*} node 一个 template 节点，不是 startTag 节点
+ * @returns 
+ */
 function getTemplateCommentNodesBefore(node) {
   const comments = getTemplateAllCommentNodes(node)
   const parent = node.parent
@@ -84,10 +84,10 @@ function getTemplateCommentNodesBefore(node) {
 }
 
 /**
-     * 获取 template 当前节点前的注释文本，空白的换行节点会被跳过，例如OptionsComponent种VText的上一行
-     * @param {*} node 
-     * @returns 
-     */
+ * 获取 template 当前节点前的注释文本，空白的换行节点会被跳过，例如OptionsComponent种VText的上一行
+ * @param {*} node 
+ * @returns 
+ */
 function getTemplateCommentBefore(node) {
   const elementComments = getTemplateCommentNodesBefore(node)
   const elementComment = commentNodesToText(elementComments)

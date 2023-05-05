@@ -2,7 +2,17 @@
   <div>setup-component</div>
 </template>
 <script setup lang='ts'>
-import { computed, inject, onMounted, provide, reactive, ref } from "vue";
+import {
+  computed,
+  inject,
+  onMounted,
+  provide,
+  reactive,
+  ref,
+  defineEmits,
+  defineProps,
+  withDefaults,
+} from "vue";
 
 const emit1 = defineEmits([
   // emitA注释
@@ -11,12 +21,12 @@ const emit1 = defineEmits([
 const emit2 = defineEmits({
   // emitB注释
   // type === emitB(value){return typeof value==='string'}
-  emitB(value) {
-    return typeof value === "string";
+  emitB(value: string | number, value2: string) {
+    return typeof value === "string" && value2;
   },
-  // emitC注释
-  // type === String | Number | (value) => typeof value === 'number'
-  emitC: [String, Number, (value) => typeof value === "number"],
+  emitC: (value: string | number, value2 = "1") => {
+    return typeof value === "string" && value2;
+  },
 });
 const emit3 = defineEmits<{
   // emit('emit-d',String | Number , Number)

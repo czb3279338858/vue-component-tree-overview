@@ -1,3 +1,5 @@
 packages:
   - 'vue-overview-loader'
-  - '2.0'
+  - 'vue-overview-loader-example'
+  - 'html-template'
+  - 'vue-overview-plugin'
