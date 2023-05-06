@@ -9,10 +9,9 @@ const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const tsUtils = require('./utils/ts-ast-utils')
-const { getVueMetaFromMiddleData, getCodeFromVueMeta } = require('./utils/code')
-const { commentNodesToText, forEachVariableNodes, getFormatJsCode, getRuntimeTypeFromNode, getFunFirstReturnNode, getVariableNode, } = require('./utils/commont')
+const { commentNodesToText, getFormatJsCode, getRuntimeTypeFromNode, getFunFirstReturnNode, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
-const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, addSetupMapFromVariable, getPropMapFromTypePropList, setEmitMap, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, forEachProvideOptionSetProvideMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption } = require('./utils/script')
+const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, addSetupMapFromVariable, getPropMapFromTypePropList, setEmitMap, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions } = require('./utils/script')
 
 const linter = new Linter()
 const parserOptions = {
@@ -30,295 +29,84 @@ linter.defineParser('vueEslintParser', {
 	parseForESLint,
 	parserOptions
 })
-// 用于从rule传递对象loader中
-let middleData
+
+// {templateValue,templateCallNames,templateType,attributes,templateComment,children}
+const templateMap = new Map()
+
+// propName:{propName,propDefault,propType,propRequired,propComment}
+let propMap = new Map()
+
+// setupName:{setupName,setupComment}
+let setupMap = new Map()
+
+// lifecycleHookName:{lifecycleHookName,lifecycleHookComment} 
+// lifecycleHookName在setup中带on，在options、class中不带
+const lifecycleHookMap = new Map()
+
+// filterName:{filterName,filterComment,filterValue}
+// filterName是方法名，filterValue是方法实体，用来关联import的方法
+const filterMap = new Map()
+
+// emitName:{emitName,emitType,emitComment,emitParamsVerify}
+const emitMap = new Map()
+
+// dataName:{dataName,dataComment}
+// data:{a:{b:1}} => dataMap {a:{dataName:'a',dataComment:'xxx'},a.b:{dataName:'a.b',dataComment:'xxx'}}
+const dataMap = new Map()
+
+// computedName:{computedName,computedComment}
+const computedMap = new Map()
+
+// methodName:{methodName,methodComment}
+const methodMap = new Map()
+
+// provideName:{provideName,provideValue,provideValueType,provideComment}
+// [s]: this.provideSymbolFrom => {provideName:"[s]",provideValue:'provideSymbolFrom',provideValueType:'MemberExpression'}
+const provideMap = new Map()
+
+// injectName:{injectName,injectFrom,injectDefault,injectComment}
+const injectMap = new Map()
+
+// {"casing.kebabCase(key)":importValue}
+const componentMap = new Map()
+
+// string[]
+const importSet = new Set()
+
+// importValue[]
+const mixinSet = new Set()
+
+// extend 可以是配置对象或构造函数
+const nameAndExtendMap = new Map()
+
+const modelOptionMap = new Map()
+
+function initMeta() {
+	templateMap.clear()
+	propMap.clear()
+	setupMap.clear()
+	lifecycleHookMap.clear()
+	filterMap.clear()
+	emitMap.clear()
+	dataMap.clear()
+	computedMap.clear()
+	methodMap.clear()
+	provideMap.clear()
+	injectMap.clear()
+	componentMap.clear()
+	importSet.clear()
+	mixinSet.clear()
+	nameAndExtendMap.set('componentName', undefined)
+	nameAndExtendMap.set('extend', undefined)
+	modelOptionMap.set('prop', 'value')
+	modelOptionMap.set('event', 'input')
+}
+initMeta()
 
 
-linter.defineRule("my-rule", {
+linter.defineRule("vue-loader", {
 	create(context) {
 		const sourceCode = context.getSourceCode()
-
-		// {templateValue,templateCallNames,templateType,attributes,templateComment,children}
-		const templateMap = new Map()
-
-		// {propName,propDefault,propType,propRequired,propComment}
-		let propMap = new Map()
-
-		// {setupName,setupComment}
-		let setupMap = new Map()
-
-		// {lifecycleHookName,lifecycleHookComment} 
-		// lifecycleHookName在setup中带on，在options、class中不带
-		const lifecycleHookMap = new Map()
-
-		// {filterName,filterComment,filterValue}
-		// filterName是方法名，filterValue是方法实体，用来关联import的方法
-		const filterMap = new Map()
-
-		// {emitName,emitType,emitComment,emitParamsVerify}
-		const emitMap = new Map()
-
-		// {dataName,dataComment}
-		// data:{a:{b:1}} => dataMap {a:{dataName:'a',dataComment:'xxx'},a.b:{dataName:'a.b',dataComment:'xxx'}}
-		const dataMap = new Map()
-
-		// {computedName,computedComment}
-		const computedMap = new Map()
-
-		// {methodName,methodComment}
-		const methodMap = new Map()
-
-		// {provideName,provideFromKey,provideComment}
-		const provideMap = new Map()
-
-
-		// {injectName,injectFrom,injectDefault,injectComment}
-		const injectMap = new Map()
-
-		const modelOption = {
-			prop: 'value',
-			event: 'input'
-		}
-
-		// {"casing.kebabCase(key)":value}
-		const componentMap = new Map()
-
-		// string
-		const importSet = new Set()
-
-		// extend 可以是配置对象或构造函数
-		const otherOptionMap = new Map([['componentName', undefined], ['extend', undefined]])
-
-
-		// [变量名] 保持 import 关系
-		const mixinSet = new Set()
-
-
-
-		// ——————————————————————————————————————————————————————————————
-
-		// export，只有ts\js文件有
-		const exportSet = new Set()
-		function isVueOption(node) {
-			if (node.type !== 'ObjectExpression') return false
-			const properties = node.properties
-			const noOptionKey = properties.some(p => !['extends', 'mixins', 'filters', 'provide', 'inject', 'emits', 'methods', 'setup', 'computed', 'data', 'props'].includes(p.key.name))
-			if (noOptionKey) return false
-			return true
-		}
-		// 从options中提取name\extends\mixins\components\filters\生命周期\props\computed\methods\setup\emits\provide\inject\data塞入对应的map对象中
-		function setMapFormVueOptions(optionNode, emitMap, propMap, mixinSet, componentMap, filterMap, otherOptionMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap) {
-			// props
-			// FIXME: utils.getComponentPropsFromOptions(optionNode) 只能获取 props 中的字面量
-			// FIXME: utils.getComponentPropsFromOptions(optionNode) 返回中包含 PropType 指向的具体类型，目前只获取运行时类型，不获取ts类型
-			const propList = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
-			const addPropMap = getPropMapFromPropList(context, propList)
-			for (const [key, value] of addPropMap) {
-				propMap.set(key, value)
-			}
-
-			// emit，只能获取 emits 配置项中的
-			const emits = utils.getComponentEmitsFromOptions(optionNode)
-			setEmitMapFromEslintPluginVueEmits(emits, context, emitMap)
-
-			// 其他项
-			optionNode.properties.forEach(option => {
-				const optionKeyName = option.key.name
-				const optionValue = option.value
-
-				setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet, componentMap, filterMap, otherOptionMap)
-
-				// extend
-				if (optionKeyName === 'extends') {
-					otherOptionMap.set('extend', optionValue.name)
-				}
-
-				// 生命周期
-				if (LIFECYCLE_HOOKS.includes(optionKeyName)) {
-					const lifecycleHookComments = sourceCode.getCommentsBefore(option)
-					const lifecycleHookComment = commentNodesToText(lifecycleHookComments)
-					const lifecycleHookInfo = {
-						lifecycleHookName: optionKeyName,
-						lifecycleHookComment
-					}
-					lifecycleHookMap.set(optionKeyName, lifecycleHookInfo)
-				}
-
-				// provide
-				if (optionKeyName === 'provide') {
-					// provide是对象
-					if (optionValue.type === 'ObjectExpression') {
-						forEachProvideOptionSetProvideMap(optionValue.properties, provideMap, sourceCode)
-					}
-					if (optionValue.type === 'FunctionExpression') {
-						const funRet = getFunFirstReturnNode(optionValue)
-						forEachProvideOptionSetProvideMap(funRet.argument.properties, provideMap, sourceCode)
-					}
-				}
-
-				// inject
-				if (optionKeyName === 'inject') {
-					if (optionValue.type === 'ArrayExpression') {
-						optionValue.elements.forEach(inject => {
-							const injectName = inject.value
-							const injectComments = sourceCode.getCommentsBefore(inject)
-							const injectComment = commentNodesToText(injectComments)
-							const injectInfo = {
-								injectName,
-								injectFrom: `"${injectName}"`,
-								injectDefault: undefined,
-								injectComment
-							}
-							injectMap.set(injectName, injectInfo)
-						})
-					}
-					if (optionValue.type === 'ObjectExpression') {
-						optionValue.properties.forEach(inject => {
-							const injectName = inject.key.name
-							const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(inject.value, injectName, sourceCode)
-							const injectComments = sourceCode.getCommentsBefore(inject)
-							const injectComment = commentNodesToText(injectComments)
-							const injectInfo = {
-								injectName,
-								injectFrom,
-								injectDefault,
-								injectComment
-							}
-							injectMap.set(injectName, injectInfo)
-						})
-					}
-				}
-
-				// methods
-				if (optionKeyName === 'methods') {
-					optionValue.properties.forEach(method => {
-						const methodName = method.key.name
-						const methodComments = sourceCode.getCommentsBefore(method)
-						const methodComment = commentNodesToText(methodComments)
-						const methodInfo = {
-							methodName,
-							methodComment
-						}
-						methodMap.set(methodName, methodInfo)
-					})
-				}
-
-				// computed
-				if (optionKeyName === 'computed') {
-					optionValue.properties.forEach(computed => {
-						const computedName = computed.key.name
-						const computedComments = sourceCode.getCommentsBefore(computed)
-						const computedComment = `all:${commentNodesToText(computedComments)}`
-						const computedValue = computed.value
-						setComputedMap(computedMap, computedName, computedComment)
-						if (computedValue.type === 'ObjectExpression') {
-							computedValue.properties.forEach(item => {
-								const kind = item.key.name
-								const kindComments = sourceCode.getCommentsBefore(item)
-								const kindComment = `${kind}:${commentNodesToText(kindComments)}`
-								setComputedMap(computedMap, computedName, kindComment)
-							})
-						}
-					})
-				}
-
-				// data
-				if (optionKeyName === 'data') {
-					if (optionValue.type === 'FunctionExpression') {
-						const funRet = getFunFirstReturnNode(optionValue)
-						forEachDataOptionSetDataMap(context, funRet.argument.properties, dataMap, undefined, undefined)
-					}
-					if (optionValue.type === 'ObjectExpression') {
-						forEachDataOptionSetDataMap(context, optionValue.properties, dataMap, undefined, undefined)
-					}
-				}
-
-				// setup函数
-				if (optionKeyName === 'setup') {
-					const setupFunReturn = getFunFirstReturnNode(optionValue)
-					const setupFunReturnProperties = setupFunReturn.argument.properties
-					setupFunReturnProperties.forEach(item => {
-						const setupKeyName = item.key.name
-						const setupValue = item.value
-						const keyComments = sourceCode.getCommentsBefore(item)
-						const keyComment = commentNodesToText(keyComments)
-						const variableNode = getVariableNode(setupValue, context)
-						let variableComment = ''
-						if (variableNode) {
-							forEachVariableNodes(sourceCode, [variableNode], (leftName, comment) => {
-								variableComment = comment
-							})
-						}
-						const setupComment = [keyComment, variableComment].filter(f => f).join('\n')
-						const setupInfo = {
-							setupName: setupKeyName,
-							setupComment
-						}
-						setupMap.set(setupKeyName, setupInfo)
-					})
-				}
-			})
-		}
-		// 
-		function getMiddleData() {
-			return {
-				importSet,
-				otherOptionMap,
-				templateMap,
-				propMap,
-				emitMap,
-				modelOption,
-				setupMap,
-				lifecycleHookMap,
-				provideMap,
-				injectMap,
-				filterMap,
-				dataMap,
-				// computedMap,
-				// methodMap,
-				// componentMap,
-				// extend,
-				// mixinSet
-			}
-		}
-		function cleanVueMetaOrigin() {
-			importSet.clear()
-			otherOptionMap.set('components', undefined)
-			templateMap.clear()
-			propMap.clear()
-			emitMap.clear()
-			modelOption = {
-				prop: 'value',
-				event: 'input'
-			}
-			setupMap.clear()
-			lifecycleHookMap.clear()
-			provideMap.clear()
-			injectMap.clear()
-			filterMap.clear()
-			dataMap.clear()
-			computedMap.clear()
-			methodMap.clear()
-			componentMap.clear()
-			otherOptionMap.set('extends', undefined)
-			mixinSet.clear()
-		}
-		function addExportSetFromVueOption(optionNode, exportSet, exportType, variableKey) {
-			setMapFormVueOptions(optionNode, emitMap)
-			const middleData = getMiddleData()
-			const vueMeta = getVueMetaFromMiddleData(middleData)
-			const newSourceCode = getCodeFromVueMeta(vueMeta)
-			const exportInfo = {
-				exportType,
-				variableKey,
-				newSourceCode
-			}
-			exportSet.add(exportInfo)
-			cleanVueMetaOrigin()
-		}
-
-
-
 
 		return utils.compositingVisitors(
 			// <script setup> 中
@@ -326,7 +114,6 @@ linter.defineRule("my-rule", {
 				// props
 				onDefinePropsEnter(node, propList) {
 					// 目前 defineProps 在 script setup 中只能使用一次，onDefinePropsEnter 只会获取第一个 defineProps，下面的方法兼容defineProps 被多次使用时
-					// FIXME: 这里的 props 包含了类型，但是现在只提取运行时
 					let typePropList = []
 					let optionPropList = []
 					propList.forEach(prop => {
@@ -337,6 +124,10 @@ linter.defineRule("my-rule", {
 					const typePropMap = getPropMapFromTypePropList(sourceCode, typePropList, node.parent.arguments)
 
 					propMap = new Map([...propMap, ...optionPropMap, ...typePropMap])
+				},
+				// emits
+				onDefineEmitsEnter(node, emits) {
+					setEmitMapFromEslintPluginVueEmits(context, emits, emitMap)
 				},
 				// 变量定义，包括 data\computed\inject\箭头函数methods 表现为 const dataA = ref('')
 				'Program>VariableDeclaration'(node) {
@@ -355,8 +146,9 @@ linter.defineRule("my-rule", {
 					}
 					setupMap.set(setupName, setupInfo)
 				},
-				// 生命周期，表现为 onMounted(()=>{})
+				// 函数调用
 				'Program CallExpression'(node) {
+					// 生命周期，表现为 onMounted(()=>{})
 					const LIFECYCLE_HOOKS = [
 						'onBeforeMount',
 						'onBeforeUnmount',
@@ -370,26 +162,26 @@ linter.defineRule("my-rule", {
 						'onActivated',
 						'onDeactivated'
 					]
-					const lifecycleHookName = node.callee.name
-					if (LIFECYCLE_HOOKS.includes(lifecycleHookName)) {
+					const callName = node.callee.name
+					if (LIFECYCLE_HOOKS.includes(callName)) {
 						const lifecycleHookComments = sourceCode.getCommentsBefore(node)
 						const lifecycleHookComment = commentNodesToText(lifecycleHookComments)
-						const oldLifecycleHook = lifecycleHookMap.get(lifecycleHookName)
+						const oldLifecycleHook = lifecycleHookMap.get(callName)
 						if ((lifecycleHookComment && oldLifecycleHook)) {
 							oldLifecycleHook.lifecycleHookComment = `${oldLifecycleHook.lifecycleHookComment}\n\n${lifecycleHookComment}`
 						} else {
 							const lifecycleHookInfo = {
-								lifecycleHookName,
+								lifecycleHookName: callName,
 								lifecycleHookComment
 							}
-							lifecycleHookMap.set(lifecycleHookName, lifecycleHookInfo)
+							lifecycleHookMap.set(callName, lifecycleHookInfo)
 						}
 					}
+					// provide
+					if (callName === 'provide') {
+						debugger
+					}
 				},
-				// emits
-				onDefineEmitsEnter(node, emits) {
-					setEmitMapFromEslintPluginVueEmits(emits, context, emitMap)
-				}
 			}),
 			utils.defineTemplateBodyVisitor(
 				context,
@@ -469,8 +261,12 @@ linter.defineRule("my-rule", {
 					}
 				},
 				// script 解析
-				// FIXME:所有的 装饰器参数、prop option 必须是字面量对象
 				{
+					// option component
+					...utils.executeOnVueComponent(context, (optionNode) => {
+						setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
+					}),
+
 					// class component
 					...{
 						// class component @Prop
@@ -559,8 +355,8 @@ linter.defineRule("my-rule", {
 
 							// modelOption
 							const modelEvent = decoratorParams[0].value
-							modelOption.event = modelEvent
-							modelOption.prop = propName
+							modelOptionMap.set('event', modelEvent)
+							modelOptionMap.set('prop', propName)
 						},
 						// class component @ModelSync
 						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]'(node) {
@@ -588,9 +384,9 @@ linter.defineRule("my-rule", {
 							propMap.set(propName, propInfo)
 
 							// modelOption
-							modelOption.prop = propName
+							modelOptionMap.set('prop', propName)
 							const modelEvent = decoratorParams[1].value
-							modelOption.event = modelEvent
+							modelOptionMap.set('event', modelEvent)
 
 							// computed
 							const computedComment = `all:${propComment}`
@@ -692,7 +488,8 @@ linter.defineRule("my-rule", {
 
 							const provideInfo = {
 								provideName,
-								provideFromKey: dataName,
+								provideValue: dataName,
+								provideValueType: 'MemberExpression',
 								provideComment
 							}
 							provideMap.set(provideName, provideInfo)
@@ -771,7 +568,7 @@ linter.defineRule("my-rule", {
 									componentOption.properties.forEach(p => {
 										const optionKeyName = p.key.name
 										const optionValue = p.value
-										setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet, componentMap, filterMap, otherOptionMap)
+										setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet, componentMap, filterMap, nameAndExtendMap)
 									})
 								}
 							}
@@ -779,16 +576,10 @@ linter.defineRule("my-rule", {
 						// export default class HomeView extends SuperClass {}
 						'ClassDeclaration'(node) {
 							if (node.superClass && node.superClass.name !== 'Vue') {
-								otherOptionMap.set('extend', node.superClass.name)
+								nameAndExtendMap.set('extend', node.superClass.name)
 							}
 						},
 					},
-
-					// option component
-					// 可以在一个Vue组件 option 上执行一个回调函数
-					...utils.executeOnVueComponent(context, (optionNode) => {
-						setMapFormVueOptions(optionNode, emitMap, propMap, mixinSet, componentMap, filterMap, otherOptionMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
-					}),
 
 					// emit函数调用，option\setup\class
 					CallExpression(node) {
@@ -803,62 +594,18 @@ linter.defineRule("my-rule", {
 						}
 					},
 
-					// import MyComponent1 from "./ClassComponent.vue";
-					// import { mixinA, mixinB } from "./mixinOption";
+					// import
 					'ImportDeclaration'(node) {
 						importSet.add(getFormatJsCode(sourceCode, node))
 					},
 				},
-			),
-			{
-				// 处理ts\js种的option配置
-				':matches(:not(Program[templateBody]) ExportNamedDeclaration,:not(Program[templateBody]) ExportDefaultDeclaration)'(node) {
-					// const exportDeclaration = node.declaration
-					// const exportType = node.type
-					// // export default filterB
-					// if (exportDeclaration.type === 'Identifier') {
-					// 	const variable = getVariableNode(exportDeclaration)
-					// 	const exportComment = sourceCode.getCommentsBefore(node)
-					// 	let variableComment = []
-					// 	if (variable) {
-					// 		variableComment = sourceCode.getCommentsBefore(variable)
-					// 	}
-					// 	debugger
-					// }
-					// if (exportDeclaration.type === 'VariableDeclaration') {
-					// 	const variable = exportDeclaration.declarations[0]
-					// 	const variableKey = variable.id.name
-					// 	// 导出的对象有初始值且初始值是vue option配置
-					// 	if (variable.init && isVueOption(variable.init)) {
-					// 		return addExportSetFromVueOption(variable.init, exportSet, exportType, variableKey)
-					// 	}
-					// 	const exportComment = sourceCode.getCommentsBefore(node)
-					// 	const exportInfo = {
-					// 		exportType,
-					// 		variableKey,
-					// 		newSourceCode: exportComment,
-					// 	}
-					// 	exportSet.add(exportInfo)
-					// }
-					// if (exportDeclaration.type === 'ObjectExpression') {
-					// 	if (isVueOption(exportDeclaration)) {
-					// 		return addExportSetFromVueOption(exportDeclaration, exportSet, exportType)
-					// 	}
-					// }
-					// debugger
-				}
-			},
-			{
-				"Program:exit"(node) {
-					middleData = getMiddleData()
-				}
-			}
+			)
 		)
 	},
 });
 const config = {
 	parserOptions,
-	rules: { "my-rule": "error" },
+	rules: { "vue-loader": "error" },
 	parser: 'vueEslintParser'
 };
 
@@ -867,19 +614,15 @@ module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
 	const { exclude } = this.getOptions()
 	if (exclude && exclude.test(resource)) return source
+	if (!/.vue$/.test(resource)) return source
 
 	linter.verify(source, config)
 	let newCode = ''
-	const importSet = middleData.importSet
-	if (importSet) {
-		let importCode = ''
-		importSet.forEach((value) => {
-			importCode += `${value}\n`
-		})
-		newCode += importCode
-	}
-
-	const vueMeta = getVueMetaFromMiddleData(middleData)
-	newCode += `export default ${getCodeFromVueMeta(vueMeta)}`
+	importSet.forEach((value) => {
+		newCode += `${value}\n`
+	})
+	initMeta()
+	// const vueMeta = getVueMetaFromMiddleData()
+	// newCode += `export default ${getCodeFromVueMeta(vueMeta)}`
 	return newCode;
 }

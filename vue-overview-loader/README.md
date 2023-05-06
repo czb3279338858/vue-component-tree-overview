@@ -55,6 +55,15 @@
     - `export {a as b}`
     - `export {a} from ''`
   - option
+    - props
+      - 对象
+        - default
+        - type
+          - PropType
+        - required
+      - 构造函数
+      - 数组
+      - 配置对象，只支持字面量定义
     - name
     - extends
       - TODO 配置对象
@@ -97,14 +106,23 @@
         - 函数只允许只有一个return
       - 支持当前文件的初始化方法`dataB: getDataB()`，getDataB 的定义需要在当前文件中
       - 支持对象递归`dataA:{a:''}`=>能够获取`data.a`的注释，初始化方法中也支持
-    - props
+  - `<script setup>`
+    - defineProps
+      - 参数支持当前文档定义，不支持函数返回
+      - withDefaults 第二个参数只持支字面量定义
+    - defineEmits
+      - 只支持 defineEmits 定义时的注释
+      - 不支持`emit('emitA',value)`的注释
+    - 生命周期
+      - 支持相同周期注释整合
+    - provide
+    - ref
+    - inject
+    - 函数返回赋值都会获取`const [dataB] = getDataB()`
+    - 方法
+    - computed
+      - 函数
       - 对象
-        - default
-        - type
-          - PropType
-        - required
-      - 构造函数
-      - 数组
   - class
     - @Component
       - 参数
@@ -132,21 +150,6 @@
     - @Prop
     - @ModelSync
     - @Model
-  - `<script setup>`
-    - defineEmits
-      - 只支持 defineEmits 定义时的注释
-      - 不支持`emit('emitA',value)`的注释
-    - 生命周期
-      - 支持相同周期注释整合
-    - provide
-    - ref
-    - inject
-    - 函数返回赋值都会获取`const [dataB] = getDataB()`
-    - 方法
-    - computed
-      - 函数
-      - 对象
-    - defineProps
 - TODO
   - 根据 ts 获取具体类型
   - import 引入的注释
@@ -189,3 +192,7 @@
     - propType:允许传入的数据类型，一个数组，目前只获取了运行时类型`[''Number]`
     - propRequired:布尔值，是否必填
     - propComment：注释
+
+
+
+- props、defineProps

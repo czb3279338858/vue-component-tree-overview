@@ -84,11 +84,12 @@ const dataD = reactive({});
 let dataE,
   // dataF注释
   dataF = ref("");
-
-defineProps<{
+interface DefinePropsType {
   // propA注释
   propA: string;
-}>();
+}
+defineProps<DefinePropsType>();
+
 defineProps({
   // propB注释
   propB: {

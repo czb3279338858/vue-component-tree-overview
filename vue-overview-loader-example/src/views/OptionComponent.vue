@@ -89,6 +89,27 @@ export default defineComponent({
   mounted() {
     console.log("mounted");
   },
+  data() {
+    function getDataB() {
+      return {
+        // 初始化函数中的注释
+        a: "",
+      };
+    }
+    return {
+      // dataA 注释
+      dataA: {
+        // data是对象递归的注释
+        a: "",
+      },
+      // dataB 注释
+      dataB: getDataB(),
+      // provideSymbolFrom，来源于 data
+      provideSymbolFrom: { a: "" },
+      // provideA注释，来源于 data
+      provideAFrom: "",
+    };
+  },
   provide: {
     // provideA注释
     provideA: "provideAFrom",
@@ -97,9 +118,10 @@ export default defineComponent({
   //   let s = Symbol();
   //   return {
   //     // provideSymbol注释
-  //     [s]: "provideSymbolFrom",
+  //     [s]: this.provideSymbolFrom.a,
   //     // provideA注释，来源于 provide
-  //     provideA: "provideAFrom",
+  //     provideA: this.provideSymbolFrom,
+  //     provideB: "provideB",
   //   };
   // },
   inject: [
@@ -177,27 +199,7 @@ export default defineComponent({
       return this.dataA;
     },
   },
-  data() {
-    function getDataB() {
-      return {
-        // 初始化函数中的注释
-        a: "",
-      };
-    }
-    return {
-      // dataA 注释
-      dataA: {
-        // data是对象递归的注释
-        a: "",
-      },
-      // dataB 注释
-      dataB: getDataB(),
-      // provideSymbolFrom，来源于 data
-      provideSymbolFrom: "",
-      // provideA注释，来源于 data
-      provideAFrom: "",
-    };
-  },
+
   props: {
     // propA 注释
     propA: {

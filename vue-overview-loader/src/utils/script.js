@@ -1,6 +1,7 @@
-const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, forEachVariableNodes, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode } = require("./commont")
+const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, forEachVariableNodes, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember } = require("./commont")
 const tsUtils = require('./ts-ast-utils')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
+const utils = require('eslint-plugin-vue/lib/utils/index')
 /**
  * 获取表达式容器的信息
  * 1、适用于标签属性的绑定值
@@ -355,7 +356,7 @@ function setEmitMap(emitMap, emitName, emitType, emitComment, emitParamsVerify) 
  * @param {*} context 
  * @param {*} emitMap 
  */
-function setEmitMapFromEslintPluginVueEmits(emits, context, emitMap) {
+function setEmitMapFromEslintPluginVueEmits(context, emits, emitMap) {
   const sourceCode = context.getSourceCode()
   emits.forEach(emit => {
     const emitName = emit.emitName
@@ -431,25 +432,67 @@ function setComputedMap(computedMap, computedName, computedComment) {
     computedMap.set(computedName, computedInfo)
   }
 }
+
+
+/**
+ * 获取 provide option 中 value 的值和类型
+ * @param {*} sourceCode 
+ * @param {*} provideOption 
+ * @param {*} provide 
+ * @returns {provideValue:'provideSymbolFrom.a',provideValueType:'MemberExpression'|'Literal'}
+ */
+function getProvideValueAndValueType(sourceCode, provideOption, provide) {
+  let provideValue
+  let provideValueType
+  if (provideOption.type === 'FunctionExpression') {
+    const value = provide.value
+    if (value.type === 'MemberExpression' && isThisMember(value)) {
+      const valueText = sourceCode.getText(value)
+      provideValue = valueText.replace('this.', '')
+      provideValueType = value.type
+    }
+    if (value.type === 'Literal') {
+      provideValue = value.value
+      provideValueType = value.type
+    }
+  }
+  if (provideOption.type === 'ObjectExpression') {
+    provideValue = provide.value.value
+    provideValueType = 'MemberExpression'
+  }
+  return {
+    provideValue,
+    provideValueType
+  }
+}
 /**
  * 遍历provide的配置对象 set provideMap
- * @param {*} properties 
+ * @param {*} provideOption 
  * @param {*} provideMap 
  * @returns 
  */
-function forEachProvideOptionSetProvideMap(properties, provideMap, sourceCode) {
+function forEachProvideOptionSetProvideMap(sourceCode, provideOption, provideMap) {
+  let properties = []
+  if (provideOption.type === 'ObjectExpression') {
+    properties = provideOption.properties
+  }
+  if (provideOption.type === 'FunctionExpression') {
+    const funRet = getFunFirstReturnNode(provideOption)
+    properties = funRet.argument.properties
+  }
   return properties.forEach(provide => {
     let provideName = provide.key.name
     // 如果对象中的key是[变量]的形式
     if (provide.computed) {
       provideName = `[${provideName}]`
     }
-    const provideFromKey = getFormatJsCode(sourceCode, provide.value)
+    const { provideValue, provideValueType } = getProvideValueAndValueType(sourceCode, provideOption, provide)
     const provideComments = sourceCode.getCommentsBefore(provide)
     const provideComment = commentNodesToText(provideComments)
     const provideInfo = {
       provideName,
-      provideFromKey,
+      provideValue,
+      provideValueType,
       provideComment
     }
     provideMap.set(provideName, provideInfo)
@@ -488,9 +531,9 @@ function getInjectFromAndDefaultFromInjectOption(injectOption, injectName, sourc
  * @param {*} mixinSet 
  * @param {*} componentMap 
  * @param {*} filterMap 
- * @param {*} otherOptionMap 
+ * @param {*} nameAndExtendMap 
  */
-function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet, componentMap, filterMap, otherOptionMap) {
+function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet, componentMap, filterMap, nameAndExtendMap) {
   const sourceCode = context.getSourceCode()
   if (optionKeyName === 'mixins') {
     optionValue.elements.forEach(mixin => {
@@ -500,7 +543,7 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
   }
 
   if (optionKeyName === 'name') {
-    otherOptionMap.set('componentName', optionValue.value)
+    nameAndExtendMap.set('componentName', optionValue.value)
   }
 
   if (optionKeyName === 'components') {
@@ -533,10 +576,155 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
     })
   }
 }
+// 从options中提取name\extends\mixins\components\filters\生命周期\props\computed\methods\setup\emits\provide\inject\data塞入对应的map对象中
+function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap) {
+  const sourceCode = context.getSourceCode()
+  // props
+  const propList = utils.getComponentPropsFromOptions(optionNode).filter(p => p.propName)
+  const addPropMap = getPropMapFromPropList(context, propList)
+  for (const [key, value] of addPropMap) {
+    propMap.set(key, value)
+  }
+
+  // emit，只能获取 emits 配置项中的
+  const emits = utils.getComponentEmitsFromOptions(optionNode)
+  setEmitMapFromEslintPluginVueEmits(context, emits, emitMap)
+
+  // 其他项
+  optionNode.properties.forEach(option => {
+    const optionKeyName = option.key.name
+    const optionValue = option.value
+
+    setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet, componentMap, filterMap, nameAndExtendMap)
+
+    // extend
+    if (optionKeyName === 'extends') {
+      nameAndExtendMap.set('extend', optionValue.name)
+    }
+
+    // 生命周期
+    if (LIFECYCLE_HOOKS.includes(optionKeyName)) {
+      const lifecycleHookComments = sourceCode.getCommentsBefore(option)
+      const lifecycleHookComment = commentNodesToText(lifecycleHookComments)
+      const lifecycleHookInfo = {
+        lifecycleHookName: optionKeyName,
+        lifecycleHookComment
+      }
+      lifecycleHookMap.set(optionKeyName, lifecycleHookInfo)
+    }
+
+    // provide
+    if (optionKeyName === 'provide') {
+      forEachProvideOptionSetProvideMap(sourceCode, optionValue, provideMap)
+    }
+
+    // inject
+    if (optionKeyName === 'inject') {
+      if (optionValue.type === 'ArrayExpression') {
+        optionValue.elements.forEach(inject => {
+          const injectName = inject.value
+          const injectComments = sourceCode.getCommentsBefore(inject)
+          const injectComment = commentNodesToText(injectComments)
+          const injectInfo = {
+            injectName,
+            injectFrom: `"${injectName}"`,
+            injectDefault: undefined,
+            injectComment
+          }
+          injectMap.set(injectName, injectInfo)
+        })
+      }
+      if (optionValue.type === 'ObjectExpression') {
+        optionValue.properties.forEach(inject => {
+          const injectName = inject.key.name
+          const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(inject.value, injectName, sourceCode)
+          const injectComments = sourceCode.getCommentsBefore(inject)
+          const injectComment = commentNodesToText(injectComments)
+          const injectInfo = {
+            injectName,
+            injectFrom,
+            injectDefault,
+            injectComment
+          }
+          injectMap.set(injectName, injectInfo)
+        })
+      }
+    }
+
+    // methods
+    if (optionKeyName === 'methods') {
+      optionValue.properties.forEach(method => {
+        const methodName = method.key.name
+        const methodComments = sourceCode.getCommentsBefore(method)
+        const methodComment = commentNodesToText(methodComments)
+        const methodInfo = {
+          methodName,
+          methodComment
+        }
+        methodMap.set(methodName, methodInfo)
+      })
+    }
+
+    // computed
+    if (optionKeyName === 'computed') {
+      optionValue.properties.forEach(computed => {
+        const computedName = computed.key.name
+        const computedComments = sourceCode.getCommentsBefore(computed)
+        const computedComment = `all:${commentNodesToText(computedComments)}`
+        const computedValue = computed.value
+        setComputedMap(computedMap, computedName, computedComment)
+        if (computedValue.type === 'ObjectExpression') {
+          computedValue.properties.forEach(item => {
+            const kind = item.key.name
+            const kindComments = sourceCode.getCommentsBefore(item)
+            const kindComment = `${kind}:${commentNodesToText(kindComments)}`
+            setComputedMap(computedMap, computedName, kindComment)
+          })
+        }
+      })
+    }
+
+    // data
+    if (optionKeyName === 'data') {
+      if (optionValue.type === 'FunctionExpression') {
+        const funRet = getFunFirstReturnNode(optionValue)
+        forEachDataOptionSetDataMap(context, funRet.argument.properties, dataMap, undefined, undefined)
+      }
+      if (optionValue.type === 'ObjectExpression') {
+        forEachDataOptionSetDataMap(context, optionValue.properties, dataMap, undefined, undefined)
+      }
+    }
+
+    // setup函数
+    if (optionKeyName === 'setup') {
+      const setupFunReturn = getFunFirstReturnNode(optionValue)
+      const setupFunReturnProperties = setupFunReturn.argument.properties
+      setupFunReturnProperties.forEach(item => {
+        const setupKeyName = item.key.name
+        const setupValue = item.value
+        const keyComments = sourceCode.getCommentsBefore(item)
+        const keyComment = commentNodesToText(keyComments)
+        const variableNode = getVariableNode(setupValue, context)
+        let variableComment = ''
+        if (variableNode) {
+          forEachVariableNodes(sourceCode, [variableNode], (leftName, comment) => {
+            variableComment = comment
+          })
+        }
+        const setupComment = [keyComment, variableComment].filter(f => f).join('\n')
+        const setupInfo = {
+          setupName: setupKeyName,
+          setupComment
+        }
+        setupMap.set(setupKeyName, setupInfo)
+      })
+    }
+  })
+}
 module.exports = {
+  setMapFormVueOptions,
   setMapFromVueCommonOption,
   getInjectFromAndDefaultFromInjectOption,
-  forEachProvideOptionSetProvideMap,
   setComputedMap,
   deepSetDataMap,
   forEachDataOptionSetDataMap,

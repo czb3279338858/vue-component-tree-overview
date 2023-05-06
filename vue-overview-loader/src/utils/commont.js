@@ -8,10 +8,11 @@ const { findVariable } = require('eslint-utils')
  * @returns 
  */
 function commentNodesToText(commentNodes) {
-  return commentNodes.reduce((p, c) => {
+  const commentText = commentNodes.reduce((p, c) => {
     p = p ? `${p}\n${c.value}` : c.value
     return p
   }, '')
+  return commentText
 }
 
 
@@ -199,7 +200,23 @@ function getVariableNode(identifierNode, context) {
   const variable = findVariable(context.getScope(), identifierNode)
   return variable && variable.defs[0] && variable.defs[0].node
 }
+/**
+ * 成员表达式是由 this 开始的
+ * @param {*} memberExpression 
+ * @returns 
+ */
+function isThisMember(memberExpression) {
+  if (memberExpression.object) {
+    if (memberExpression.object.type === 'ThisExpression') {
+      return true
+    } else {
+      return isThisMember(memberExpression.object)
+    }
+  }
+  return false
+}
 module.exports = {
+  isThisMember,
   getVariableNode,
   getFunFirstReturnNode,
   getRuntimeTypeFromNode,
