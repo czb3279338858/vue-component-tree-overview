@@ -76,7 +76,7 @@ const importSet = new Set()
 // importValue[]
 const mixinSet = new Set()
 
-// extend 可以是配置对象或构造函数
+// extend 是 importValue
 const nameAndExtendMap = new Map()
 
 const modelOptionMap = new Map()

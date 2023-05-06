@@ -40,22 +40,9 @@
       - filter绑定
   - 字符串
 - script
-  - 支持解构
-  - 所有配置项不持支，除非特殊说明
-    - `props:[...propNames]`
-  - 所有组件定义，不管是option还是class只支持字面量定义，包括 extend 和 mixin
-  - import、export 语法
-    - import {a} from ''
-    - import a from ''
-    - import * as a from '' 不支持
-    - import {a as b} from ''
-    - `export const a={}`
-    - `export default {}`
-    - `export {a}`
-    - `export {a as b}`
-    - `export {a} from ''`
-  - option
-    - props
+  - props
+    - 配置对象，只支持字面量定义
+    - option 组件
       - 对象
         - default
         - type
@@ -63,93 +50,122 @@
         - required
       - 构造函数
       - 数组
-      - 配置对象，只支持字面量定义
-    - name
-    - extends
-      - TODO 配置对象
-      - 组件构造函数
-    - mixins
-      - TODO 配置对象
-    - components
-      - TODO require.context
-    - filters
-      - import 来的 filter
-      - 组件内定义的
-    - 生命周期
-    - provide
+    - class 组件
+      - 装饰器实现
+    - `<script setup>`
+      - defineProps
+        - 参数支持当前文档定义，不支持函数返回
+        - withDefaults 第二个参数只持支字面量定义
+  - name
+    - options 组件
+    - class 组件
+      - TODO：name属性是否有效？
+    - `<script setup>`
+      - 在另一个`<script>`的 options 中定义
+  - extends
+    - option 组件
+      - 配置对象
+      - 不支持：构造函数（vue2）
+    - class 组件
+      - 通过 ClassComponent extends OtherComponent 实现
+    - `<script setup>`
+      - 在另一个`<script>`的 options 中定义
+  - mixins
+    - options 组件
+      - 配置数组
+    - class 组件
+      - 在 @Component 参数中传入
+      - TODO：通过 mixins 函数
+    - `<script setup>`
+      - 在另一个`<script>`的 options 中定义
+  - components
+    - 不支持 components:{[component.name]:component}
+    - option 组件
+      - 配置
+    - class 组件
+      - 在 @Component 参数中传入
+    - `<script setup>`
+      - TODO:直接通过 import 获取
+  - filters
+    - option 组件
+      - 配置
+    - class 组件
+      - 在 @Component 参数中传入
+    - `<script setup>`
+      - 在另一个`<script>`的 options 中定义
+
+  - 生命周期
+  - provide
       - 对象
       - 函数
         - key为变量
         - key为常量
         - 函数只允许有一个return
-    - inject
+  - inject
       - 数组
       - 对象
-    - emits
+  - emits
       - 数组
       - 对象
       - 参数的类型更好的话，会覆盖 emit，$emit 的参数类型
-    - methods
+  - methods
       - 支持 emit，$emit调用
-    - setup
+  - setup
       - 支持 context.emit
       - 只允许有一个return
       - return内的
         - ref
         - TODO 需要检查支持什么
-    - computed
+  - computed
       - 对象 get，set
       - 函数
-    - data
+  - data
       - 对象
       - 函数
         - 函数只允许只有一个return
       - 支持当前文件的初始化方法`dataB: getDataB()`，getDataB 的定义需要在当前文件中
       - 支持对象递归`dataA:{a:''}`=>能够获取`data.a`的注释，初始化方法中也支持
-  - `<script setup>`
-    - defineProps
-      - 参数支持当前文档定义，不支持函数返回
-      - withDefaults 第二个参数只持支字面量定义
-    - defineEmits
-      - 只支持 defineEmits 定义时的注释
-      - 不支持`emit('emitA',value)`的注释
-    - 生命周期
-      - 支持相同周期注释整合
-    - provide
-    - ref
-    - inject
-    - 函数返回赋值都会获取`const [dataB] = getDataB()`
-    - 方法
-    - computed
-      - 函数
-      - 对象
-  - class
-    - @Component
+- `<script setup>`
+  - defineEmits
+    - 只支持 defineEmits 定义时的注释
+    - 不支持`emit('emitA',value)`的注释
+  - 生命周期
+    - 支持相同周期注释整合
+  - provide
+  - ref
+  - inject
+  - 函数返回赋值都会获取`const [dataB] = getDataB()`
+  - 方法
+  - computed
+    - 函数
+    - 对象
+- class
+  - @Component
       - 参数
         - props
         - filters
         - components
         - name
         - mixins
-    - 生命周期
-    - data
-    - get computed
-    - set computed
-    - methods
-    - @Provide
-    - @Inject
+  - 生命周期
+  - data
+  - get computed
+  - set computed
+  - methods
+  - @Provide
+  - @Inject
       - 支持 symbol
-    - @ProvideReactive
-    - @InjectReactive
-    - @Emit
-    - 不支持@Watch
-    - 不支持@Ref
-    - TODO mixins 
-    - @VModel
-    - @PropSync
-    - @Prop
-    - @ModelSync
-    - @Model
+  - @ProvideReactive
+  - @InjectReactive
+  - @Emit
+  - 不支持@Watch
+  - 不支持@Ref
+  - TODO mixins 
+  - @VModel
+  - @PropSync
+  - @Prop
+  - @ModelSync
+  - @Model
 - TODO
   - 根据 ts 获取具体类型
   - import 引入的注释
@@ -195,4 +211,21 @@
 
 
 
-- props、defineProps
+- setMapFromVueCommonOption中name
+- extends
+
+- TODO:
+  - ts/js 要解决 extend、mixins 是配置对象的问题
+  - require.context => import
+
+- 支持解构
+  - import、export 语法
+    - import {a} from ''
+    - import a from ''
+    - import * as a from '' 不支持
+    - import {a as b} from ''
+    - `export const a={}`
+    - `export default {}`
+    - `export {a}`
+    - `export {a as b}`
+    - `export {a} from ''`

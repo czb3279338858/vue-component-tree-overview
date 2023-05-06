@@ -44,7 +44,7 @@
     <template v-slot:slotF="{ slotValueA }">
       <div>{{ slotValueA }}</div>
     </template>
-    <ClassComponent></ClassComponent>
+    <class-component></class-component>
     <router-view></router-view>
   </div>
 </template>
@@ -62,12 +62,13 @@ import mixinB, { mixinA } from "./mixinOption";
 import ClassComponent from "./ClassComponent.vue";
 import { defineComponent, PropType, ref } from "vue";
 const injectSymbol = Symbol();
+
 export default defineComponent({
   name: "option-component-name",
   extends: extendOption,
   mixins: [mixinA, mixinB],
   components: {
-    ClassComponent,
+    "class-component": ClassComponent,
   },
   filters: {
     // filterA注释

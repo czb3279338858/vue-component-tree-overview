@@ -549,7 +549,7 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
   if (optionKeyName === 'components') {
     optionValue.properties.forEach(component => {
       if (component.type === 'Property') {
-        const componentKey = casing.kebabCase(component.key.value || component.key.name)
+        const componentKey = casing.kebabCase(component.key.value)
         const componentValue = component.value.name
         componentMap.set(`"${componentKey}"`, componentValue)
       }
