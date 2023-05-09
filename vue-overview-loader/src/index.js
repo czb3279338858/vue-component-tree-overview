@@ -9,9 +9,9 @@ const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const tsUtils = require('./utils/ts-ast-utils')
-const { commentNodesToText, getFormatJsCode, getRuntimeTypeFromNode, getFunFirstReturnNode, } = require('./utils/commont')
+const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
-const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, addMapFromVariableDeclaration, getPropMapFromTypePropList, setEmitMap, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions } = require('./utils/script')
+const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall } = require('./utils/script')
 
 const linter = new Linter()
 const parserOptions = {
@@ -48,6 +48,7 @@ const lifecycleHookMap = new Map()
 const filterMap = new Map()
 
 // emitName:{emitName,emitType,emitComment,emitParamsVerify}
+// emitParamsVerify 是 emits 配置中完整的校验函数
 const emitMap = new Map()
 
 // dataName:{dataName,dataComment}
@@ -111,104 +112,6 @@ linter.defineRule("vue-loader", {
 		const sourceCode = context.getSourceCode()
 
 		return utils.compositingVisitors(
-			// <script setup> 中
-			utils.defineScriptSetupVisitor(context, {
-				// props
-				onDefinePropsEnter(node, propList) {
-					// 目前 defineProps 在 script setup 中只能使用一次，onDefinePropsEnter 只会获取第一个 defineProps，下面的方法兼容defineProps 被多次使用时
-					let typePropList = []
-					let optionPropList = []
-					propList.forEach(prop => {
-						if (prop.type === 'type') typePropList.push(prop)
-						else optionPropList.push(prop)
-					})
-					const optionPropMap = getPropMapFromPropList(context, optionPropList)
-					const typePropMap = getPropMapFromTypePropList(context, typePropList, node.parent.arguments)
-
-					propMap = new Map([...propMap, ...optionPropMap, ...typePropMap])
-				},
-				// emits
-				onDefineEmitsEnter(node, emits) {
-					setEmitMapFromEslintPluginVueEmits(context, emits, emitMap)
-				},
-				// 变量定义，包括 data\computed\inject\箭头函数methods 表现为 const dataA = ref('')
-				'Program > VariableDeclaration'(node) {
-					addMapFromVariableDeclaration(context, node, setupMap, injectMap)
-				},
-				// 函数定义 methods，表现为 function methodA(){}
-				'Program>FunctionDeclaration'(node) {
-					const setupName = node.id.name
-					const setupComments = sourceCode.getCommentsBefore(node)
-					const setupComment = commentNodesToText(setupComments)
-					const setupInfo = {
-						setupName,
-						setupComment
-					}
-					setupMap.set(setupName, setupInfo)
-				},
-				// 函数调用
-				'Program CallExpression'(node) {
-					// 生命周期，表现为 onMounted(()=>{})
-					const LIFECYCLE_HOOKS = [
-						'onBeforeMount',
-						'onBeforeUnmount',
-						'onBeforeUpdate',
-						'onErrorCaptured',
-						'onMounted',
-						'onRenderTracked',
-						'onRenderTriggered',
-						'onUnmounted',
-						'onUpdated',
-						'onActivated',
-						'onDeactivated'
-					]
-					const callName = node.callee.name
-					if (LIFECYCLE_HOOKS.includes(callName)) {
-						const lifecycleHookComments = sourceCode.getCommentsBefore(node)
-						const lifecycleHookComment = commentNodesToText(lifecycleHookComments)
-						const oldLifecycleHook = lifecycleHookMap.get(callName)
-						if ((lifecycleHookComment && oldLifecycleHook)) {
-							oldLifecycleHook.lifecycleHookComment = `${oldLifecycleHook.lifecycleHookComment}\n\n${lifecycleHookComment}`
-						} else {
-							const lifecycleHookInfo = {
-								lifecycleHookName: callName,
-								lifecycleHookComment
-							}
-							lifecycleHookMap.set(callName, lifecycleHookInfo)
-						}
-					}
-					// provide
-					if (callName === 'provide') {
-						const params = node.arguments
-						const nameNode = params[0]
-						const valueNode = params[1]
-						let provideName
-						if (nameNode.type === 'Literal') {
-							provideName = nameNode.value
-						}
-						if (nameNode.type === 'Identifier') {
-							provideName = `[${nameNode.name}]`
-						}
-						let provideValue
-						const provideValueType = valueNode.type
-						if (provideValueType === 'Literal') {
-							provideValue = valueNode.value
-						}
-						if (provideValueType === 'Identifier') {
-							provideValue = valueNode.name
-						}
-						const provideComments = sourceCode.getCommentsBefore(node)
-						const provideComment = commentNodesToText(provideComments)
-						const provideInfo = {
-							provideName,
-							provideValue,
-							provideValueType,
-							provideComment
-						}
-						provideMap.set(provideName, provideInfo)
-					}
-				},
-			}),
 			utils.defineTemplateBodyVisitor(
 				context,
 				{
@@ -218,7 +121,6 @@ linter.defineRule("vue-loader", {
 						const templateValue = casing.kebabCase(element.rawName)
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
-							// FIXME: 支持动态绑定
 							const keyName = getFormatJsCode(context, a.key)
 							const value = a.value
 							if (value && value.type === "VLiteral") {
@@ -554,28 +456,10 @@ linter.defineRule("vue-loader", {
 							const emitName = casing.kebabCase(decoratorParams ? decoratorParams.value : emitFun.key.name)
 							const emitFunParams = emitFun.value.params
 
-							const emitType = emitFunParams.map(e => {
-								const typeAnnotation = e.typeAnnotation
-								if (typeAnnotation) {
-									const type = tsUtils.inferRuntimeType(context, typeAnnotation.typeAnnotation)
-									return type
-								}
-								return [undefined]
-							})
-							// FIXME：无法获取函数 return 的推导类型，只先获取标注了具体类型
-							// TODO:函数可能有多个return，需要根据所有的进行组合
+							const emitType = getFunParamsRuntimeType(context, emitFunParams)
 							const emitFunRet = getFunFirstReturnNode(emitFun.value)
 							if (emitFunRet) {
-								let type = [undefined]
-								const emitFunRetParams = emitFunRet.argument
-								if (emitFunRetParams.typeAnnotation) {
-									type = tsUtils.inferRuntimeType(context, emitFunRet.argument.typeAnnotation)
-								} else {
-									if (emitFunRetParams.type === 'Literal') {
-										type = [emitFunRetParams.raw]
-									}
-								}
-								emitType.unshift(type)
+								emitType.unshift(getRuntimeTypeFromNode(context, emitFunRet.argument))
 							}
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const emitComments = sourceCode.getCommentsAfter(node)
@@ -612,12 +496,7 @@ linter.defineRule("vue-loader", {
 					CallExpression(node) {
 						const calleeName = node.callee.property && node.callee.property.name
 						if (['$emit', 'emit'].includes(calleeName)) {
-							const calleeParams = node.arguments
-							const emitName = calleeParams[0].value
-							const emitComments = sourceCode.getCommentsBefore(node)
-							const emitComment = commentNodesToText(emitComments)
-							const emitType = calleeParams.slice(1).map(p => { return [getRuntimeTypeFromNode(p, context)] })
-							setEmitMap(emitMap, emitName, emitType, emitComment)
+							setEmitMapFromEmitCall(context, emitMap, node)
 						}
 					},
 
@@ -626,7 +505,143 @@ linter.defineRule("vue-loader", {
 						importSet.add(getFormatJsCode(context, node))
 					},
 				},
-			)
+			),
+			// <script setup> 中
+			utils.defineScriptSetupVisitor(context, {
+				// props
+				onDefinePropsEnter(node, propList) {
+					// 目前 defineProps 在 script setup 中只能使用一次，onDefinePropsEnter 只会获取第一个 defineProps，下面的方法兼容defineProps 被多次使用时
+					let typePropList = []
+					let optionPropList = []
+					propList.forEach(prop => {
+						if (prop.type === 'type') typePropList.push(prop)
+						else optionPropList.push(prop)
+					})
+					const optionPropMap = getPropMapFromPropList(context, optionPropList)
+					const typePropMap = getPropMapFromTypePropList(context, typePropList, node.parent.arguments)
+
+					propMap = new Map([...propMap, ...optionPropMap, ...typePropMap])
+				},
+				// emits
+				onDefineEmitsEnter(node, emits) {
+					setEmitMapFromEslintPluginVueEmits(context, emits, emitMap)
+				},
+				// 变量定义，包括 data\computed\inject\箭头函数methods 表现为 const dataA = ref('')
+				'Program > VariableDeclaration'(node) {
+					const declarations = node.declarations
+					declarations.forEach(declaration => {
+						if (isUnAddSetupMap(declaration.init)) return
+						const left = declaration.id
+						let setupName
+						let setupComments
+						// a = 1 或 a,b=1
+						if (left.type === 'Identifier') {
+							// a = ref('')
+							setupName = left.name
+							if (declarations.length === 1) {
+								// const a = 1
+								setupComments = sourceCode.getCommentsBefore(node)
+							} else {
+								// let a,b=1
+								setupComments = sourceCode.getCommentsBefore(declaration.id)
+							}
+						}
+						if (['ObjectPattern', 'ArrayPattern'].includes(left.type)) {
+							forEachPattern([left], (patternItem) => {
+								const itemValue = patternItem.value || patternItem
+								setupComments = sourceCode.getCommentsBefore(itemValue)
+								setupName = itemValue.name
+							})
+						}
+						const setupComment = commentNodesToText(setupComments)
+						const setupInfo = {
+							setupName,
+							setupComment
+						}
+						setupMap.set(setupName, setupInfo)
+					})
+				},
+				// 函数定义 methods，表现为 function methodA(){}
+				'Program>FunctionDeclaration'(node) {
+					const setupName = node.id.name
+					const setupComments = sourceCode.getCommentsBefore(node)
+					const setupComment = commentNodesToText(setupComments)
+					const setupInfo = {
+						setupName,
+						setupComment
+					}
+					setupMap.set(setupName, setupInfo)
+				},
+				// 函数调用
+				'Program CallExpression'(node) {
+					// 生命周期，表现为 onMounted(()=>{})
+					const LIFECYCLE_HOOKS = [
+						'onBeforeMount',
+						'onBeforeUnmount',
+						'onBeforeUpdate',
+						'onErrorCaptured',
+						'onMounted',
+						'onRenderTracked',
+						'onRenderTriggered',
+						'onUnmounted',
+						'onUpdated',
+						'onActivated',
+						'onDeactivated'
+					]
+					const callName = node.callee.name
+					if (LIFECYCLE_HOOKS.includes(callName)) {
+						const lifecycleHookComments = sourceCode.getCommentsBefore(node)
+						const lifecycleHookComment = commentNodesToText(lifecycleHookComments)
+						const oldLifecycleHook = lifecycleHookMap.get(callName)
+						if ((lifecycleHookComment && oldLifecycleHook)) {
+							oldLifecycleHook.lifecycleHookComment = `${oldLifecycleHook.lifecycleHookComment}\n\n${lifecycleHookComment}`
+						} else {
+							const lifecycleHookInfo = {
+								lifecycleHookName: callName,
+								lifecycleHookComment
+							}
+							lifecycleHookMap.set(callName, lifecycleHookInfo)
+						}
+					}
+					// provide
+					if (callName === 'provide') {
+						const params = node.arguments
+						const nameNode = params[0]
+						const valueNode = params[1]
+						let provideName
+						if (nameNode.type === 'Literal') {
+							provideName = nameNode.value
+						}
+						if (nameNode.type === 'Identifier') {
+							provideName = `[${nameNode.name}]`
+						}
+						let provideValue
+						const provideValueType = valueNode.type
+						if (provideValueType === 'Literal') {
+							provideValue = valueNode.value
+						}
+						if (provideValueType === 'Identifier') {
+							provideValue = valueNode.name
+						}
+						const provideComments = sourceCode.getCommentsBefore(node)
+						const provideComment = commentNodesToText(provideComments)
+						const provideInfo = {
+							provideName,
+							provideValue,
+							provideValueType,
+							provideComment
+						}
+						provideMap.set(provideName, provideInfo)
+					}
+					// emit 调用
+					if (emitMap.get(callName)) {
+						setEmitMapFromEmitCall(context, emitMap, node)
+					}
+				},
+				ImportDeclaration(node) {
+					debugger
+				}
+			}),
 		)
 	},
 });

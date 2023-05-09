@@ -1,5 +1,8 @@
 <template>
-  <div>setup-component</div>
+  <div>
+    setup-component
+    <class-component></class-component>
+  </div>
 </template>
 <script setup lang='ts'>
 import {
@@ -13,11 +16,13 @@ import {
   defineProps,
   withDefaults,
 } from "vue";
+import ClassComponent from "./ClassComponent.vue";
 
 const emit1 = defineEmits([
   // emitA注释
   "emitA",
 ]);
+emit1("emitA", "emitAValue");
 const emit2 = defineEmits({
   // emitB注释
   // type === emitB(value){return typeof value==='string'}
@@ -47,8 +52,12 @@ const dataA = ref("");
 // 参数1可是字符串或symbol
 provide("provideName", dataA);
 
-// inject注释
-const injectA = inject("provideName", "injectDefault");
+// injectA注释
+const injectA = inject("provideName", "injectADefault");
+const [
+  // injectB注释
+  injectB,
+] = [inject("provideName", "injectBDefault")];
 
 // getDataB注释
 function getDataB() {

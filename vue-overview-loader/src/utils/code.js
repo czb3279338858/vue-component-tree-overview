@@ -24,7 +24,6 @@ function getVueMetaFromMiddleData(vueMeta) {
   }, {})
 }
 
-// TODO:把字符串和变量在元数据阶段就分出来，这里就不需要单独处理了
 /**
  * 把 vue 元数据转为 code，
  * 'componentMap', 'mixinSet', 'extend'会保留引用，而不是把引用转为字符串

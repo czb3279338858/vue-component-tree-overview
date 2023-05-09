@@ -1,4 +1,4 @@
-const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, forEachPattern } = require("./commont")
+const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, getRuntimeTypeFromNode } = require("./commont")
 const tsUtils = require('./ts-ast-utils')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const utils = require('eslint-plugin-vue/lib/utils/index')
@@ -90,7 +90,24 @@ function getPropTypeFromPropTypeOption(context, typeValue) {
       return []
   }
 }
-
+/**
+ * 从 propOption 的 default 获取 prop type 的运行时类型
+ * @param {*} context 
+ * @param {*} propDefault 
+ * @returns ['Array']
+ */
+function getPropTypeFromPropDefault(context, propDefault) {
+  if (!propDefault) return undefined
+  if (['FunctionDeclaration', 'ArrowFunctionExpression'].includes(propDefault.type)) {
+    const returnNode = getFunFirstReturnNode(propDefault)
+    if (returnNode) {
+      return getRuntimeTypeFromNode(context, returnNode.argument)
+    }
+    return undefined
+  } else {
+    return getRuntimeTypeFromNode(context, propDefault)
+  }
+}
 /**
  * 从 propOption 获取 default、type、required
  * @param {*} propOption 
@@ -98,7 +115,7 @@ function getPropTypeFromPropTypeOption(context, typeValue) {
  * @returns [propDefault, propType, propRequired]
  */
 function getPropInfoFromPropOption(context, propOption, propNode) {
-  let propDefault, propType, propRequired
+  let propDefault, propType, propRequired, propTypeFromDefault
   // option 中的 prop 可以没有参数
   if (propOption) {
     // 通过prop配置项获取
@@ -114,7 +131,7 @@ function getPropInfoFromPropOption(context, propOption, propNode) {
           switch (key) {
             case 'default':
               propDefault = getFormatJsCode(context, d.value)
-              // TODO: 根据 default 推断 propType
+              propTypeFromDefault = getPropTypeFromPropDefault(context, d.value)
               break;
             case 'type':
               propType = getPropTypeFromPropTypeOption(context, d.value)
@@ -144,6 +161,10 @@ function getPropInfoFromPropOption(context, propOption, propNode) {
     if (propRequired === undefined) {
       propRequired = !propNode.optional
     }
+  }
+  // 如果还没有类型，把 default 的类型作为类型
+  if (!propType) {
+    propType = propTypeFromDefault
   }
   return [propDefault, propType, propRequired]
 }
@@ -188,48 +209,7 @@ function isUnAddSetupMap(init) {
       || init.type === 'Literal'
     )
 }
-/**
- * 在 <script setup> 中
- * 从变量定义中添加 setupMap，遍历 [dataD, dataE] = [ref("")] 等实现
- * 支持 const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
- * 不支持函数定义
- * @param {*} context 
- * @param {*} variable 
- * @param {*} setupMap 
- */
-function addMapFromVariableDeclaration(context, variable, setupMap, injectMap) {
-  const declarations = variable.declarations
-  const sourceCode = context.getSourceCode()
-  declarations.forEach(declaration => {
-    if (isUnAddSetupMap(declaration.init)) return
-    const left = declaration.id
-    let setupName
-    let setupComment
-    if (left.type === 'Identifier') {
-      // a = ref('')
-      setupName = left.name
-      if (declarations.length === 1) {
-        // const a = 1
-        setupComment = sourceCode.getCommentsBefore(variable)
-      } else {
-        // let a,b=1
-        setupComment = sourceCode.getCommentsBefore(declaration.id)
-      }
-    }
-    if (['ObjectPattern', 'ArrayPattern'].includes(left.type)) {
-      forEachPattern([left], (patternItem) => {
-        const itemValue = patternItem.value || patternItem
-        setupComment = sourceCode.getCommentsBefore(itemValue)
-        setupName = itemValue.name
-      })
-    }
-    const setupInfo = {
-      setupName,
-      setupComment
-    }
-    setupMap.set(setupName, setupInfo)
-  })
-}
+
 /**
  * script setup 中 withDefaults(defineProps<Props>(), {}) 提取 propInfo 生成 propMap 返回
  * @param {*} props 
@@ -319,7 +299,7 @@ function getEmitParamsTypeFromDefineEmits(context, emit) {
   // 参数是对象
   if (defineEmitsParamType === 'object') {
     const emitValue = emit.value
-    if (['ArrowFunctionExpression', 'FunctionExpression'].includes(emitValue.type)) return getFunParamsRuntimeType(emitValue.params, context)
+    if (['ArrowFunctionExpression', 'FunctionExpression'].includes(emitValue.type)) return getFunParamsRuntimeType(context, emitValue.params)
     return undefined
   }
   // 类型
@@ -742,7 +722,23 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
     }
   })
 }
+/**
+ * 从 emit 调用中设置 emitMap
+ * @param {} context 
+ * @param {*} emitMap 
+ * @param {*} callExpression 
+ */
+function setEmitMapFromEmitCall(context, emitMap, callExpression) {
+  const sourceCode = context.getSourceCode()
+  const calleeParams = callExpression.arguments
+  const emitName = calleeParams[0].value
+  const emitComments = sourceCode.getCommentsBefore(callExpression)
+  const emitComment = commentNodesToText(emitComments)
+  const emitType = getFunParamsRuntimeType(context, calleeParams.slice(1))
+  setEmitMap(emitMap, emitName, emitType, emitComment)
+}
 module.exports = {
+  setEmitMapFromEmitCall,
   isUnAddSetupMap,
   setMapFormVueOptions,
   setMapFromVueCommonOption,
@@ -755,7 +751,6 @@ module.exports = {
   getEmitParamsTypeFromDefineEmits,
   LIFECYCLE_HOOKS,
   getPropMapFromTypePropList,
-  addMapFromVariableDeclaration,
   getPropMapFromPropList,
   addTemplateMap,
   getExpressionContainerInfo,

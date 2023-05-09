@@ -5,7 +5,7 @@
   <div
     class="tw-p-2"
     :class="dataA"
-    :attr-a="getAttrB1(getAttrB2(dataA, dataB))"
+    :attr-a="getAttrB1(getAttrB2(dataA))"
     :attr-c="dataB.a"
     :attr-d="myClass | filterA | filterB"
   >
@@ -208,7 +208,9 @@ export default defineComponent({
   props: {
     // propA 注释
     propA: {
-      default: "propADefault",
+      default: () => {
+        return "propADefault";
+      },
       type: String as PropType<string>,
       required: true,
     },

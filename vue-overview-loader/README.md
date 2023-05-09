@@ -1,5 +1,8 @@
 # 支持的语法及待办事项
 - 支持 option 组件、class 组件、`<script setup>` 组件
+  - class
+    - 不支持@Watch
+    - 不支持@Ref
 - template
   - 支持：
     - 标签、{{}}、字符串注释
@@ -61,7 +64,7 @@
   - name
     - options 组件
     - class 组件
-      - TODO：name属性是否有效？
+      - @Component 参数中
     - `<script setup>`
       - 在另一个`<script>`的 options 中定义
   - extends
@@ -77,7 +80,6 @@
       - 配置数组
     - class 组件
       - 在 @Component 参数中传入
-      - TODO：通过 mixins 函数
     - `<script setup>`
       - 在另一个`<script>`的 options 中定义
   - components
@@ -134,122 +136,53 @@
       - @Inject\@injectReactive
         - 装饰器参数同 options 对象配置的 value
     - `<script setup>`
-      - 
+      - inject 没有存在 injectMap 中而是在 setupMap 中
   - emits
+    - 会通过 emits 校验函数的参数获取 emit 抛出数据的类型
+    - 会通过 emit，$emit 调用的参数类型补充 emit 抛出数据的类型
+    - option 组件
       - 数组
       - 对象
-      - 参数的类型更好的话，会覆盖 emit，$emit 的参数类型
+    - class 组件
+      - PropSync\ModelSync\VModel\Emit
+      - @Emit 只支持一个 return
+    - `<script setup>`
+      - defineEmits
+      - 只支持 defineEmits 定义时的注释，不支持`emit('emitA',value)`的注释
   - methods
-      - 支持 emit，$emit调用
+    - option 组件
+      - 对象
+    - class 组件
+      - 非生命周期的方法
+    - `<script setup>`
+      - 没有存在 methodMap 中而是在 setupMap 中
   - setup
-      - 支持 context.emit
+    - option 组件
       - 只允许有一个return
-      - return内的
-        - ref
-        - TODO 需要检查支持什么
+    - class 组件、`<script setup>`
+      - 不支持
   - computed
+    - 注释由3种组合、all:,get:,set:
+    - option 组件
       - 对象 get，set
       - 函数
+    - class 组件
+      - PropSync/ModelSync/get set 函数
+    - `<script setup>`
+      - 没有存在 computedMap 中而是在 setupMap 中
+      - 没有all,get,set这些注释前缀
   - data
+    - 支持当前文件的初始化方法`dataB: getDataB()`，getDataB 的定义需要在当前文件中
+    - 支持对象递归`dataA:{a:''}`=>能够获取`data.a`的注释，初始化方法中也支持
+    - option 组件
       - 对象
       - 函数
         - 函数只允许只有一个return
-      - 支持当前文件的初始化方法`dataB: getDataB()`，getDataB 的定义需要在当前文件中
-      - 支持对象递归`dataA:{a:''}`=>能够获取`data.a`的注释，初始化方法中也支持
-- `<script setup>`
-  - defineEmits
-    - 只支持 defineEmits 定义时的注释
-    - 不支持`emit('emitA',value)`的注释
-  - 生命周期
-    - 支持相同周期注释整合
-  - provide
-  - ref
-  - inject
-  - 函数返回赋值都会获取`const [dataB] = getDataB()`
-  - 方法
-  - computed
-    - 函数
-    - 对象
-- class
-  - @Component
-      - 参数
-        - props
-        - filters
-        - components
-        - name
-        - mixins
-  - 生命周期
-  - data
-  - get computed
-  - set computed
-  - methods
-  - @Provide
-  - @Inject
-      - 支持 symbol
-  - @ProvideReactive
-  - @InjectReactive
-  - @Emit
-  - 不支持@Watch
-  - 不支持@Ref
-  - TODO mixins 
-  - @VModel
-  - @PropSync
-  - @Prop
-  - @ModelSync
-  - @Model
-- TODO
-  - 根据 ts 获取具体类型
-  - import 引入的注释
-  - class 多个装饰器
-
-# 转换后的数据格式
-- template
-  - 标签
-    - templateValue:`'<div>'`
-    - templateType:固定值`'VElement'`
-    - attributes:`Attr[]`，Attr 包含以下属性
-      - keyName:`':class'`
-      - valueName:`'(dataB,key,index) in dataA'`
-      - valueType:vue-eslint-parser 解析出来的 ast 类型`'VForExpression'`
-      - scopeNames: v-for,v-slot,slot-scope 产生的作用域`['dataB','key','index']`
-      - callNames:filter 或绑定函数调用中的函数名`:attr-a="getAttrB1(getAttrB2(dataA, dataB))"`=>`['getAttrB1','getAttrB2']`
-      - callParams:filter 或绑定函数调用中的参数`getAttrB1(getAttrB2(dataA, dataB))`=>`['dataA','dataB']`
-      - vForName:`v-for="(dataB, key, index) in dataA"`=>`'dataA'`
-    - templateComment:当前标签的注释
-    - children:`标签[]`
-  - {{}}
-    - templateValue:`'{{ dataA }}'`
-    - templateType::vue-eslint-parser 解析出来的 ast 类型`'VFilterSequenceExpression'`
-    - attributes:`undefined`
-    - templateComment:{{}}的注释，不支持{{}}内的注释
-    - children:`undefined`
-    - templateName:`{{ dataB.a }}`=>`'dataB.a'`
-    - templateCallNames:`{{ dataA | filterA }}`=>`['filterA']`
-    - templateCallParams:`{{ dataA | filterA }}`=>`['dataA']`
-  - 文本
-    - templateValue:换行符或连续空格会被转为单个空格
-    - templateType:`'VText'`
-    - attributes:`undefined`
-    - templateComment:注释
-    - children:`undefined`
-- script
-  - prop
-    - propName:`'propA'`
-    - propDefault:默认值，没有的话为`undefined`
-    - propType:允许传入的数据类型，一个数组，目前只获取了运行时类型`[''Number]`
-    - propRequired:布尔值，是否必填
-    - propComment：注释
-
-
-
-- setMapFromVueCommonOption中name
-- extends
-
-- TODO:
-  - ts/js 要解决 extend、mixins 是配置对象的问题
-  - require.context => import
-
-- 支持解构
+    - class 组件
+      - 没有装饰器的属性
+      - Provide，ProvideReactive
+    - `<script setup>`
+      - 没有存在 dataMap 中而是在 setupMap 中
   - import、export 语法
     - import {a} from ''
     - import a from ''
@@ -260,3 +193,12 @@
     - `export {a}`
     - `export {a as b}`
     - `export {a} from ''`
+
+
+- TODO
+  - class 组件 mixins
+  - 根据 ts 获取具体类型
+  - import 引入的注释
+    - setup 中的组件
+  - class 多个装饰器
+  - require.context => import

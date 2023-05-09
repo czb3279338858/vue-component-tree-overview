@@ -15,6 +15,19 @@ function commentNodesToText(commentNodes) {
   return commentText
 }
 
+/**
+ * 把代码节点格式化为代码单行文本
+ * 1、把多个空格和换行符转换为单个空格
+ * @param {*} context 
+ * @param {*} node 
+ * @returns 
+ */
+function getFormatJsCode(context, node) {
+  const sourceCode = context.getSourceCode()
+  const ret = sourceCode.getText(node)
+  return ret.replace(/[\n\s]+/g, ' ')
+}
+
 
 /**
  * 遍历解构对象，支持数组和对象结构对象，传入最终解构的node
@@ -68,6 +81,39 @@ function getPatternNames(expression) {
   return scopeName
 }
 /**
+ * 从变量定义中获取变量名和变量注释
+ * a=1 => ['a','***']
+ * @param {*} context 
+ * @param {*} declaration 
+ * @returns 
+ */
+function getVariableDeclarationNameAndComments(context, declaration) {
+  const sourceCode = context.getSourceCode()
+  const left = declaration.id
+  let variableName
+  let variableComments
+  // a = 1 或 a,b=1
+  if (left.type === 'Identifier') {
+    // a = ref('')
+    variableName = left.name
+    if (declarations.length === 1) {
+      // const a = 1
+      variableComments = sourceCode.getCommentsBefore(variableDeclaration)
+    } else {
+      // let a,b=1
+      variableComments = sourceCode.getCommentsBefore(declaration.id)
+    }
+  }
+  if (['ObjectPattern', 'ArrayPattern'].includes(left.type)) {
+    forEachPattern([left], (patternItem) => {
+      const itemValue = patternItem.value || patternItem
+      variableComments = sourceCode.getCommentsBefore(itemValue)
+      variableName = itemValue.name
+    })
+  }
+  return [variableName, variableComments]
+}
+/**
  * 通过变量名获取这个变量定义的注释
  * 支持函数和变量
  * @param {*} context 
@@ -82,28 +128,14 @@ function getVariableComment(context, variableName) {
     variableComments = sourceCode.getCommentsBefore(variableNode)
   }
   if (variableNode.type === 'VariableDeclarator') {
-    const left = variableNode.id
-    if (left.type === 'Identifier') {
-      const parent = variableNode.parent
-      if (parent.declarations.length === 1) {
-        variableComments = sourceCode.getCommentsBefore(parent)
-      } else {
-        variableComments = sourceCode.getCommentsBefore(variableNode.id)
-      }
-    }
-    if (['ObjectPattern', 'ArrayPattern'].includes(left.type)) {
-      forEachPattern([left], (patternItem) => {
-        const itemValue = patternItem.value || patternItem
-        variableComments = sourceCode.getCommentsBefore(itemValue)
-      })
-    }
+    const [, comments] = getVariableDeclarationNameAndComments(context, variableNode)
+    variableComments = comments
   }
   const variableComment = commentNodesToText(variableComments)
 
   return variableComment
 }
 
-// TODO：需要检查c(d(e)) e能不能正确获取
 /**
  * 获取函数调用的函数名数组和参数数组
  * 支持连续调用，不支持中途多个参数
@@ -113,7 +145,6 @@ function getVariableComment(context, variableName) {
  * @param {*} funNames 
  */
 function getCallExpressionParamsAndFunNames(context, callExpression, funNames = []) {
-  const sourceCode = context.getSourceCode()
   const funName = callExpression.callee.name
   const params = callExpression.arguments
   funNames.push(funName)
@@ -123,7 +154,7 @@ function getCallExpressionParamsAndFunNames(context, callExpression, funNames = 
       if (param.type === 'CallExpression') {
         return getCallExpressionParamsAndFunNames(context, param, funNames)
       } else {
-        const callParam = param.type === 'MemberExpression' ? getFormatJsCode(context, param) : undefined
+        const callParam = param.type === 'MemberExpression' ? getFormatJsCode(context, param) : param.name
         return [[callParam], funNames]
       }
     } else {
@@ -135,39 +166,28 @@ function getCallExpressionParamsAndFunNames(context, callExpression, funNames = 
 }
 
 
-/**
- * 把代码节点格式化为代码单行文本
- * 1、把多个空格和换行符转换为单个空格
- * @param {*} context 
- * @param {*} node 
- * @returns 
- */
-function getFormatJsCode(context, node) {
-  const sourceCode = context.getSourceCode()
-  const ret = sourceCode.getText(node)
-  return ret.replace(/[\n\s]+/g, ' ')
-}
+
 /**
  * 获取当前节点运行时类型
  * @param {*} node 
  * @param {*} context 
- * @returns 'Object' | 'Array' 等
+ * @returns ['Array'] 等
  */
-function getRuntimeTypeFromNode(node, context) {
+function getRuntimeTypeFromNode(context, node) {
   if (node.typeAnnotation) {
     const ret = tsUtils.inferRuntimeType(context, node.typeAnnotation.typeAnnotation)
     return ret
   }
-  if (['ObjectExpression', 'ObjectPattern'].includes(node.type)) return 'Object'
-  if (['ArrayExpression', 'ArrayPattern'].includes(node.type)) return 'Array'
-  if (['FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)) return 'Function'
+  if (['ObjectExpression', 'ObjectPattern'].includes(node.type)) return ['Object']
+  if (['ArrayExpression', 'ArrayPattern'].includes(node.type)) return ['Array']
+  if (['FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)) return ['Function']
   if (node.type === 'Literal') {
     const value = node.value
-    if (Array.isArray(value)) return 'Array'
-    if (value === null) return 'null'
-    return casing.pascalCase(typeof node.value)
+    if (Array.isArray(value)) return ['Array']
+    if (value === null) return ['null']
+    return [casing.pascalCase(typeof node.value)]
   }
-  return undefined
+  return [undefined]
 }
 
 /**
@@ -175,13 +195,13 @@ function getRuntimeTypeFromNode(node, context) {
  * @param {*} params 
  * @returns [['String','Number'],['String']]
  */
-function getFunParamsRuntimeType(params, context) {
+function getFunParamsRuntimeType(context, params) {
   return params.map(p => {
-    let type = getRuntimeTypeFromNode(p, context)
+    let type = getRuntimeTypeFromNode(context, p)
     if (!type && p.right) {
-      type = getRuntimeTypeFromNode(p.right, context)
+      type = getRuntimeTypeFromNode(context, p.right)
     }
-    return [type]
+    return type
   })
 }
 /**
@@ -190,9 +210,13 @@ function getFunParamsRuntimeType(params, context) {
  * @returns 
  */
 function getFunFirstReturnNode(funNode) {
-  const funBody = funNode.body.body
-  const funRet = funBody.find(f => f.type === 'ReturnStatement')
-  return funRet
+  const funBody = funNode.body
+  if (funBody.type === 'BlockStatement') {
+    const funRet = funBody.body.find(f => f.type === 'ReturnStatement')
+    return funRet
+  } else {
+    return funBody
+  }
 }
 /**
  * 获取变量在当前作用域（文档）的定义节点
@@ -205,7 +229,7 @@ function getVariableNode(identifierNode, context) {
   return variable && variable.defs[0] && variable.defs[0].node
 }
 /**
- * 成员表达式是由 this 开始的
+ * 判断成员表达式是否由 this 开始的
  * @param {*} memberExpression 
  * @returns 
  */
@@ -220,6 +244,7 @@ function isThisMember(memberExpression) {
   return false
 }
 module.exports = {
+  getVariableDeclarationNameAndComments,
   forEachPattern,
   getVariableComment,
   isThisMember,
