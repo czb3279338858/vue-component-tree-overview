@@ -44,11 +44,11 @@ onMounted(() => {
 // dataA注释
 const dataA = ref("");
 // provide注释,provide:{provideName:dataA}
-// 会获取dataA的注释，共3条
+// 参数1可是字符串或symbol
 provide("provideName", dataA);
 
 // inject注释
-const injectA = inject("provideName");
+const injectA = inject("provideName", "injectDefault");
 
 // getDataB注释
 function getDataB() {

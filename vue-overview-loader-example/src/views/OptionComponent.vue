@@ -50,7 +50,7 @@
 </template>
 <script lang='ts'>
 import filterDefault, {
-  filterB,
+  // filterB,
   filterC,
   filterD,
   filterE,
@@ -62,7 +62,10 @@ import mixinB, { mixinA } from "./mixinOption";
 import ClassComponent from "./ClassComponent.vue";
 import { defineComponent, PropType, ref } from "vue";
 const injectSymbol = Symbol();
-
+// filterB注释，来源于定义
+function filterB(v) {
+  return v;
+}
 export default defineComponent({
   name: "option-component-name",
   extends: extendOption,
@@ -125,19 +128,20 @@ export default defineComponent({
   //     provideB: "provideB",
   //   };
   // },
-  inject: [
-    // injectA注释
-    "injectA",
-  ],
-  // inject: {
+  // inject: [
   //   // injectA注释
-  //   injectA: {
-  //     from: "injectAFrom",
-  //     default: () => "injectADefault",
-  //   },
-  //   // injectB注释
-  //   injectB: injectSymbol,
-  // },
+  //   "injectA",
+  // ],
+  inject: {
+    // injectA注释
+    injectA: {
+      from: "injectAFrom",
+      // 引用类型需要工厂函数
+      default: () => ["injectADefault"],
+    },
+    // injectB注释
+    injectB: injectSymbol,
+  },
   // emits: [
   //   // emitA注释
   //   "emitA",

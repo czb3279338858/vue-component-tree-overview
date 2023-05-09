@@ -40,6 +40,8 @@
       - filter绑定
   - 字符串
 - script
+  - class 组件
+    - 一个属性只允许使用一个装饰器
   - props
     - 配置对象，只支持字面量定义
     - option 组件
@@ -87,23 +89,52 @@
     - `<script setup>`
       - TODO:直接通过 import 获取
   - filters
+    - 支持当前文件定义中的注释
+    - TODO:支持直接通过 import 获取
     - option 组件
       - 配置
     - class 组件
       - 在 @Component 参数中传入
     - `<script setup>`
       - 在另一个`<script>`的 options 中定义
-
   - 生命周期
+    - option 组件
+      - 不带 on
+    - class 组件
+      - 不带 on
+    - `<script setup>`
+      - 带 on
+      - 能够整合当前文件多次调用中的注释
+      - 单独保存在元数据 lifecycleHookMap 中 
   - provide
+    - option 组件
       - 对象
       - 函数
         - key为变量
         - key为常量
-        - 函数只允许有一个return
+        - value 为 this 的属性引用`[s]: this.provideSymbolFrom.a`
+        - value 为常量`provideB: "provideB"`
+        - 函数只允许有一个 return
+    - class 组件
+      - @ProvideReactive、@Provide
+      - 为了保持和其他类型组件统一，只会提取装饰器的注释
+    - `<script setup>`
+      - `provide("provideName", dataA)`
+      - 参数1可以是字符串或变量名
+      - 参数2可以是字符串或变量名
   - inject
+    - options 组件
       - 数组
       - 对象
+        - from 支持字符串和 Symbol
+        - default 
+          - 直接获取代码片段，因为引用类型需要工厂函数
+          - 不允许使用变量名
+    - class 组件
+      - @Inject\@injectReactive
+        - 装饰器参数同 options 对象配置的 value
+    - `<script setup>`
+      - 
   - emits
       - 数组
       - 对象

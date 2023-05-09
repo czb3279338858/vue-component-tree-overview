@@ -11,7 +11,7 @@ const casing = require('eslint-plugin-vue/lib/utils/casing')
 const tsUtils = require('./utils/ts-ast-utils')
 const { commentNodesToText, getFormatJsCode, getRuntimeTypeFromNode, getFunFirstReturnNode, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
-const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, addSetupMapFromVariable, getPropMapFromTypePropList, setEmitMap, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions } = require('./utils/script')
+const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, addMapFromVariable, getPropMapFromTypePropList, setEmitMap, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions } = require('./utils/script')
 
 const linter = new Linter()
 const parserOptions = {
@@ -43,8 +43,8 @@ let setupMap = new Map()
 // lifecycleHookName在setup中带on，在options、class中不带
 const lifecycleHookMap = new Map()
 
-// filterName:{filterName,filterComment,filterValue}
-// filterName是方法名，filterValue是方法实体，用来关联import的方法
+// filterName:{filterName,filterComment,fromValue:{value:'',comment:''}}
+// filterName是方法名
 const filterMap = new Map()
 
 // emitName:{emitName,emitType,emitComment,emitParamsVerify}
@@ -61,10 +61,12 @@ const computedMap = new Map()
 const methodMap = new Map()
 
 // provideName:{provideName,provideValue,provideValueType,provideComment}
-// [s]: this.provideSymbolFrom => {provideName:"[s]",provideValue:'provideSymbolFrom',provideValueType:'MemberExpression'}
+// [s]: this.provideSymbolFrom => {provideName:"[s]",provideValue:'provideSymbolFrom',provideValueType:'Identifier',provideComment:'xxx'}
+// provideValueType只有Literal和Identifier
 const provideMap = new Map()
 
 // injectName:{injectName,injectFrom,injectDefault,injectComment}
+// {injectName:"injectB",injectFrom:'[injectSymbol]',injectDefault:undefined,injectComment:'xxx'}
 const injectMap = new Map()
 
 // {"casing.kebabCase(key)":importValue}
@@ -130,10 +132,10 @@ linter.defineRule("vue-loader", {
 					setEmitMapFromEslintPluginVueEmits(context, emits, emitMap)
 				},
 				// 变量定义，包括 data\computed\inject\箭头函数methods 表现为 const dataA = ref('')
-				'Program>VariableDeclaration'(node) {
-					// 过滤掉没有初始化和初始化不允许添加进setupMap的变量定义，针对 let dataF,dataG=ref('')
+				'Program > VariableDeclaration'(node) {
+					// 过滤掉初始化不允许添加进setupMap的变量定义，针对 let emit=defineEmits({})
 					const variable = node.declarations
-					addSetupMapFromVariable(sourceCode, variable, setupMap)
+					addMapFromVariable(sourceCode, variable, setupMap, injectMap)
 				},
 				// 函数定义 methods，表现为 function methodA(){}
 				'Program>FunctionDeclaration'(node) {
@@ -179,7 +181,33 @@ linter.defineRule("vue-loader", {
 					}
 					// provide
 					if (callName === 'provide') {
-						debugger
+						const params = node.arguments
+						const nameNode = params[0]
+						const valueNode = params[1]
+						let provideName
+						if (nameNode.type === 'Literal') {
+							provideName = nameNode.value
+						}
+						if (nameNode.type === 'Identifier') {
+							provideName = `[${nameNode.name}]`
+						}
+						let provideValue
+						const provideValueType = valueNode.type
+						if (provideValueType === 'Literal') {
+							provideValue = valueNode.value
+						}
+						if (provideValueType === 'Identifier') {
+							provideValue = valueNode.name
+						}
+						const provideComments = sourceCode.getCommentsBefore(node)
+						const provideComment = commentNodesToText(provideComments)
+						const provideInfo = {
+							provideName,
+							provideValue,
+							provideValueType,
+							provideComment
+						}
+						provideMap.set(provideName, provideInfo)
 					}
 				},
 			}),
@@ -229,6 +257,7 @@ linter.defineRule("vue-loader", {
 							templateComment,
 							children: []
 						}
+						addTemplateMap(element, templateInfo, templateMap)
 					},
 					// 标签内文本
 					'VElement>VText'(node) {
@@ -484,12 +513,12 @@ linter.defineRule("vue-loader", {
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const dataComments = sourceCode.getCommentsAfter(node)
-							const provideComment = commentNodesToText([...decoratorComments, ...dataComments])
+							const provideComment = commentNodesToText([...decoratorComments])
 
 							const provideInfo = {
 								provideName,
 								provideValue: dataName,
-								provideValueType: 'MemberExpression',
+								provideValueType: 'Identifier',
 								provideComment
 							}
 							provideMap.set(provideName, provideInfo)

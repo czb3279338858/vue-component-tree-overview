@@ -183,13 +183,10 @@ function getPropMapFromPropList(context, propList) {
  * @returns 
  */
 function isUnAddSetupMap(init) {
-  return !init
-    || (
-      init
-      && (
-        (init.type === 'CallExpression' && ['defineEmits', 'defineProps', 'useContext'].includes(init.callee.name))
-        || init.type === 'Literal'
-      )
+  return init
+    && (
+      (init.type === 'CallExpression' && ['defineEmits', 'defineProps', 'useContext'].includes(init.callee.name))
+      || init.type === 'Literal'
     )
 }
 /**
@@ -200,18 +197,38 @@ function isUnAddSetupMap(init) {
  * @param {*} variable 
  * @param {*} setupMap 
  */
-function addSetupMapFromVariable(sourceCode, variable, setupMap) {
-  const needAddSetupMapDeclarations = variable.filter(d => {
+function addMapFromVariable(sourceCode, variable, setupMap, injectMap) {
+  const needAddSetupMapVariables = variable.filter(d => {
     return !isUnAddSetupMap(d.init)
   })
   // 遍历允许添加到 setupMap 的变量定义
   // declarations:例如：const provideData = ref(""); => provideData = ref("")
-  forEachVariableNodes(sourceCode, needAddSetupMapDeclarations, (setupName, setupComment) => {
-    const setupInfo = {
-      setupName,
-      setupComment
+  forEachVariableNodes(sourceCode, needAddSetupMapVariables, (setupName, setupComment, variable) => {
+    if (variable.init && variable.init.type === 'CallExpression' && variable.init.callee.name === 'inject') {
+      const params = variable.init.arguments
+      let nameNode = params[0]
+      let injectFrom
+      if (nameNode.type === 'Literal') {
+        injectFrom = nameNode.value
+      }
+      if (nameNode.type === 'Identifier') {
+        injectFrom = `[${nameNode.name}]`
+      }
+      const injectDefault = getFormatJsCode(sourceCode, params[1])
+      const injectInfo = {
+        injectName: setupName,
+        injectFrom,
+        injectDefault,
+        injectComment: setupComment
+      }
+      injectMap.set(setupName, injectInfo)
+    } else {
+      const setupInfo = {
+        setupName,
+        setupComment
+      }
+      setupMap.set(setupName, setupInfo)
     }
-    setupMap.set(setupName, setupInfo)
   })
 }
 /**
@@ -449,7 +466,7 @@ function getProvideValueAndValueType(sourceCode, provideOption, provide) {
     if (value.type === 'MemberExpression' && isThisMember(value)) {
       const valueText = sourceCode.getText(value)
       provideValue = valueText.replace('this.', '')
-      provideValueType = value.type
+      provideValueType = 'Identifier'
     }
     if (value.type === 'Literal') {
       provideValue = value.value
@@ -458,7 +475,7 @@ function getProvideValueAndValueType(sourceCode, provideOption, provide) {
   }
   if (provideOption.type === 'ObjectExpression') {
     provideValue = provide.value.value
-    provideValueType = 'MemberExpression'
+    provideValueType = 'Identifier'
   }
   return {
     provideValue,
@@ -515,11 +532,11 @@ function getInjectFromAndDefaultFromInjectOption(injectOption, injectName, sourc
       if (c.key.name === 'default') p[1] = getFormatJsCode(sourceCode, c.value)
       return p
     }, [undefined, undefined])
-    if (!ret[0]) ret = injectName
+    if (!ret[0]) ret = [injectName]
     return ret
   }
   // 变量名
-  if (injectOption.type === 'Identifier') return [`${injectOption.name}`, undefined]
+  if (injectOption.type === 'Identifier') return [`[${injectOption.name}]`, undefined]
   return [undefined, undefined]
 }
 
@@ -563,14 +580,23 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
       const filterComments = sourceCode.getCommentsBefore(filter)
       const filterComment = commentNodesToText(filterComments)
       const filterValueNode = getVariableNode(filter.value, context)
-      let filterValue = undefined
-      if (filterValueNode && ['ImportSpecifier', 'ImportDefaultSpecifier'].includes(filterValueNode.type)) {
-        filterValue = filter.value.name
+      let fromValue = undefined
+      if (filterValueNode) {
+        if (['ImportSpecifier', 'ImportDefaultSpecifier'].includes(filterValueNode.type)) {
+          fromValue = filter.value.name
+        } else {
+          forEachVariableNodes(sourceCode, [filterValueNode], (name, comment, node) => {
+            fromValue = {
+              name,
+              comment
+            }
+          })
+        }
       }
       const filterInfo = {
         filterName,
         filterComment,
-        filterValue
+        fromValue
       }
       filterMap.set(filterName, filterInfo)
     })
@@ -627,7 +653,7 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
           const injectComment = commentNodesToText(injectComments)
           const injectInfo = {
             injectName,
-            injectFrom: `"${injectName}"`,
+            injectFrom: `${injectName}`,
             injectDefault: undefined,
             injectComment
           }
@@ -734,7 +760,7 @@ module.exports = {
   getEmitParamsVerifyFromDefineEmits,
   LIFECYCLE_HOOKS,
   getPropMapFromTypePropList,
-  addSetupMapFromVariable,
+  addMapFromVariable,
   getPropMapFromPropList,
   addTemplateMap,
   getExpressionContainerInfo,

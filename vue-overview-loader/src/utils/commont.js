@@ -68,10 +68,28 @@ function getPatternNames(expression) {
   return scopeName
 }
 
-// TODO: 需要检查是否获取 const a = ref(1) 中的 a 的注释
+function getIdentifierVariableComment(sourceCode, variableNode) {
+  let variableComments = []
+  if (variableNode.type === 'FunctionDeclaration') {
+    variableComments = sourceCode.getCommentsBefore(variableNode)
+  }
+  if (variableNode.type === 'VariableDeclarator') {
+    const parent = variableNode.parent
+    if (parent.declarations.length === 1) {
+      variableComments = sourceCode.getCommentsBefore(parent)
+    } else {
+      variableComments = sourceCode.getCommentsBefore(variableNode.id)
+    }
+  }
+  const variableComment = commentNodesToText(variableComments)
+  return variableComment
+}
 /**
- * 遍历变量定义，
- * callback接收两个参数，1.变量名，2.变量注释
+ * 遍历变量定义，支持
+ * const a=''
+ * let a,b=''
+ * function a(){}
+ * callback接收3个参数，1.变量名，2.变量注释,3.当前变量节点
  * @param {*} variableNodes 
  * @param {*} callBack 
  */
@@ -82,9 +100,8 @@ function forEachVariableNodes(sourceCode, variableNodes, callBack) {
     // 例如：dataG = ref("") => dataG 的 id.type === 'Identifier'
     if (left.type === 'Identifier') {
       const leftName = left.name
-      const leftComments = sourceCode.getCommentsBefore(left)
-      const leftComment = commentNodesToText(leftComments)
-      callBack(leftName, leftComment)
+      const leftComment = getIdentifierVariableComment(sourceCode, declaration)
+      callBack(leftName, leftComment, declaration)
     }
     // 当变量的左边是数组解构或对象解构时
     // 例如：const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
@@ -95,7 +112,7 @@ function forEachVariableNodes(sourceCode, variableNodes, callBack) {
         // const [dataD, dataE] = [ref("")]; 和 const {a}={a:1} => dataD,dataE,a
         const itemComments = sourceCode.getCommentsBefore(itemValue)
         const itemComment = commentNodesToText(itemComments)
-        callBack(itemName, itemComment)
+        callBack(itemName, itemComment, declaration)
       })
     }
   })
