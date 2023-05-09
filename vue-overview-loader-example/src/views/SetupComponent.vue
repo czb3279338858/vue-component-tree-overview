@@ -2,6 +2,7 @@
   <div>
     setup-component
     <class-component></class-component>
+    <class-component2></class-component2>
   </div>
 </template>
 <script setup lang='ts'>
@@ -16,8 +17,8 @@ import {
   defineProps,
   withDefaults,
 } from "vue";
+import { default as ClassComponent2 } from "./ClassComponent.vue";
 import ClassComponent from "./ClassComponent.vue";
-
 const emit1 = defineEmits([
   // emitA注释
   "emitA",

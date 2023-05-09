@@ -92,7 +92,6 @@
       - TODO:直接通过 import 获取
   - filters
     - 支持当前文件定义中的注释
-    - TODO:支持直接通过 import 获取
     - option 组件
       - 配置
     - class 组件
@@ -184,9 +183,11 @@
     - `<script setup>`
       - 没有存在 dataMap 中而是在 setupMap 中
   - import、export 语法
-    - import {a} from ''
     - import a from ''
-    - import * as a from '' 不支持
+    - import {default as b} from ''
+    
+    - import {a} from ''
+    - import * as a from '' 不能用于导入组件
     - import {a as b} from ''
     - `export const a={}`
     - `export default {}`

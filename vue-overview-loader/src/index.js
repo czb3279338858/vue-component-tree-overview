@@ -8,7 +8,6 @@ const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
-const tsUtils = require('./utils/ts-ast-utils')
 const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall } = require('./utils/script')
@@ -84,7 +83,12 @@ const nameAndExtendMap = new Map()
 
 const modelOptionMap = new Map()
 
+// script setup 中的 import，需要根据 template 中的使用情况进行过滤，然后合并到 componentMap 中
+// {importName,source,importType}
+const setupScriptImportMap = new Map()
+
 function initMeta() {
+	setupScriptImportMap.clear()
 	templateMap.clear()
 	propMap.clear()
 	setupMap.clear()
@@ -111,7 +115,7 @@ linter.defineRule("vue-loader", {
 	create(context) {
 		const sourceCode = context.getSourceCode()
 
-		return utils.compositingVisitors(
+		const ret = utils.compositingVisitors(
 			utils.defineTemplateBodyVisitor(
 				context,
 				{
@@ -638,11 +642,27 @@ linter.defineRule("vue-loader", {
 						setEmitMapFromEmitCall(context, emitMap, node)
 					}
 				},
-				ImportDeclaration(node) {
-					debugger
+				'ImportDeclaration'(node) {
+					const specifiers = node.specifiers
+					const source = node.source.value
+					specifiers.forEach(specifier => {
+						const importType = specifier.type
+						// import { default as ClassComponent2 } from "./ClassComponent.vue";
+						// import ClassComponent from "./ClassComponent.vue";
+						if ((importType === 'ImportSpecifier' && specifier.imported.name === 'default') || importType === "ImportDefaultSpecifier") {
+							const importName = specifier.local.name
+							const importInfo = {
+								importName,
+								source,
+								importType
+							}
+							setupScriptImportMap.set(importName, importInfo)
+						}
+					})
 				}
 			}),
 		)
+		return ret
 	},
 });
 const config = {
@@ -658,13 +678,22 @@ module.exports = function loader(source) {
 	if (exclude && exclude.test(resource)) return source
 	if (!/.vue$/.test(resource)) return source
 
+	if (setupScriptImportMap.size !== 0) {
+		for (const [importName] of setupScriptImportMap) {
+			const componentName = casing.kebabCase(importName)
+			if (templateMap.get(componentName)) {
+				debugger
+				componentMap.set(componentName, importName)
+			}
+		}
+	}
+
 	linter.verify(source, config)
 	let newCode = ''
 	importSet.forEach((value) => {
 		newCode += `${value}\n`
 	})
 	initMeta()
-	// const vueMeta = getVueMetaFromMiddleData()
 	// newCode += `export default ${getCodeFromVueMeta(vueMeta)}`
 	return newCode;
 }
