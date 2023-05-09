@@ -11,7 +11,7 @@ const casing = require('eslint-plugin-vue/lib/utils/casing')
 const tsUtils = require('./utils/ts-ast-utils')
 const { commentNodesToText, getFormatJsCode, getRuntimeTypeFromNode, getFunFirstReturnNode, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
-const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, addMapFromVariable, getPropMapFromTypePropList, setEmitMap, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions } = require('./utils/script')
+const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, addMapFromVariableDeclaration, getPropMapFromTypePropList, setEmitMap, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions } = require('./utils/script')
 
 const linter = new Linter()
 const parserOptions = {
@@ -133,9 +133,7 @@ linter.defineRule("vue-loader", {
 				},
 				// 变量定义，包括 data\computed\inject\箭头函数methods 表现为 const dataA = ref('')
 				'Program > VariableDeclaration'(node) {
-					// 过滤掉初始化不允许添加进setupMap的变量定义，针对 let emit=defineEmits({})
-					const variable = node.declarations
-					addMapFromVariable(sourceCode, variable, setupMap, injectMap)
+					addMapFromVariableDeclaration(context, node, setupMap, injectMap)
 				},
 				// 函数定义 methods，表现为 function methodA(){}
 				'Program>FunctionDeclaration'(node) {

@@ -67,60 +67,45 @@ function getPatternNames(expression) {
   })
   return scopeName
 }
-
-function getIdentifierVariableComment(sourceCode, variableNode) {
+/**
+ * 通过变量名获取这个变量定义的注释
+ * 支持函数和变量
+ * @param {*} context 
+ * @param {*} variableName 
+ * @returns 
+ */
+function getVariableComment(context, variableName) {
+  const sourceCode = context.getSourceCode()
+  const variableNode = getVariableNode(variableName, context)
   let variableComments = []
   if (variableNode.type === 'FunctionDeclaration') {
     variableComments = sourceCode.getCommentsBefore(variableNode)
   }
   if (variableNode.type === 'VariableDeclarator') {
-    const parent = variableNode.parent
-    if (parent.declarations.length === 1) {
-      variableComments = sourceCode.getCommentsBefore(parent)
-    } else {
-      variableComments = sourceCode.getCommentsBefore(variableNode.id)
-    }
-  }
-  const variableComment = commentNodesToText(variableComments)
-  return variableComment
-}
-/**
- * 遍历变量定义，支持
- * const a=''
- * let a,b=''
- * function a(){}
- * callback接收3个参数，1.变量名，2.变量注释,3.当前变量节点
- * @param {*} variableNodes 
- * @param {*} callBack 
- */
-function forEachVariableNodes(sourceCode, variableNodes, callBack) {
-  variableNodes.forEach(declaration => {
-    const left = declaration.id
-    // 当变量的左边是常量时
-    // 例如：dataG = ref("") => dataG 的 id.type === 'Identifier'
+    const left = variableNode.id
     if (left.type === 'Identifier') {
-      const leftName = left.name
-      const leftComment = getIdentifierVariableComment(sourceCode, declaration)
-      callBack(leftName, leftComment, declaration)
+      const parent = variableNode.parent
+      if (parent.declarations.length === 1) {
+        variableComments = sourceCode.getCommentsBefore(parent)
+      } else {
+        variableComments = sourceCode.getCommentsBefore(variableNode.id)
+      }
     }
-    // 当变量的左边是数组解构或对象解构时
-    // 例如：const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
     if (['ObjectPattern', 'ArrayPattern'].includes(left.type)) {
       forEachPattern([left], (patternItem) => {
         const itemValue = patternItem.value || patternItem
-        const itemName = itemValue.name
-        // const [dataD, dataE] = [ref("")]; 和 const {a}={a:1} => dataD,dataE,a
-        const itemComments = sourceCode.getCommentsBefore(itemValue)
-        const itemComment = commentNodesToText(itemComments)
-        callBack(itemName, itemComment, declaration)
+        variableComments = sourceCode.getCommentsBefore(itemValue)
       })
     }
-  })
+  }
+  const variableComment = commentNodesToText(variableComments)
+
+  return variableComment
 }
 
 // TODO：需要检查c(d(e)) e能不能正确获取
 /**
- * 获取函数调用的函数名和参数
+ * 获取函数调用的函数名数组和参数数组
  * 支持连续调用，不支持中途多个参数
  * 支持 c(d(a.b,e)) => [[a.b,e],[c,d]]
  * 不支持 c(d(a.b), a)
@@ -233,6 +218,8 @@ function isThisMember(memberExpression) {
   return false
 }
 module.exports = {
+  forEachPattern,
+  getVariableComment,
   isThisMember,
   getVariableNode,
   getFunFirstReturnNode,
@@ -240,7 +227,6 @@ module.exports = {
   getFunParamsRuntimeType,
   getFormatJsCode,
   getCallExpressionParamsAndFunNames,
-  forEachVariableNodes,
   commentNodesToText,
   getPatternNames
 }

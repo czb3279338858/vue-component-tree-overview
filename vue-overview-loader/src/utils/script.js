@@ -1,4 +1,4 @@
-const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, forEachVariableNodes, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember } = require("./commont")
+const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, forEachPattern } = require("./commont")
 const tsUtils = require('./ts-ast-utils')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const utils = require('eslint-plugin-vue/lib/utils/index')
@@ -191,44 +191,44 @@ function isUnAddSetupMap(init) {
 }
 /**
  * 在 <script setup> 中
- * 从变量定义中添加 setupMap
+ * 从变量定义中添加 setupMap，遍历 [dataD, dataE] = [ref("")] 等实现
  * 支持 const [dataD, dataE] = [ref("")]; 和 const {a}={a:1}
- * @param {*} sourceCode 
+ * 不支持函数定义
+ * @param {*} context 
  * @param {*} variable 
  * @param {*} setupMap 
  */
-function addMapFromVariable(sourceCode, variable, setupMap, injectMap) {
-  const needAddSetupMapVariables = variable.filter(d => {
-    return !isUnAddSetupMap(d.init)
-  })
-  // 遍历允许添加到 setupMap 的变量定义
-  // declarations:例如：const provideData = ref(""); => provideData = ref("")
-  forEachVariableNodes(sourceCode, needAddSetupMapVariables, (setupName, setupComment, variable) => {
-    if (variable.init && variable.init.type === 'CallExpression' && variable.init.callee.name === 'inject') {
-      const params = variable.init.arguments
-      let nameNode = params[0]
-      let injectFrom
-      if (nameNode.type === 'Literal') {
-        injectFrom = nameNode.value
+function addMapFromVariableDeclaration(context, variable, setupMap, injectMap) {
+  const declarations = variable.declarations
+  const sourceCode = context.getSourceCode()
+  declarations.forEach(declaration => {
+    if (isUnAddSetupMap(declaration.init)) return
+    const left = declaration.id
+    let setupName
+    let setupComment
+    if (left.type === 'Identifier') {
+      // a = ref('')
+      setupName = left.name
+      if (declarations.length === 1) {
+        // const a = 1
+        setupComment = sourceCode.getCommentsBefore(variable)
+      } else {
+        // let a,b=1
+        setupComment = sourceCode.getCommentsBefore(declaration.id)
       }
-      if (nameNode.type === 'Identifier') {
-        injectFrom = `[${nameNode.name}]`
-      }
-      const injectDefault = getFormatJsCode(sourceCode, params[1])
-      const injectInfo = {
-        injectName: setupName,
-        injectFrom,
-        injectDefault,
-        injectComment: setupComment
-      }
-      injectMap.set(setupName, injectInfo)
-    } else {
-      const setupInfo = {
-        setupName,
-        setupComment
-      }
-      setupMap.set(setupName, setupInfo)
     }
+    if (['ObjectPattern', 'ArrayPattern'].includes(left.type)) {
+      forEachPattern([left], (patternItem) => {
+        const itemValue = patternItem.value || patternItem
+        setupComment = sourceCode.getCommentsBefore(itemValue)
+        setupName = itemValue.name
+      })
+    }
+    const setupInfo = {
+      setupName,
+      setupComment
+    }
+    setupMap.set(setupName, setupInfo)
   })
 }
 /**
@@ -585,12 +585,11 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
         if (['ImportSpecifier', 'ImportDefaultSpecifier'].includes(filterValueNode.type)) {
           fromValue = filter.value.name
         } else {
-          forEachVariableNodes(sourceCode, [filterValueNode], (name, comment, node) => {
-            fromValue = {
-              name,
-              comment
-            }
-          })
+          const variableComment = getVariableComment(context, filter.value)
+          fromValue = {
+            name: filter.value,
+            comment: variableComment
+          }
         }
       }
       const filterInfo = {
@@ -730,13 +729,7 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
         const setupValue = item.value
         const keyComments = sourceCode.getCommentsBefore(item)
         const keyComment = commentNodesToText(keyComments)
-        const variableNode = getVariableNode(setupValue, context)
-        let variableComment = ''
-        if (variableNode) {
-          forEachVariableNodes(sourceCode, [variableNode], (leftName, comment) => {
-            variableComment = comment
-          })
-        }
+        let variableComment = getVariableComment(context, setupValue)
         const setupComment = [keyComment, variableComment].filter(f => f).join('\n')
         const setupInfo = {
           setupName: setupKeyName,
@@ -748,6 +741,7 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
   })
 }
 module.exports = {
+  isUnAddSetupMap,
   setMapFormVueOptions,
   setMapFromVueCommonOption,
   getInjectFromAndDefaultFromInjectOption,
@@ -760,7 +754,7 @@ module.exports = {
   getEmitParamsVerifyFromDefineEmits,
   LIFECYCLE_HOOKS,
   getPropMapFromTypePropList,
-  addMapFromVariable,
+  addMapFromVariableDeclaration,
   getPropMapFromPropList,
   addTemplateMap,
   getExpressionContainerInfo,
