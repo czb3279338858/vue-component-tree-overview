@@ -9,7 +9,7 @@ const utils = require('eslint-plugin-vue/lib/utils/index')
  * @param {*} container 
  * @returns [valueName, valueType,scopeNames, callNames，callParams,vForName]
  */
-function getExpressionContainerInfo(sourceCode, container) {
+function getExpressionContainerInfo(context, container) {
   // 没有绑定值时，例如 v-else
   if (!container) return []
 
@@ -23,36 +23,36 @@ function getExpressionContainerInfo(sourceCode, container) {
 
   // 表达式(e.a)直接返回文本
   if (['MemberExpression'].includes(container.expression.type)) {
-    return [getFormatJsCode(sourceCode, container.expression), container.expression.type]
+    return [getFormatJsCode(context, container.expression), container.expression.type]
   }
 
   // 绑定值是函数调用
   if (container.expression.type === 'CallExpression') {
-    const [callParams, callNames] = getCallExpressionParamsAndFunNames(sourceCode, container.expression)
-    return [getFormatJsCode(sourceCode, container.expression), container.expression.type, undefined, callNames, callParams]
+    const [callParams, callNames] = getCallExpressionParamsAndFunNames(context, container.expression)
+    return [getFormatJsCode(context, container.expression), container.expression.type, undefined, callNames, callParams]
   }
 
   // filter filter的顺序做了颠倒和函数一致符合它的书写顺序
   if ('VFilterSequenceExpression' === container.expression.type) {
     const callNames = container.expression.filters.map(f => f.callee.name).reverse()
     const callParam = container.expression.expression.name
-    return [getFormatJsCode(sourceCode, container.expression), container.expression.type, undefined, callNames, [callParam]]
+    return [getFormatJsCode(context, container.expression), container.expression.type, undefined, callNames, [callParam]]
   }
 
   // 绑定值是v-for的值
   // 遍历的对象只支持变量
   if (container.expression.type === 'VForExpression') {
-    return [getFormatJsCode(sourceCode, container.expression), container.expression.type, getPatternNames(container.expression.left), undefined, undefined, container.expression.right.name]
+    return [getFormatJsCode(context, container.expression), container.expression.type, getPatternNames(container.expression.left), undefined, undefined, container.expression.right.name]
   }
 
   // 绑定值是slot-scope或v-slot
   if (container.expression.type === 'VSlotScopeExpression') {
     const scopeNames = getPatternNames(container.expression.params)
-    return [getFormatJsCode(sourceCode, container.expression), container.expression.type, scopeNames]
+    return [getFormatJsCode(context, container.expression), container.expression.type, scopeNames]
   }
 
   // 其他
-  return [getFormatJsCode(sourceCode, container.expression), container.expression.type]
+  return [getFormatJsCode(context, container.expression), container.expression.type]
 }
 
 /**
@@ -98,7 +98,6 @@ function getPropTypeFromPropTypeOption(context, typeValue) {
  * @returns [propDefault, propType, propRequired]
  */
 function getPropInfoFromPropOption(context, propOption, propNode) {
-  const sourceCode = context.getSourceCode()
   let propDefault, propType, propRequired
   // option 中的 prop 可以没有参数
   if (propOption) {
@@ -114,7 +113,7 @@ function getPropInfoFromPropOption(context, propOption, propNode) {
           const key = d.key.name
           switch (key) {
             case 'default':
-              propDefault = getFormatJsCode(sourceCode, d.value)
+              propDefault = getFormatJsCode(context, d.value)
               // TODO: 根据 default 推断 propType
               break;
             case 'type':
@@ -237,7 +236,8 @@ function addMapFromVariableDeclaration(context, variable, setupMap, injectMap) {
  * @param {*} withDefaultsParams
  * @returns 返回 map key:{propName,propDefault,propType,propRequired,propComment}
  */
-function getPropMapFromTypePropList(sourceCode, props, withDefaultsParams) {
+function getPropMapFromTypePropList(context, props, withDefaultsParams) {
+  const sourceCode = context.getSourceCode()
   const propMap = new Map()
 
   const propDefaultNodes = (withDefaultsParams && withDefaultsParams[1]) ? withDefaultsParams[1].properties : []
@@ -246,7 +246,7 @@ function getPropMapFromTypePropList(sourceCode, props, withDefaultsParams) {
     const propName = prop.propName
 
     const propDefaultNode = propDefaultNodes.find(p => p.key.name === propName)
-    const propDefault = propDefaultNode ? getFormatJsCode(sourceCode, propDefaultNode.value) : undefined
+    const propDefault = propDefaultNode ? getFormatJsCode(context, propDefaultNode.value) : undefined
 
     const propType = prop.types
     const propRequired = prop.required
@@ -291,19 +291,19 @@ const LIFECYCLE_HOOKS = [
 /**
  * defineEmits 中获取 emit 的校验函数文本
  * @param {*} emit 
- * @param {*} sourceCode 
+ * @param {*} context 
  * @returns 
  */
-function getEmitParamsVerifyFromDefineEmits(emit, sourceCode) {
+function getEmitParamsVerifyFromDefineEmits(context, emit) {
   const defineEmitsParamType = emit.type
   if (['array', 'type'].includes(defineEmitsParamType)) return undefined
   const emitValue = emit.value
   const emitValueType = emitValue.type
 
-  if (['FunctionExpression'].includes(emitValueType)) return getFormatJsCode(sourceCode, emitValue.parent)
+  if (['FunctionExpression'].includes(emitValueType)) return getFormatJsCode(context, emitValue.parent)
 
   // ArrowFunctionExpression 箭头函数
-  if ('ArrowFunctionExpression' === emitValueType) return getFormatJsCode(sourceCode, emitValue)
+  if ('ArrowFunctionExpression' === emitValueType) return getFormatJsCode(context, emitValue)
 
   return undefined
 }
@@ -380,7 +380,7 @@ function setEmitMapFromEslintPluginVueEmits(context, emits, emitMap) {
     const emitComments = sourceCode.getCommentsBefore(emit.node)
     const emitComment = commentNodesToText(emitComments)
     const emitType = getEmitParamsTypeFromDefineEmits(context, emit)
-    const emitParamsVerify = getEmitParamsVerifyFromDefineEmits(emit, sourceCode)
+    const emitParamsVerify = getEmitParamsVerifyFromDefineEmits(context, emit)
     setEmitMap(emitMap, emitName, emitType, emitComment, emitParamsVerify)
   })
 }
@@ -453,12 +453,13 @@ function setComputedMap(computedMap, computedName, computedComment) {
 
 /**
  * 获取 provide option 中 value 的值和类型
- * @param {*} sourceCode 
+ * @param {*} context 
  * @param {*} provideOption 
  * @param {*} provide 
  * @returns {provideValue:'provideSymbolFrom.a',provideValueType:'MemberExpression'|'Literal'}
  */
-function getProvideValueAndValueType(sourceCode, provideOption, provide) {
+function getProvideValueAndValueType(context, provideOption, provide) {
+  const sourceCode = context.getSourceCode()
   let provideValue
   let provideValueType
   if (provideOption.type === 'FunctionExpression') {
@@ -488,7 +489,8 @@ function getProvideValueAndValueType(sourceCode, provideOption, provide) {
  * @param {*} provideMap 
  * @returns 
  */
-function forEachProvideOptionSetProvideMap(sourceCode, provideOption, provideMap) {
+function forEachProvideOptionSetProvideMap(context, provideOption, provideMap) {
+  const sourceCode = context.getSourceCode()
   let properties = []
   if (provideOption.type === 'ObjectExpression') {
     properties = provideOption.properties
@@ -503,7 +505,7 @@ function forEachProvideOptionSetProvideMap(sourceCode, provideOption, provideMap
     if (provide.computed) {
       provideName = `[${provideName}]`
     }
-    const { provideValue, provideValueType } = getProvideValueAndValueType(sourceCode, provideOption, provide)
+    const { provideValue, provideValueType } = getProvideValueAndValueType(context, provideOption, provide)
     const provideComments = sourceCode.getCommentsBefore(provide)
     const provideComment = commentNodesToText(provideComments)
     const provideInfo = {
@@ -521,7 +523,7 @@ function forEachProvideOptionSetProvideMap(sourceCode, provideOption, provideMap
  * @param {*} injectName 
  * @returns 
  */
-function getInjectFromAndDefaultFromInjectOption(injectOption, injectName, sourceCode) {
+function getInjectFromAndDefaultFromInjectOption(context, injectOption, injectName) {
   if (injectOption === undefined) return [injectName, undefined]
   // 常量字符串
   if (injectOption.type === 'Literal') return [injectOption.raw, undefined]
@@ -529,7 +531,7 @@ function getInjectFromAndDefaultFromInjectOption(injectOption, injectName, sourc
   if (injectOption.type === 'ObjectExpression') {
     const ret = injectOption.properties.reduce((p, c) => {
       if (c.key.name === 'from') p[0] = c.value.raw
-      if (c.key.name === 'default') p[1] = getFormatJsCode(sourceCode, c.value)
+      if (c.key.name === 'default') p[1] = getFormatJsCode(context, c.value)
       return p
     }, [undefined, undefined])
     if (!ret[0]) ret = [injectName]
@@ -640,7 +642,7 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
 
     // provide
     if (optionKeyName === 'provide') {
-      forEachProvideOptionSetProvideMap(sourceCode, optionValue, provideMap)
+      forEachProvideOptionSetProvideMap(context, optionValue, provideMap)
     }
 
     // inject
@@ -662,7 +664,7 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
       if (optionValue.type === 'ObjectExpression') {
         optionValue.properties.forEach(inject => {
           const injectName = inject.key.name
-          const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(inject.value, injectName, sourceCode)
+          const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(context, inject.value, injectName)
           const injectComments = sourceCode.getCommentsBefore(inject)
           const injectComment = commentNodesToText(injectComments)
           const injectInfo = {
@@ -751,7 +753,6 @@ module.exports = {
   setEmitMapFromEslintPluginVueEmits,
   setEmitMap,
   getEmitParamsTypeFromDefineEmits,
-  getEmitParamsVerifyFromDefineEmits,
   LIFECYCLE_HOOKS,
   getPropMapFromTypePropList,
   addMapFromVariableDeclaration,

@@ -112,7 +112,8 @@ function getVariableComment(context, variableName) {
  * @param {*} callExpression 
  * @param {*} funNames 
  */
-function getCallExpressionParamsAndFunNames(sourceCode, callExpression, funNames = []) {
+function getCallExpressionParamsAndFunNames(context, callExpression, funNames = []) {
+  const sourceCode = context.getSourceCode()
   const funName = callExpression.callee.name
   const params = callExpression.arguments
   funNames.push(funName)
@@ -120,13 +121,13 @@ function getCallExpressionParamsAndFunNames(sourceCode, callExpression, funNames
     if (params.length === 1) {
       const param = params[0]
       if (param.type === 'CallExpression') {
-        return getCallExpressionParamsAndFunNames(sourceCode, param, funNames)
+        return getCallExpressionParamsAndFunNames(context, param, funNames)
       } else {
-        const callParam = param.type === 'MemberExpression' ? getFormatJsCode(sourceCode, param) : undefined
+        const callParam = param.type === 'MemberExpression' ? getFormatJsCode(context, param) : undefined
         return [[callParam], funNames]
       }
     } else {
-      return [params.map(param => getFormatJsCode(sourceCode, param)), funNames]
+      return [params.map(param => getFormatJsCode(context, param)), funNames]
     }
   } else {
     return [undefined, funNames]
@@ -137,11 +138,12 @@ function getCallExpressionParamsAndFunNames(sourceCode, callExpression, funNames
 /**
  * 把代码节点格式化为代码单行文本
  * 1、把多个空格和换行符转换为单个空格
- * @param {*} sourceCode 
+ * @param {*} context 
  * @param {*} node 
  * @returns 
  */
-function getFormatJsCode(sourceCode, node) {
+function getFormatJsCode(context, node) {
+  const sourceCode = context.getSourceCode()
   const ret = sourceCode.getText(node)
   return ret.replace(/[\n\s]+/g, ' ')
 }

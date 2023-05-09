@@ -123,7 +123,7 @@ linter.defineRule("vue-loader", {
 						else optionPropList.push(prop)
 					})
 					const optionPropMap = getPropMapFromPropList(context, optionPropList)
-					const typePropMap = getPropMapFromTypePropList(sourceCode, typePropList, node.parent.arguments)
+					const typePropMap = getPropMapFromTypePropList(context, typePropList, node.parent.arguments)
 
 					propMap = new Map([...propMap, ...optionPropMap, ...typePropMap])
 				},
@@ -219,7 +219,7 @@ linter.defineRule("vue-loader", {
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
 							// FIXME: 支持动态绑定
-							const keyName = getFormatJsCode(sourceCode, a.key)
+							const keyName = getFormatJsCode(context, a.key)
 							const value = a.value
 							if (value && value.type === "VLiteral") {
 								return {
@@ -228,7 +228,7 @@ linter.defineRule("vue-loader", {
 									valueType: value.type
 								}
 							} else {
-								const [valueName, valueType, scopeNames, callNames, callParams, vForName] = getExpressionContainerInfo(sourceCode, value)
+								const [valueName, valueType, scopeNames, callNames, callParams, vForName] = getExpressionContainerInfo(context, value)
 								return {
 									// attr左边
 									keyName,
@@ -271,10 +271,10 @@ linter.defineRule("vue-loader", {
 					},
 					// 标签内{{ }}
 					'VElement>VExpressionContainer'(node) {
-						const [templateName, templateType, , templateCallNames, templateCallParams,] = getExpressionContainerInfo(sourceCode, node)
+						const [templateName, templateType, , templateCallNames, templateCallParams,] = getExpressionContainerInfo(context, node)
 						const templateInfo = {
 							// 包含{{}}的值
-							templateValue: `${getFormatJsCode(sourceCode, node)}`,
+							templateValue: `${getFormatJsCode(context, node)}`,
 							templateType,
 							attributes: undefined,
 							templateComment: getTemplateCommentBefore(node),
@@ -535,7 +535,7 @@ linter.defineRule("vue-loader", {
 						':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=InjectReactive])'(node) {
 							const inject = node.parent
 							const injectName = inject.key.name
-							const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(node.expression.arguments[0], injectName, sourceCode)
+							const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(context, node.expression.arguments[0], injectName)
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const injectComments = sourceCode.getCommentsAfter(node)
 							const injectComment = commentNodesToText([...decoratorComments, ...injectComments])
@@ -623,7 +623,7 @@ linter.defineRule("vue-loader", {
 
 					// import
 					'ImportDeclaration'(node) {
-						importSet.add(getFormatJsCode(sourceCode, node))
+						importSet.add(getFormatJsCode(context, node))
 					},
 				},
 			)
