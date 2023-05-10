@@ -1,4 +1,4 @@
-export class PropInfo {
+class PropInfo {
   constructor(name, defaultValue, type, required, comment) {
     this.name = name
     this.defaultValue = defaultValue
@@ -15,7 +15,7 @@ export class PropInfo {
  * callNames 只有 {{}} 绑定 函数调用时 才有
  * callParams只有 {{}} 绑定函数调用时才有
  */
-export class TemplateInfo {
+class TemplateInfo {
   constructor(template, type, attributes, comment, children, value, callNames, callParams) {
     this.template = template
     this.callNames = callNames
@@ -28,7 +28,7 @@ export class TemplateInfo {
   }
 }
 
-export class SetupInfo {
+class SetupInfo {
   constructor(name, comment) {
     this.name = name
     this.comment = comment
@@ -37,13 +37,13 @@ export class SetupInfo {
 /**
  * name在setup中带on，在options、class中不带
  */
-export class LifecycleHookInfo {
+class LifecycleHookInfo {
   constructor(name, comment) {
     this.name = name
     this.comment = comment
   }
 }
-export class FilterInfo {
+class FilterInfo {
   constructor(name, comment, value) {
     this.name = name
     this.comment = comment
@@ -53,7 +53,7 @@ export class FilterInfo {
 /**
  * paramsVerify 是 emits 配置中完整的校验函数
  */
-export class EmitInfo {
+class EmitInfo {
   constructor(name, type, comment, paramsVerify) {
     this.name = name
     this.type = type
@@ -68,21 +68,21 @@ export class EmitInfo {
  *   a.b:{name:'a.b',comment:'xxx'}
  * }
  */
-export class DataInfo {
+class DataInfo {
   constructor(name, comment) {
     this.name = name
     this.comment = comment
   }
 }
 
-export class ComputedInfo {
+class ComputedInfo {
   constructor(name, comment) {
     this.name = name
     this.comment = comment
   }
 }
 
-export class MethodInfo {
+class MethodInfo {
   constructor(name, comment) {
     this.name = name
     this.comment = comment
@@ -100,7 +100,7 @@ export class MethodInfo {
  * }
  * type只有Literal和Identifier
  */
-export class ProvideInfo {
+class ProvideInfo {
   constructor(name, nameType, value, valueType, comment) {
     this.name = name
     this.nameType = nameType
@@ -119,7 +119,7 @@ export class ProvideInfo {
  *   comment:'xxx'
  * }
  */
-export class InjectInfo {
+class InjectInfo {
   constructor(name, from, fromType, defaultValue, comment) {
     this.name = name
     this.from = from
@@ -127,4 +127,18 @@ export class InjectInfo {
     this.defaultValue = defaultValue
     this.comment = comment
   }
+}
+
+module.exports = {
+  PropInfo,
+  TemplateInfo,
+  SetupInfo,
+  LifecycleHookInfo,
+  FilterInfo,
+  EmitInfo,
+  DataInfo,
+  ComputedInfo,
+  MethodInfo,
+  ProvideInfo,
+  InjectInfo
 }

@@ -10,7 +10,7 @@ const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, setSome, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
-const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall } = require('./utils/script')
+const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption } = require('./utils/script')
 const { TemplateInfo, PropInfo, SetupInfo, LifecycleHookInfo, FilterInfo, EmitInfo, DataInfo, MethodInfo, ProvideInfo, InjectInfo } = require('./utils/meta')
 
 const linter = new Linter()
@@ -89,16 +89,18 @@ const provideMap = new Map()
  */
 const injectMap = new Map()
 
-// {"casing.kebabCase(key)":importValue}
+/**
+ * {"casing.kebabCase(key)":importName}
+ */
 const componentMap = new Map()
 
 // string[]
 const importSet = new Set()
 
-// importValue[]
+// importName[]
 const mixinSet = new Set()
 
-// extend 是 importValue
+// extend 是 importName
 const nameAndExtendMap = new Map()
 
 const modelOptionMap = new Map()
@@ -382,11 +384,11 @@ linter.defineRule("vue-loader", {
 						':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=InjectReactive])'(node) {
 							const inject = node.parent
 							const injectName = inject.key.name
-							const [injectFrom, injectDefault] = getInjectFromAndDefaultFromInjectOption(context, node.expression.arguments[0], injectName)
+							const [injectFrom, injectDefault, injectFromType] = getInjectFromAndTypeAndDefaultFromInjectOption(context, node.expression.arguments[0], injectName)
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const injectComments = sourceCode.getCommentsAfter(node)
 							const injectComment = commentNodesToText([...decoratorComments, ...injectComments])
-							const injectInfo = new InjectInfo(injectName, injectFrom, 'Literal', injectDefault, injectComment)
+							const injectInfo = new InjectInfo(injectName, injectFrom, injectFromType, injectDefault, injectComment)
 							injectMap.set(injectName, injectInfo)
 						},
 						// @Emit

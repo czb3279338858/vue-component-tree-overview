@@ -1,5 +1,5 @@
 const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, getRuntimeTypeFromNode } = require("./commont")
-const { PropInfo, LifecycleHookInfo, filterInfo, FilterInfo, EmitInfo, DataInfo, ComputedInfo, MethodInfo, ProvideInfo, InjectInfo } = require("./meta")
+const { PropInfo, LifecycleHookInfo, filterInfo, FilterInfo, EmitInfo, DataInfo, ComputedInfo, MethodInfo, ProvideInfo, InjectInfo, SetupInfo } = require("./meta")
 const tsUtils = require('./ts-ast-utils')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const utils = require('eslint-plugin-vue/lib/utils/index')
@@ -689,6 +689,7 @@ function setEmitMapFromEmitCall(context, emitMap, callExpression) {
   setEmitMap(emitMap, emitName, emitType, emitComment)
 }
 module.exports = {
+  getInjectFromAndTypeAndDefaultFromInjectOption,
   setEmitMapFromEmitCall,
   isUnAddSetupMap,
   setMapFormVueOptions,
