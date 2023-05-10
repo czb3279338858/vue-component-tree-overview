@@ -68,6 +68,7 @@
     - `<script setup>`
       - 在另一个`<script>`的 options 中定义
   - extends
+    - 优先级高于 mixins
     - option 组件
       - 配置对象
       - 不支持：构造函数（vue2）
@@ -76,10 +77,12 @@
     - `<script setup>`
       - 在另一个`<script>`的 options 中定义
   - mixins
+    - 优先级后面的覆盖前面的
     - options 组件
       - 配置数组
     - class 组件
       - 在 @Component 参数中传入
+      - class 组件提供 mixin 这个方法 extend 多个组件，本质上是 extends 但是放在 mixins 中
     - `<script setup>`
       - 在另一个`<script>`的 options 中定义
   - components
@@ -89,7 +92,7 @@
     - class 组件
       - 在 @Component 参数中传入
     - `<script setup>`
-      - TODO:直接通过 import 获取
+      - 直接通过 import 获取
   - filters
     - 支持当前文件定义中的注释
     - option 组件
@@ -185,7 +188,6 @@
   - import、export 语法
     - import a from ''
     - import {default as b} from ''
-    
     - import {a} from ''
     - import * as a from '' 不能用于导入组件
     - import {a as b} from ''
@@ -197,9 +199,7 @@
 
 
 - TODO
-  - class 组件 mixins
   - 根据 ts 获取具体类型
-  - import 引入的注释
-    - setup 中的组件
   - class 多个装饰器
   - require.context => import
+  - import 引入的注释

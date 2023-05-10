@@ -15,6 +15,7 @@ import {
   ProvideReactive,
   VModel,
 } from "vue-property-decorator";
+import { mixins } from "vue-class-component";
 import ExtendClassComponent from "./ExtendClassComponent.vue";
 const symbol = Symbol("injectD");
 @Component({
@@ -23,7 +24,7 @@ const symbol = Symbol("injectD");
     "propA",
   ],
 })
-export default class ClassComponent extends ExtendClassComponent {
+export default class ClassComponent extends mixins(ExtendClassComponent) {
   // 生命周期
   mounted() {
     console.log("mounted");

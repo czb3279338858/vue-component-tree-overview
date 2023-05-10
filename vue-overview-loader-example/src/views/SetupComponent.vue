@@ -1,7 +1,6 @@
 <template>
   <div>
     setup-component
-    <class-component></class-component>
     <class-component2></class-component2>
   </div>
 </template>

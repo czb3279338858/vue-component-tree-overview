@@ -243,7 +243,14 @@ function isThisMember(memberExpression) {
   }
   return false
 }
+function setSome(set, someFun) {
+  for (const s of set) {
+    if (someFun(s)) return true
+  }
+  return false
+}
 module.exports = {
+  setSome,
   getVariableDeclarationNameAndComments,
   forEachPattern,
   getVariableComment,

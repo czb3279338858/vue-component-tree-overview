@@ -8,7 +8,7 @@ const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
-const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, } = require('./utils/commont')
+const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, setSome, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall } = require('./utils/script')
 
@@ -29,7 +29,7 @@ linter.defineParser('vueEslintParser', {
 	parserOptions
 })
 
-// {templateValue,templateCallNames,templateType,attributes,templateComment,children}
+// node:{templateValue,templateCallNames,templateType,attributes,templateComment,children}
 const templateMap = new Map()
 
 // propName:{propName,propDefault,propType,propRequired,propComment}
@@ -84,11 +84,11 @@ const nameAndExtendMap = new Map()
 const modelOptionMap = new Map()
 
 // script setup 中的 import，需要根据 template 中的使用情况进行过滤，然后合并到 componentMap 中
-// {importName,source,importType}
-const setupScriptImportMap = new Map()
+// importName[]
+const setupScriptImportSet = new Set()
 
 function initMeta() {
-	setupScriptImportMap.clear()
+	setupScriptImportSet.clear()
 	templateMap.clear()
 	propMap.clear()
 	setupMap.clear()
@@ -488,10 +488,20 @@ linter.defineRule("vue-loader", {
 								}
 							}
 						},
-						// export default class HomeView extends SuperClass {}
 						'ClassDeclaration'(node) {
 							if (node.superClass && node.superClass.name !== 'Vue') {
-								nameAndExtendMap.set('extend', node.superClass.name)
+								if (node.superClass.type === 'CallExpression' && node.superClass.callee.name === 'mixins') {
+									// export default class ClassComponent extends mixins(ExtendClassComponent) {}
+									const mixins = node.superClass.arguments
+									mixins.forEach(m => {
+										if (m.type === 'Identifier') {
+											mixinSet.add(m.name)
+										}
+									})
+								} else {
+									// export default class HomeView extends SuperClass {}
+									nameAndExtendMap.set('extend', node.superClass.name)
+								}
 							}
 						},
 					},
@@ -651,12 +661,7 @@ linter.defineRule("vue-loader", {
 						// import ClassComponent from "./ClassComponent.vue";
 						if ((importType === 'ImportSpecifier' && specifier.imported.name === 'default') || importType === "ImportDefaultSpecifier") {
 							const importName = specifier.local.name
-							const importInfo = {
-								importName,
-								source,
-								importType
-							}
-							setupScriptImportMap.set(importName, importInfo)
+							setupScriptImportSet.add(importName)
 						}
 					})
 				}
@@ -665,11 +670,15 @@ linter.defineRule("vue-loader", {
 		return ret
 	},
 });
-const config = {
-	parserOptions,
-	rules: { "vue-loader": "error" },
-	parser: 'vueEslintParser'
-};
+
+linter.defineRule('es-loader', {
+	create(context) {
+		return {
+
+		}
+	}
+})
+
 
 
 module.exports = function loader(source) {
@@ -677,23 +686,32 @@ module.exports = function loader(source) {
 	const { exclude } = this.getOptions()
 	if (exclude && exclude.test(resource)) return source
 	if (!/.vue$/.test(resource)) return source
+	if (/.vue$/.test(resource)) {
+		const config = {
+			parserOptions,
+			rules: { "vue-loader": "error" },
+			parser: 'vueEslintParser'
+		};
+		linter.verify(source, config)
 
-	if (setupScriptImportMap.size !== 0) {
-		for (const [importName] of setupScriptImportMap) {
-			const componentName = casing.kebabCase(importName)
-			if (templateMap.get(componentName)) {
-				debugger
-				componentMap.set(componentName, importName)
+		if (setupScriptImportSet.size) {
+			for (const [node, { templateValue }] of templateMap) {
+				if (!templateValue) continue
+				setSome(setupScriptImportSet, (importName) => {
+					const componentName = casing.kebabCase(importName)
+					const ret = `<${componentName}>` === templateValue
+					if (ret) componentMap.set(componentName, importName)
+					return ret
+				})
 			}
 		}
-	}
 
-	linter.verify(source, config)
-	let newCode = ''
-	importSet.forEach((value) => {
-		newCode += `${value}\n`
-	})
-	initMeta()
-	// newCode += `export default ${getCodeFromVueMeta(vueMeta)}`
-	return newCode;
+		let newCode = ''
+		importSet.forEach((value) => {
+			newCode += `${value}\n`
+		})
+		// newCode += `export default ${getCodeFromVueMeta(vueMeta)}`
+		initMeta()
+		return newCode;
+	}
 }
