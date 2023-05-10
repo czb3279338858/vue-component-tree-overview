@@ -11,6 +11,7 @@ const casing = require('eslint-plugin-vue/lib/utils/casing')
 const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, setSome, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, getInjectFromAndDefaultFromInjectOption, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall } = require('./utils/script')
+const { TemplateInfo, PropInfo, SetupInfo, LifecycleHookInfo, FilterInfo, EmitInfo, DataInfo, MethodInfo, ProvideInfo, InjectInfo } = require('./utils/meta')
 
 const linter = new Linter()
 const parserOptions = {
@@ -29,44 +30,63 @@ linter.defineParser('vueEslintParser', {
 	parserOptions
 })
 
-// node:{templateValue,templateCallNames,templateType,attributes,templateComment,children}
+
+/**
+ * node:{@link TemplateInfo}
+ */
 const templateMap = new Map()
 
-// propName:{propName,propDefault,propType,propRequired,propComment}
+/**
+ * name:{@link PropInfo}
+ */
 let propMap = new Map()
 
-// setupName:{setupName,setupComment}
+/**
+ * name:{@link SetupInfo}
+ */
 let setupMap = new Map()
 
-// lifecycleHookName:{lifecycleHookName,lifecycleHookComment} 
-// lifecycleHookName在setup中带on，在options、class中不带
+
+/**
+ * name:{@link LifecycleHookInfo}
+ */
 const lifecycleHookMap = new Map()
 
-// filterName:{filterName,filterComment,fromValue:{value:'',comment:''}}
-// filterName是方法名
+
+/**
+ * name:{@link FilterInfo}
+ */
 const filterMap = new Map()
 
-// emitName:{emitName,emitType,emitComment,emitParamsVerify}
-// emitParamsVerify 是 emits 配置中完整的校验函数
+/**
+ * name:{@link EmitInfo}
+ */
 const emitMap = new Map()
 
-// dataName:{dataName,dataComment}
-// data:{a:{b:1}} => dataMap {a:{dataName:'a',dataComment:'xxx'},a.b:{dataName:'a.b',dataComment:'xxx'}}
+/**
+ * name:{@link DataInfo}
+ */
 const dataMap = new Map()
 
-// computedName:{computedName,computedComment}
+
+/**
+ * name:{@link ComputedInfo}
+ */
 const computedMap = new Map()
 
-// methodName:{methodName,methodComment}
+/**
+ * name:{@link MethodInfo}
+ */
 const methodMap = new Map()
 
-// provideName:{provideName,provideValue,provideValueType,provideComment}
-// [s]: this.provideSymbolFrom => {provideName:"[s]",provideValue:'provideSymbolFrom',provideValueType:'Identifier',provideComment:'xxx'}
-// provideValueType只有Literal和Identifier
+/**
+ * name:{@link ProvideInfo}
+ */
 const provideMap = new Map()
 
-// injectName:{injectName,injectFrom,injectDefault,injectComment}
-// {injectName:"injectB",injectFrom:'[injectSymbol]',injectDefault:undefined,injectComment:'xxx'}
+/**
+ * name:{@link InjectInfo}
+ */
 const injectMap = new Map()
 
 // {"casing.kebabCase(key)":importValue}
@@ -122,7 +142,7 @@ linter.defineRule("vue-loader", {
 					// 标签
 					VElement(element) {
 						// 标签名
-						const templateValue = casing.kebabCase(element.rawName)
+						const template = casing.kebabCase(element.rawName)
 						// 标签属性
 						const attributes = element.startTag.attributes.map(a => {
 							const keyName = getFormatJsCode(context, a.key)
@@ -153,43 +173,20 @@ linter.defineRule("vue-loader", {
 								}
 							}
 						})
-						const templateComment = getTemplateCommentBefore(element)
-						const templateInfo = {
-							templateValue: `<${templateValue}>`,
-							templateType: 'VElement',
-							attributes,
-							templateComment,
-							children: []
-						}
+						const comment = getTemplateCommentBefore(element)
+						const templateInfo = new TemplateInfo(`<${template}>`, 'VElement', attributes, comment, [])
 						addTemplateMap(element, templateInfo, templateMap)
 					},
 					// 标签内文本
 					'VElement>VText'(node) {
 						if (isEmptyVText(node)) return
-						const templateInfo = {
-							templateValue: `"${formatVText(node.value)}"`,
-							templateType: 'VText',
-							attributes: undefined,
-							templateComment: getTemplateCommentBefore(node),
-							children: undefined
-						}
+						const templateInfo = new TemplateInfo(`"${formatVText(node.value)}"`, 'VText', undefined, getTemplateCommentBefore(node), undefined)
 						addTemplateMap(node, templateInfo, templateMap)
 					},
 					// 标签内{{ }}
 					'VElement>VExpressionContainer'(node) {
-						const [templateName, templateType, , templateCallNames, templateCallParams,] = getExpressionContainerInfo(context, node)
-						const templateInfo = {
-							// 包含{{}}的值
-							templateValue: `${getFormatJsCode(context, node)}`,
-							templateType,
-							attributes: undefined,
-							templateComment: getTemplateCommentBefore(node),
-							children: undefined,
-							// {{}}内的值
-							templateName,
-							templateCallNames,
-							templateCallParams
-						}
+						const [value, type, , callNames, callParams,] = getExpressionContainerInfo(context, node)
+						const templateInfo = new TemplateInfo(`${getFormatJsCode(context, node)}`, type, undefined, getTemplateCommentBefore(node), undefined, value, callNames, callParams)
 						addTemplateMap(node, templateInfo, templateMap)
 					}
 				},
@@ -207,23 +204,17 @@ linter.defineRule("vue-loader", {
 							const decoratorParams = node.expression.arguments
 							const prop = node.parent
 
-							const propName = prop.key.name
+							const name = prop.key.name
 							const propOption = decoratorParams[0]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(context, propOption, prop)
+							const [defaultValue, type, required] = getPropInfoFromPropOption(context, propOption, prop)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const propNameComments = sourceCode.getCommentsAfter(node)
-							const propComment = commentNodesToText([...decoratorComments, ...propNameComments])
+							const comment = commentNodesToText([...decoratorComments, ...propNameComments])
 
-							const propInfo = {
-								propName,
-								propDefault,
-								propType,
-								propRequired,
-								propComment
-							}
-							propMap.set(propName, propInfo)
+							const propInfo = new PropInfo(name, defaultValue, type, required, comment)
+							propMap.set(name, propInfo)
 						},
 						// class component @PropSync
 						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=PropSync]'(node) {
@@ -231,36 +222,26 @@ linter.defineRule("vue-loader", {
 							const decoratorParams = node.expression.arguments
 							const computed = node.parent
 
-							const propName = decoratorParams[0].value
+							const name = decoratorParams[0].value
 							const propOption = decoratorParams[1]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(context, propOption, computed)
+							const [defaultValue, type, required] = getPropInfoFromPropOption(context, propOption, computed)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const computedComments = sourceCode.getCommentsAfter(node)
-							const propComment = commentNodesToText([...decoratorComments, ...computedComments])
+							const comment = commentNodesToText([...decoratorComments, ...computedComments])
 
-							const propInfo = {
-								propName,
-								propDefault,
-								propType,
-								propRequired,
-								propComment
-							}
-							propMap.set(propName, propInfo)
+							const propInfo = new PropInfo(name, defaultValue, type, required, comment)
+							propMap.set(name, propInfo)
 
 							// computed
-							const computedComment = `all:${propComment}`
+							const computedComment = `all:${comment}`
 							const computedName = computed.key.name
 							setComputedMap(computedMap, computedName, computedComment)
 
 							// emit 事件 update:propName
-							const emitName = `"update:${propName}"`
-							const emitInfo = {
-								emitName,
-								emitType: [propType],
-								emitComment: propComment
-							}
+							const emitName = `"update:${name}"`
+							const emitInfo = new EmitInfo(emitName, [type], comment)
 							emitMap.set(emitName, emitInfo)
 						},
 						// class component @Model
@@ -268,28 +249,22 @@ linter.defineRule("vue-loader", {
 							const decoratorParams = node.expression.arguments
 							const prop = node.parent
 
-							const propName = prop.key.name
+							const name = prop.key.name
 							const propOption = decoratorParams[1]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(context, propOption, prop)
+							const [defaultValue, type, required] = getPropInfoFromPropOption(context, propOption, prop)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const propComments = sourceCode.getCommentsAfter(node)
-							const propComment = commentNodesToText([...decoratorComments, ...propComments])
+							const comment = commentNodesToText([...decoratorComments, ...propComments])
 
-							const propInfo = {
-								propName,
-								propDefault,
-								propType,
-								propRequired,
-								propComment
-							}
-							propMap.set(propName, propInfo)
+							const propInfo = new PropInfo(name, defaultValue, type, required, comment)
+							propMap.set(name, propInfo)
 
 							// modelOption
 							const modelEvent = decoratorParams[0].value
 							modelOptionMap.set('event', modelEvent)
-							modelOptionMap.set('prop', propName)
+							modelOptionMap.set('prop', name)
 						},
 						// class component @ModelSync
 						'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]'(node) {
@@ -297,41 +272,31 @@ linter.defineRule("vue-loader", {
 							const computed = node.parent
 							const decoratorParams = node.expression.arguments
 
-							const propName = decoratorParams[0].value
+							const name = decoratorParams[0].value
 							const propOption = decoratorParams[2]
 
-							const [propDefault, propType, propRequired] = getPropInfoFromPropOption(context, propOption, computed)
+							const [defaultValue, type, required] = getPropInfoFromPropOption(context, propOption, computed)
 
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const propComments = sourceCode.getCommentsBefore(decoratorParams[0])
 							const computedComments = sourceCode.getCommentsAfter(node)
-							const propComment = commentNodesToText([...decoratorComments, ...propComments, ...computedComments])
+							const comment = commentNodesToText([...decoratorComments, ...propComments, ...computedComments])
 
-							const propInfo = {
-								propName,
-								propDefault,
-								propType,
-								propRequired,
-								propComment
-							}
-							propMap.set(propName, propInfo)
+							const propInfo = new PropInfo(name, defaultValue, type, required, comment)
+							propMap.set(name, propInfo)
 
 							// modelOption
-							modelOptionMap.set('prop', propName)
+							modelOptionMap.set('prop', name)
 							const modelEvent = decoratorParams[1].value
 							modelOptionMap.set('event', modelEvent)
 
 							// computed
-							const computedComment = `all:${propComment}`
+							const computedComment = `all:${comment}`
 							const computedName = computed.key.name
 							setComputedMap(computedMap, computedName, computedComment)
 
 							// emit
-							const emitInfo = {
-								emitName: modelEvent,
-								emitType: [propType],
-								emitComment: propComment
-							}
+							const emitInfo = new EmitInfo(modelEvent, [type], comment)
 							emitMap.set(modelEvent, emitInfo)
 
 						},
@@ -349,22 +314,12 @@ linter.defineRule("vue-loader", {
 							const computedComments = sourceCode.getCommentsAfter(node)
 							const propComment = commentNodesToText([...decoratorComments, ...computedComments])
 
-							const propInfo = {
-								propName,
-								propDefault,
-								propType,
-								propRequired,
-								propComment
-							}
+							const propInfo = new PropInfo(propName, propDefault, propType, propRequired, propComment)
 							propMap.set(propName, propInfo)
 
 							// emit this.$emit('input', value)
 							const emitName = 'input'
-							const emitInfo = {
-								emitName,
-								emitType: [propType],
-								emitComment: propComment
-							}
+							const emitInfo = new EmitInfo(emitName, [propType], propComment)
 							emitMap.set(emitName, emitInfo)
 						},
 						// 属性定义 dataA = "1"
@@ -390,18 +345,12 @@ linter.defineRule("vue-loader", {
 								const methodComment = commentNodesToText(methodComments)
 								if (LIFECYCLE_HOOKS.includes(methodName)) {
 									// 生命周期
-									const lifecycleHookInfo = {
-										lifecycleHookName: methodName,
-										lifecycleHookComment: methodComment
-									}
+									const lifecycleHookInfo = new LifecycleHookInfo(methodName, methodComment)
 									lifecycleHookMap.set(methodName, lifecycleHookInfo)
 								} else {
 									// 方法 methodA() {}
 
-									const methodInfo = {
-										methodName,
-										methodComment
-									}
+									const methodInfo = new MethodInfo(methodName, methodComment)
 									methodMap.set(methodName, methodInfo)
 
 								}
@@ -419,21 +368,13 @@ linter.defineRule("vue-loader", {
 							const dataComments = sourceCode.getCommentsAfter(node)
 							const provideComment = commentNodesToText([...decoratorComments])
 
-							const provideInfo = {
-								provideName,
-								provideValue: dataName,
-								provideValueType: 'Identifier',
-								provideComment
-							}
+							const provideInfo = new ProvideInfo(provideName, 'Identifier', dataName, 'Identifier', provideComment)
 							provideMap.set(provideName, provideInfo)
 
 							// data
 							const dataComment = commentNodesToText(dataComments)
 
-							const dataInfo = {
-								dataName,
-								dataComment
-							}
+							const dataInfo = new DataInfo(dataName, dataComment)
 							dataMap.set(dataName, dataInfo)
 							deepSetDataMap(context, provide, dataMap, dataName, dataComment)
 						},
@@ -445,12 +386,7 @@ linter.defineRule("vue-loader", {
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const injectComments = sourceCode.getCommentsAfter(node)
 							const injectComment = commentNodesToText([...decoratorComments, ...injectComments])
-							const injectInfo = {
-								injectName,
-								injectFrom,
-								injectDefault,
-								injectComment
-							}
+							const injectInfo = new InjectInfo(injectName, injectFrom, 'Literal', injectDefault, injectComment)
 							injectMap.set(injectName, injectInfo)
 						},
 						// @Emit
@@ -468,11 +404,7 @@ linter.defineRule("vue-loader", {
 							const decoratorComments = sourceCode.getCommentsBefore(node)
 							const emitComments = sourceCode.getCommentsAfter(node)
 							const emitComment = commentNodesToText([...decoratorComments, ...emitComments])
-							const emitInfo = {
-								emitName,
-								emitType,
-								emitComment
-							}
+							const emitInfo = new EmitInfo(emitName, emitType, emitComment)
 							emitMap.set(`"${emitName}"`, emitInfo)
 						},
 						// class组件@component得参数,
@@ -568,10 +500,7 @@ linter.defineRule("vue-loader", {
 							})
 						}
 						const setupComment = commentNodesToText(setupComments)
-						const setupInfo = {
-							setupName,
-							setupComment
-						}
+						const setupInfo = new SetupInfo(setupName, setupComment)
 						setupMap.set(setupName, setupInfo)
 					})
 				},
@@ -580,10 +509,7 @@ linter.defineRule("vue-loader", {
 					const setupName = node.id.name
 					const setupComments = sourceCode.getCommentsBefore(node)
 					const setupComment = commentNodesToText(setupComments)
-					const setupInfo = {
-						setupName,
-						setupComment
-					}
+					const setupInfo = new SetupInfo(setupName, setupComment)
 					setupMap.set(setupName, setupInfo)
 				},
 				// 函数调用
@@ -608,12 +534,9 @@ linter.defineRule("vue-loader", {
 						const lifecycleHookComment = commentNodesToText(lifecycleHookComments)
 						const oldLifecycleHook = lifecycleHookMap.get(callName)
 						if ((lifecycleHookComment && oldLifecycleHook)) {
-							oldLifecycleHook.lifecycleHookComment = `${oldLifecycleHook.lifecycleHookComment}\n\n${lifecycleHookComment}`
+							oldLifecycleHook.comment = `${oldLifecycleHook.comment}\n\n${lifecycleHookComment}`
 						} else {
-							const lifecycleHookInfo = {
-								lifecycleHookName: callName,
-								lifecycleHookComment
-							}
+							const lifecycleHookInfo = new LifecycleHookInfo(callName, lifecycleHookComment)
 							lifecycleHookMap.set(callName, lifecycleHookInfo)
 						}
 					}
@@ -622,13 +545,8 @@ linter.defineRule("vue-loader", {
 						const params = node.arguments
 						const nameNode = params[0]
 						const valueNode = params[1]
-						let provideName
-						if (nameNode.type === 'Literal') {
-							provideName = nameNode.value
-						}
-						if (nameNode.type === 'Identifier') {
-							provideName = `[${nameNode.name}]`
-						}
+						const provideName = nameNode.value
+						const provideNameType = nameNode.type
 						let provideValue
 						const provideValueType = valueNode.type
 						if (provideValueType === 'Literal') {
@@ -639,12 +557,7 @@ linter.defineRule("vue-loader", {
 						}
 						const provideComments = sourceCode.getCommentsBefore(node)
 						const provideComment = commentNodesToText(provideComments)
-						const provideInfo = {
-							provideName,
-							provideValue,
-							provideValueType,
-							provideComment
-						}
+						const provideInfo = new ProvideInfo(provideName, provideNameType, provideValue, provideValueType, provideComment)
 						provideMap.set(provideName, provideInfo)
 					}
 					// emit 调用
@@ -693,18 +606,19 @@ module.exports = function loader(source) {
 			parser: 'vueEslintParser'
 		};
 		linter.verify(source, config)
-
+		// 把 script setup 中 import 的组件写入 componentMap
 		if (setupScriptImportSet.size) {
-			for (const [node, { templateValue }] of templateMap) {
-				if (!templateValue) continue
+			for (const [, { template }] of templateMap) {
+				if (!template) continue
 				setSome(setupScriptImportSet, (importName) => {
 					const componentName = casing.kebabCase(importName)
-					const ret = `<${componentName}>` === templateValue
+					const ret = `<${componentName}>` === template
 					if (ret) componentMap.set(componentName, importName)
 					return ret
 				})
 			}
 		}
+
 
 		let newCode = ''
 		importSet.forEach((value) => {
