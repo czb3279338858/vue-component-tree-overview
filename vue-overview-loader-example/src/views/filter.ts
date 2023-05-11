@@ -7,8 +7,12 @@ let
 // export default 注释
 export default filterB
 
-// filterC export 注释
-export const filterC = (val: string) => val
+// filter export 注释
+export const
+  //filterC注释
+  filterC = (val: string) => val,
+  // filterG注释
+  filterG = ''
 
 export {
   // export {filterB}

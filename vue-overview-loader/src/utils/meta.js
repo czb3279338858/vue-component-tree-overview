@@ -3,14 +3,34 @@ class PropInfo {
     this.name = name
     this.defaultValue = defaultValue
     this.type = type
-    this.required = required
+    this.isRequired = required
     this.comment = comment
+  }
+}
+/**
+ * keyName：attr左边
+ * valueName：attr右边
+ * valueType：attr右边的类型,VLiteral \Literal \Identifier \CallExpression \MemberExpression \VFilterSequenceExpression \VForExpression \VSlotScopeExpression \undefined
+ * scopeNames：v-for,v-slot,slot-scope有作用域
+ * callNames：attr右边是函数调用或filter
+ * callParams：attr右边是函数调用或filter的参数
+ * vForName：v-for的值
+ */
+class Attribute {
+  constructor(keyName, valueName, valueType, scopeNames, callNames, callParams, vForName) {
+    this.keyName = keyName
+    this.valueName = valueName
+    this.valueType = valueType
+    this.scopeNames = scopeNames
+    this.callNames = callNames
+    this.callParams = callParams
+    this.vForName = vForName
   }
 }
 /**
  * template => <div>，"文本"，{{ data }}
  * type VElement\VText\{{}}内表达式的类型（Literal、Identifier、CallExpression
- * attributes:{keyName,valueName,valueType,scopeNames,callNames,callParams,vForName}[]
+ * attributes:{@link Attribute}[]
  * value 只有 {{}} 绑定 才有 {{ data }} => data
  * callNames 只有 {{}} 绑定 函数调用时 才有
  * callParams只有 {{}} 绑定函数调用时才有
@@ -44,10 +64,10 @@ class LifecycleHookInfo {
   }
 }
 class FilterInfo {
-  constructor(name, comment, value) {
+  constructor(name, comment, importValue) {
     this.name = name
     this.comment = comment
-    this.value = value
+    this.importValue = importValue
   }
 }
 /**
@@ -130,6 +150,7 @@ class InjectInfo {
 }
 
 module.exports = {
+  Attribute,
   PropInfo,
   TemplateInfo,
   SetupInfo,

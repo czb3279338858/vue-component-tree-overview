@@ -25,7 +25,8 @@ function commentNodesToText(commentNodes) {
 function getFormatJsCode(context, node) {
   const sourceCode = context.getSourceCode()
   const ret = sourceCode.getText(node)
-  return ret.replace(/[\n\s]+/g, ' ')
+  debugger
+  return ret.replace(/\/\/[^\/]*[\n]/g, '').replace(/[\n\s]+/g, ' ')
 }
 
 
@@ -96,6 +97,7 @@ function getVariableDeclarationNameAndComments(context, declaration) {
   if (left.type === 'Identifier') {
     // a = ref('')
     variableName = left.name
+    const declarations = declaration.parent.declarations
     if (declarations.length === 1) {
       // const a = 1
       variableComments = sourceCode.getCommentsBefore(variableDeclaration)

@@ -20,11 +20,11 @@
         - 函数调用绑定：`:attr-b="getAttrB1(getAttrB2(dataA, dataB))"`
           - 不支持`:attr-b="getAttrB1(getAttrB2(dataA),getAttrB3(dataB))"`
           - 临时：method\filter\extend\mixin\setup输出
-
         - 属性表达式绑定：`:attr-c="dataB.a"`
         - filter绑定：`:attr-d="myClass | filterA | filterB"`
         - v-if,v-else-if,v-else
         - v-for
+          - (item,index) in forName 其中 forName 只支持变量
         - slot
         - slot-scope
         - v-slot
@@ -95,6 +95,7 @@
       - 直接通过 import 获取
   - filters
     - 支持当前文件定义中的注释
+    - 支持其他文件引入得注释
     - option 组件
       - 配置
     - class 组件
@@ -188,11 +189,11 @@
   - import、export 语法
     - import a from ''
     - import {default as b} from ''
-    - import {a} from ''
-    - import * as a from '' 不能用于导入组件
-    - import {a as b} from ''
+    - import {a} from '' 不能用于导入.vue组件
+    - import * as a from '' 不能用于导入.vue组件
+    - import {a as b} from '' 不能用于导入.vue组件
     - `export const a={}`
-    - `export default {}`
+    - `export default {}` ExportDefaultDeclaration
     - `export {a}`
     - `export {a as b}`
     - `export {a} from ''`
@@ -203,3 +204,4 @@
   - class 多个装饰器
   - require.context => import
   - import 引入的注释
+  - 删除 import 中的注释

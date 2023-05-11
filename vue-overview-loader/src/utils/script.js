@@ -534,21 +534,19 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
     optionValue.properties.forEach(filter => {
       const filterName = filter.key.name
       const filterComments = sourceCode.getCommentsBefore(filter)
-      const filterComment = commentNodesToText(filterComments)
+      let filterComment = commentNodesToText(filterComments)
       const filterValueNode = getVariableNode(filter.value, context)
-      let fromValue = undefined
+      let importValue = undefined
       if (filterValueNode) {
         if (['ImportSpecifier', 'ImportDefaultSpecifier'].includes(filterValueNode.type)) {
-          fromValue = filter.value.name
+          importValue = filter.value.name
         } else {
           const variableComment = getVariableComment(context, filter.value)
-          fromValue = {
-            name: filter.value,
-            comment: variableComment
-          }
+          if (variableComment)
+            filterComment = `${filterComment}\n${variableComment}`
         }
       }
-      const filterInfo = new FilterInfo(filterName, filterComment, fromValue)
+      const filterInfo = new FilterInfo(filterName, filterComment, importValue)
       filterMap.set(filterName, filterInfo)
     })
   }

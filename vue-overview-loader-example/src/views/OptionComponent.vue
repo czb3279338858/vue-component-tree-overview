@@ -50,15 +50,14 @@
 </template>
 <script lang='ts'>
 import filterDefault, {
-  // filterB,
   filterC,
   filterD,
   filterE,
   filterF,
   filterF as filterF2,
 } from "./filter";
-import extendOption from "./extendOption.js";
-import mixinB, { mixinA } from "./mixinOption";
+// import extendOption from "./extendOption";
+// import mixinB, { mixinA } from "./mixinOption";
 import ClassComponent from "./ClassComponent.vue";
 import { defineComponent, PropType, ref } from "vue";
 const injectSymbol = Symbol();

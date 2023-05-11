@@ -8,10 +8,11 @@ const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
-const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, setSome, } = require('./utils/commont')
+const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, setSome, getVariableComment, getVariableDeclarationNameAndComments, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption } = require('./utils/script')
-const { TemplateInfo, PropInfo, SetupInfo, LifecycleHookInfo, FilterInfo, EmitInfo, DataInfo, MethodInfo, ProvideInfo, InjectInfo } = require('./utils/meta')
+const { TemplateInfo, PropInfo, SetupInfo, LifecycleHookInfo, FilterInfo, EmitInfo, DataInfo, MethodInfo, ProvideInfo, InjectInfo, Attribute } = require('./utils/meta')
+const { at } = require('eslint-plugin-vue/lib/utils/vue2-builtin-components')
 
 const linter = new Linter()
 const parserOptions = {
@@ -109,6 +110,8 @@ const modelOptionMap = new Map()
 // importName[]
 const setupScriptImportSet = new Set()
 
+const exportSet = new Set()
+
 function initMeta() {
 	setupScriptImportSet.clear()
 	templateMap.clear()
@@ -150,29 +153,10 @@ linter.defineRule("vue-loader", {
 							const keyName = getFormatJsCode(context, a.key)
 							const value = a.value
 							if (value && value.type === "VLiteral") {
-								return {
-									keyName,
-									valueName: value.value,
-									valueType: value.type
-								}
+								return new Attribute(keyName, value.value, value.type)
 							} else {
 								const [valueName, valueType, scopeNames, callNames, callParams, vForName] = getExpressionContainerInfo(context, value)
-								return {
-									// attr左边
-									keyName,
-									// attr右边
-									valueName,
-									// attr右边的类型
-									valueType,
-									// v-for,v-slot,slot-scope有作用域
-									scopeNames,
-									// attr右边是函数调用或filter
-									callNames,
-									// attr右边是函数调用或filter的参数
-									callParams,
-									// v-for的值
-									vForName
-								}
+								return new Attribute(keyName, valueName, valueType, scopeNames, callNames, callParams, vForName)
 							}
 						})
 						const comment = getTemplateCommentBefore(element)
@@ -569,7 +553,6 @@ linter.defineRule("vue-loader", {
 				},
 				'ImportDeclaration'(node) {
 					const specifiers = node.specifiers
-					const source = node.source.value
 					specifiers.forEach(specifier => {
 						const importType = specifier.type
 						// import { default as ClassComponent2 } from "./ClassComponent.vue";
@@ -588,19 +571,118 @@ linter.defineRule("vue-loader", {
 
 linter.defineRule('es-loader', {
 	create(context) {
+		const sourceCode = context.getSourceCode()
 		return {
-
+			'Program ExportDefaultDeclaration'(node) {
+				const declaration = node.declaration
+				const exportComments = sourceCode.getCommentsBefore(node)
+				let exportComment = commentNodesToText(exportComments)
+				// export default filterB
+				if (declaration.type === "Identifier") {
+					const variableComment = getVariableComment(context, declaration.name)
+					if (variableComment) exportComment += `\n${variableComment}`
+				}
+				exportSet.add(`export default { comment:'${exportComment}' }`)
+			},
+			'Program ExportNamedDeclaration'(node) {
+				if (node.source) {
+					const exportValue = getFormatJsCode(context, node)
+					return exportSet.add(exportValue)
+				}
+				const declaration = node.declaration
+				let exportComments = sourceCode.getCommentsBefore(node)
+				let exportComment = commentNodesToText(exportComments)
+				// export const filterC = (val: string) => val
+				if (declaration && declaration.type === 'VariableDeclaration') {
+					const declarations = declaration.declarations
+					declarations.forEach(d => {
+						const [name, comment] = getVariableDeclarationNameAndComments(context, d)
+						const exportName = name
+						if (comment) {
+							exportSet.add(`export const ${exportName} = { comment:'${exportComment}\n${comment}' }`)
+						} else {
+							exportSet.add(`export const ${exportName} = { comment:'${exportComment}' }`)
+						}
+					})
+				}
+				// export { filterB, filterF }
+				if (node.specifiers.length) {
+					const specifiers = node.specifiers
+					const exportObj = specifiers.reduce((p, specifier) => {
+						const exportName = specifier.exported.name
+						const exportComment = commentNodesToText(sourceCode.getCommentsBefore(specifier))
+						const variableComment = getVariableComment(context, specifier.local.name)
+						p[exportName] = `{ comment:'${variableComment ? `${exportComment}\n${variableComment}` : exportComment}' }`
+						return p
+					}, {})
+					exportSet.add(`export ${JSON.stringify(exportObj)}`)
+				}
+			}
+			// emit函数调用，option
+			// CallExpression(node) {
+			// 	const calleeName = node.callee.property && node.callee.property.name
+			// 	if (['$emit', 'emit'].includes(calleeName)) {
+			// 		setEmitMapFromEmitCall(context, emitMap, node)
+			// 	}
+			// },
 		}
 	}
 })
-
-
+function getCodeFromMetaData(value, noJsonKeys, key) {
+	if (value instanceof Map) {
+		return getCodeFromMetaData(Object.fromEntries(value), noJsonKeys, key)
+	}
+	if (value instanceof Set) {
+		return getCodeFromMetaData(Array.from(value), noJsonKeys, key)
+	}
+	if (Array.isArray(value)) {
+		if (key === 'mixinSet') {
+			return `[${value.map(item => item).join(',')}]`
+		} else {
+			return `[${value.map(item => getCodeFromMetaData(item, noJsonKeys)).join(',')}]`
+		}
+	}
+	if (typeof value === 'object' && value !== null) {
+		if (key === 'componentMap') {
+			return `{${Object.keys(value).map(key => `'${key}':${value[key]}`).join(',')}}`
+		} else {
+			return `{${Object.keys(value).map(key => `'${key}':${getCodeFromMetaData(value[key], noJsonKeys, key)}`).join(',')}}`
+		}
+	}
+	if (key && (noJsonKeys.includes(key) || key === 'extend')) {
+		return value
+	} else {
+		return JSON.stringify(value)
+	}
+}
+function getCodeFromMap(template, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet) {
+	const name = nameAndExtendMap.get('name')
+	const extend = nameAndExtendMap.get('extend')
+	const metaData = {
+		template,
+		propMap,
+		setupMap,
+		provideMap,
+		lifecycleHookMap,
+		filterMap,
+		computedMap,
+		emitMap,
+		dataMap,
+		methodMap,
+		injectMap,
+		name,
+		modelOptionMap,
+		extend,
+		componentMap,
+		mixinSet
+	}
+	return getCodeFromMetaData(metaData, ['importValue'])
+}
 
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
 	const { exclude } = this.getOptions()
-	if (exclude && exclude.test(resource)) return source
-	if (!/.vue$/.test(resource)) return source
+	if (/node_module/.test(resource) || exclude && exclude.test(resource)) return source
 	if (/.vue$/.test(resource)) {
 		const config = {
 			parserOptions,
@@ -608,6 +690,11 @@ module.exports = function loader(source) {
 			parser: 'vueEslintParser'
 		};
 		linter.verify(source, config)
+		let newCode = ''
+		importSet.forEach((value) => {
+			newCode += `${value}\n`
+		})
+
 		// 把 script setup 中 import 的组件写入 componentMap
 		if (setupScriptImportSet.size) {
 			for (const [, { template }] of templateMap) {
@@ -620,14 +707,20 @@ module.exports = function loader(source) {
 				})
 			}
 		}
+		// 获取新代码
+		const template = templateMap.values().next().value
+		const exportDefaultCode = getCodeFromMap(template, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
 
-
-		let newCode = ''
-		importSet.forEach((value) => {
-			newCode += `${value}\n`
-		})
-		// newCode += `export default ${getCodeFromVueMeta(vueMeta)}`
+		newCode += `export default ${exportDefaultCode}`
 		initMeta()
 		return newCode;
+	}
+	if (/.[t|j]s$/.test(resource)) {
+		const config = {
+			parserOptions,
+			rules: { "es-loader": "error" },
+			parser: 'vueEslintParser'
+		};
+		linter.verify(source, config)
 	}
 }
