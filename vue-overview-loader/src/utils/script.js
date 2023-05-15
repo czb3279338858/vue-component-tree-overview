@@ -516,7 +516,7 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
   }
 
   if (optionKeyName === 'name') {
-    nameAndExtendMap.set('componentName', optionValue.value)
+    nameAndExtendMap.set('name', optionValue.value)
   }
 
   if (optionKeyName === 'components') {

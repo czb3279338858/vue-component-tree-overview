@@ -128,7 +128,7 @@ function initMeta() {
 	componentMap.clear()
 	importSet.clear()
 	mixinSet.clear()
-	nameAndExtendMap.set('componentName', undefined)
+	nameAndExtendMap.set('name', undefined)
 	nameAndExtendMap.set('extend', undefined)
 	modelOptionMap.set('prop', 'value')
 	modelOptionMap.set('event', 'input')
@@ -691,7 +691,6 @@ function getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHoo
 		componentMap,
 		mixinSet
 	}
-	// console.log(metaData)
 	return getCodeFromMetaData(metaData, ['importValue'])
 }
 
@@ -727,7 +726,6 @@ module.exports = function loader(source) {
 		const exportDefaultCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
 
 		newCode += `export default ${exportDefaultCode}`
-		// console.log(newCode)
 		initMeta()
 		return newCode;
 	}

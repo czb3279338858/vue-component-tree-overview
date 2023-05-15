@@ -13,14 +13,14 @@
         class="tw-p-2"
       >
         <span slot-scope="{ data }">
-          <span>{{ data.templateValue }}</span>
+          <span>{{ data.template }}</span>
         </span>
       </el-tree>
     </div>
     <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto">
       <div v-if="isFirstTemplate">
         <div class="tw-border-black tw-border tw-p-2">
-          <div>name：{{ componentData.componentName || "无" }}</div>
+          <div>name：{{ componentData.name || "无" }}</div>
           <!-- model -->
           <el-card v-if="model" class="tw-mt-2">
             <div slot="header">model</div>
@@ -37,23 +37,24 @@
         >
           <h1 class="tw-mb-2">props</h1>
           <el-table :data="props" border>
-            <el-table-column prop="propName" label="prop"></el-table-column>
+            <el-table-column prop="name" label="prop"></el-table-column>
             <el-table-column
-              prop="propDefault"
+              prop="defaultValue"
               label="默认值"
             ></el-table-column>
-            <el-table-column
-              prop="propRequired"
-              label="是否必填"
-            ></el-table-column>
+            <el-table-column label="是否必填">
+              <template slot-scope="{ row }">
+                <span>{{ row.isRequired }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="类型">
               <template slot-scope="{ row }">
-                <span>{{ getPropTypeText(row.propType) }}</span>
+                <span>{{ getPropTypeText(row.type) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="注释" width="300">
               <template slot-scope="{ row }">
-                <span v-html="getBrFromLineBreak(row.propComment)"></span>
+                <span v-html="getBrFromLineBreak(row.comment)"></span>
               </template>
             </el-table-column>
           </el-table>
@@ -65,15 +66,15 @@
         >
           <h1 class="tw-mb-2">emits</h1>
           <el-table :data="emits" border>
-            <el-table-column prop="emitName" label="事件名"></el-table-column>
+            <el-table-column prop="name" label="事件名"></el-table-column>
             <el-table-column label="参数类型">
               <template slot-scope="{ row }">
-                <span v-html="getEmitTypeText(row.emitType)"></span>
+                <span v-html="getEmitTypeText(row.type)"></span>
               </template>
             </el-table-column>
             <el-table-column label="注释">
               <template slot-scope="{ row }">
-                <span v-html="getBrFromLineBreak(row.emitComment)"></span>
+                <span v-html="getBrFromLineBreak(row.comment)"></span>
               </template>
             </el-table-column>
           </el-table>
