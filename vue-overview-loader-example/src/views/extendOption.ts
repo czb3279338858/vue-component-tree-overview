@@ -1,4 +1,4 @@
-export default {
+const extendOption = {
   props: [
     // extend中extendPropA
     'extendPropA',
@@ -6,3 +6,4 @@ export default {
     'propA'
   ]
 }
+export default extendOption

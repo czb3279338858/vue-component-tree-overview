@@ -575,14 +575,39 @@ linter.defineRule('es-loader', {
 		return {
 			'Program ExportDefaultDeclaration'(node) {
 				const declaration = node.declaration
-				const exportComments = sourceCode.getCommentsBefore(node)
-				let exportComment = commentNodesToText(exportComments)
-				// export default filterB
-				if (declaration.type === "Identifier") {
-					const variableComment = getVariableComment(context, declaration.name)
-					if (variableComment) exportComment = mergeText(exportComment, variableComment)
+				if (declaration.type !== "Identifier") {
+					if (isVueOptions(declaration)) {
+						// export default {prop:['a']}
+						setMapFormVueOptions(context, declaration, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
+						const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+						exportSet.add(`export default ${exportCode}`)
+						initMeta()
+					} else {
+						// export default {a:1}
+						const exportComments = sourceCode.getCommentsBefore(node)
+						let exportComment = commentNodesToText(exportComments)
+						const variableComment = getVariableComment(context, declaration.name)
+						if (variableComment) exportComment = mergeText(exportComment, variableComment)
+						exportSet.add(`export default { comment:'${exportComment}' }`)
+					}
+				} else {
+					const variable = getVariableNode(context, declaration.name)
+					const variableInit = variable.init
+					if (isVueOptions(variableInit)) {
+						// export default VueOption
+						setMapFormVueOptions(context, variableInit, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
+						const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+						exportSet.add(`export default ${exportCode}`)
+						initMeta()
+					} else {
+						// export default filterB
+						const exportComments = sourceCode.getCommentsBefore(node)
+						let exportComment = commentNodesToText(exportComments)
+						const variableComment = getVariableComment(context, declaration.name)
+						if (variableComment) exportComment = mergeText(exportComment, variableComment)
+						exportSet.add(`export default { comment:'${exportComment}' }`)
+					}
 				}
-				exportSet.add(`export default { comment:'${exportComment}' }`)
 			},
 			'Program ExportNamedDeclaration'(node) {
 				// export { filterE } from './filter-e'
@@ -742,6 +767,7 @@ module.exports = function loader(source) {
 		};
 		linter.verify(source, config)
 		const newCode = JSON.stringify(Array.from(exportSet).join('\n'))
+		exportSet.clear()
 		return newCode
 	}
 	return source
