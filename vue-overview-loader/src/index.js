@@ -8,9 +8,9 @@ const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
-const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, setSome, getVariableComment, getVariableDeclarationNameAndComments, } = require('./utils/commont')
+const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, setSome, getVariableComment, getVariableDeclarationNameAndComments, mergeText, getVariableNode, } = require('./utils/commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
-const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption } = require('./utils/script')
+const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption, isVueOptions } = require('./utils/script')
 const { TemplateInfo, PropInfo, SetupInfo, LifecycleHookInfo, FilterInfo, EmitInfo, DataInfo, MethodInfo, ProvideInfo, InjectInfo, Attribute } = require('./utils/meta')
 const { at } = require('eslint-plugin-vue/lib/utils/vue2-builtin-components')
 
@@ -520,7 +520,7 @@ linter.defineRule("vue-loader", {
 						const lifecycleHookComment = commentNodesToText(lifecycleHookComments)
 						const oldLifecycleHook = lifecycleHookMap.get(callName)
 						if ((lifecycleHookComment && oldLifecycleHook)) {
-							oldLifecycleHook.comment = `${oldLifecycleHook.comment}\n\n${lifecycleHookComment}`
+							oldLifecycleHook.comment = mergeText(oldLifecycleHook.comment, lifecycleHookComment)
 						} else {
 							const lifecycleHookInfo = new LifecycleHookInfo(callName, lifecycleHookComment)
 							lifecycleHookMap.set(callName, lifecycleHookInfo)
@@ -580,11 +580,12 @@ linter.defineRule('es-loader', {
 				// export default filterB
 				if (declaration.type === "Identifier") {
 					const variableComment = getVariableComment(context, declaration.name)
-					if (variableComment) exportComment += `\n${variableComment}`
+					if (variableComment) exportComment = mergeText(exportComment, variableComment)
 				}
 				exportSet.add(`export default { comment:'${exportComment}' }`)
 			},
 			'Program ExportNamedDeclaration'(node) {
+				// export { filterE } from './filter-e'
 				if (node.source) {
 					const exportValue = getFormatJsCode(context, node)
 					return exportSet.add(exportValue)
@@ -596,35 +597,47 @@ linter.defineRule('es-loader', {
 				if (declaration && declaration.type === 'VariableDeclaration') {
 					const declarations = declaration.declarations
 					declarations.forEach(d => {
+						const init = d.init
 						const [name, comment] = getVariableDeclarationNameAndComments(context, d)
+						const variableComment = commentNodesToText(comment)
 						const exportName = name
-						if (comment) {
-							exportSet.add(`export const ${exportName} = { comment:'${exportComment}\n${comment}' }`)
+						if (isVueOptions(init)) {
+							setMapFormVueOptions(context, init, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
+							const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+							exportSet.add(`export const ${exportName} = ${exportCode}`)
+							initMeta()
 						} else {
-							exportSet.add(`export const ${exportName} = { comment:'${exportComment}' }`)
+							if (comment) {
+								exportSet.add(`export const ${exportName} = { comment:'${mergeText(exportComment, variableComment)}' }`)
+							} else {
+								exportSet.add(`export const ${exportName} = { comment:'${exportComment}' }`)
+							}
 						}
 					})
 				}
 				// export { filterB, filterF }
+				// export {filterB as filterD}
 				if (node.specifiers.length) {
 					const specifiers = node.specifiers
 					const exportObj = specifiers.reduce((p, specifier) => {
 						const exportName = specifier.exported.name
 						const exportComment = commentNodesToText(sourceCode.getCommentsBefore(specifier))
-						const variableComment = getVariableComment(context, specifier.local.name)
-						p[exportName] = `{ comment:'${variableComment ? `${exportComment}\n${variableComment}` : exportComment}' }`
+						const variable = getVariableNode(context, specifier.local.name)
+						const variableInit = variable.init
+						if (isVueOptions(variableInit)) {
+							setMapFormVueOptions(context, variableInit, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
+							const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+							p[exportName] = exportCode
+							initMeta()
+						} else {
+							const variableComment = getVariableComment(context, specifier.local.name)
+							p[exportName] = `{ comment:'${mergeText(exportComment, variableComment)}' }`
+						}
 						return p
 					}, {})
 					exportSet.add(`export ${JSON.stringify(exportObj)}`)
 				}
 			}
-			// emit函数调用，option
-			// CallExpression(node) {
-			// 	const calleeName = node.callee.property && node.callee.property.name
-			// 	if (['$emit', 'emit'].includes(calleeName)) {
-			// 		setEmitMapFromEmitCall(context, emitMap, node)
-			// 	}
-			// },
 		}
 	}
 })
@@ -637,25 +650,30 @@ function getCodeFromMetaData(value, noJsonKeys, key) {
 	}
 	if (Array.isArray(value)) {
 		if (key === 'mixinSet') {
-			return `[${value.map(item => item).join(',')}]`
+			return value.length ? `[${value.map(item => item).join(',')}]` : undefined
 		} else {
-			return `[${value.map(item => getCodeFromMetaData(item, noJsonKeys)).join(',')}]`
+			return value.length ? `[${value.map(item => getCodeFromMetaData(item, noJsonKeys)).join(',')}]` : undefined
 		}
 	}
 	if (typeof value === 'object' && value !== null) {
+		const keys = Object.keys(value)
 		if (key === 'componentMap') {
-			return `{${Object.keys(value).map(key => `'${key}':${value[key]}`).join(',')}}`
+			return keys.length ? `{${keys.map(key => `'${key}':${value[key]}`).join(',')}}` : undefined
 		} else {
-			return `{${Object.keys(value).map(key => `'${key}':${getCodeFromMetaData(value[key], noJsonKeys, key)}`).join(',')}}`
+			return keys.length ? `{${keys.map(key => `'${key}':${getCodeFromMetaData(value[key], noJsonKeys, key)}`).join(',')}}` : undefined
 		}
 	}
 	if (key && (noJsonKeys.includes(key) || key === 'extend')) {
 		return value
 	} else {
+		if (typeof value === 'string') {
+			return `'${value.replace(/\'/g, '\'')}'`
+		}
 		return JSON.stringify(value)
 	}
 }
-function getCodeFromMap(template, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet) {
+function getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet) {
+	const template = templateMap.values().next().value
 	const name = nameAndExtendMap.get('name')
 	const extend = nameAndExtendMap.get('extend')
 	const metaData = {
@@ -676,6 +694,7 @@ function getCodeFromMap(template, propMap, setupMap, provideMap, lifecycleHookMa
 		componentMap,
 		mixinSet
 	}
+	// console.log(metaData)
 	return getCodeFromMetaData(metaData, ['importValue'])
 }
 
@@ -708,19 +727,22 @@ module.exports = function loader(source) {
 			}
 		}
 		// 获取新代码
-		const template = templateMap.values().next().value
-		const exportDefaultCode = getCodeFromMap(template, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+		const exportDefaultCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
 
 		newCode += `export default ${exportDefaultCode}`
+		// console.log(newCode)
 		initMeta()
 		return newCode;
 	}
-	if (/.[t|j]s$/.test(resource)) {
-		const config = {
-			parserOptions,
-			rules: { "es-loader": "error" },
-			parser: 'vueEslintParser'
-		};
-		linter.verify(source, config)
-	}
+	// if (/.[t|j]s$/.test(resource)) {
+	// 	const config = {
+	// 		parserOptions,
+	// 		rules: { "es-loader": "error" },
+	// 		parser: 'vueEslintParser'
+	// 	};
+	// 	linter.verify(source, config)
+	// 	const newCode = Array.from(exportSet).join('\n')
+	// 	return newCode
+	// }
+	return source
 }

@@ -68,6 +68,7 @@
     - `<script setup>`
       - 在另一个`<script>`的 options 中定义
   - extends
+    - 只支持文件外引入
     - 优先级高于 mixins
     - option 组件
       - 配置对象
@@ -77,6 +78,7 @@
     - `<script setup>`
       - 在另一个`<script>`的 options 中定义
   - mixins
+    - 只支持文件外引入
     - 优先级后面的覆盖前面的
     - options 组件
       - 配置数组
@@ -203,5 +205,4 @@
   - 根据 ts 获取具体类型
   - class 多个装饰器
   - require.context => import
-  - import 引入的注释
-  - 删除 import 中的注释
+  - 路由信息中的import()

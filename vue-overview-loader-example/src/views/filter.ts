@@ -1,6 +1,6 @@
-let
+const
   // filterF 定义注释
-  filterF,
+  filterF = { data() { return { a: 1 } } },
   // filterB 定义注释
   filterB = (val: string) => val
 
@@ -12,10 +12,12 @@ export const
   //filterC注释
   filterC = (val: string) => val,
   // filterG注释
-  filterG = ''
+  filterG = {
+    props: ['a']
+  }
 
 export {
-  // export {filterB}
+  // export {'filterB'}
   filterB,
   filterF
 }

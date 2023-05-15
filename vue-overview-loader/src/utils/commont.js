@@ -25,8 +25,7 @@ function commentNodesToText(commentNodes) {
 function getFormatJsCode(context, node) {
   const sourceCode = context.getSourceCode()
   const ret = sourceCode.getText(node)
-  debugger
-  return ret.replace(/\/\/[^\/]*[\n]/g, '').replace(/[\n\s]+/g, ' ')
+  return ret.replace(/\/\/.*/g, '').replace(/[\n\s]+/g, ' ')
 }
 
 
@@ -124,7 +123,7 @@ function getVariableDeclarationNameAndComments(context, declaration) {
  */
 function getVariableComment(context, variableName) {
   const sourceCode = context.getSourceCode()
-  const variableNode = getVariableNode(variableName, context)
+  const variableNode = getVariableNode(context, variableName)
   let variableComments = []
   if (variableNode.type === 'FunctionDeclaration') {
     variableComments = sourceCode.getCommentsBefore(variableNode)
@@ -226,7 +225,7 @@ function getFunFirstReturnNode(funNode) {
  * @param {*} context 
  * @returns 
  */
-function getVariableNode(identifierNode, context) {
+function getVariableNode(context, identifierNode) {
   const variable = findVariable(context.getScope(), identifierNode)
   return variable && variable.defs[0] && variable.defs[0].node
 }
@@ -251,7 +250,13 @@ function setSome(set, someFun) {
   }
   return false
 }
+
+function mergeText(...texts) {
+  return texts.filter(t => t).join('\n')
+}
+
 module.exports = {
+  mergeText,
   setSome,
   getVariableDeclarationNameAndComments,
   forEachPattern,

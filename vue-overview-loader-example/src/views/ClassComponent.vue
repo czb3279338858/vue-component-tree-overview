@@ -132,7 +132,7 @@ export default class ClassComponent extends mixins(ExtendClassComponent) {
     type: String,
     required: true,
   })
-  // prop:{value:{default:'default',type:String,required:true}}
+  // prop:{value:{default:'default',type:String,isRequired:true}}
   // computed:{computedValue:{get:this.value,set:val=>this.$emit('input',val)}}
   computedValue?: string;
 
@@ -142,7 +142,7 @@ export default class ClassComponent extends mixins(ExtendClassComponent) {
     type: Number,
     required: true,
   })
-  // props:{propA:{default:0,type:Number,required:true}}
+  // props:{propA:{default:0,type:Number,isRequired:true}}
   // computed:{computedPropA:{get:this.propA,set:val=>this.$emit('update:propA',val)}}
   computedPropA?: number;
 
@@ -158,7 +158,7 @@ export default class ClassComponent extends mixins(ExtendClassComponent) {
 
   // PropC注释1
   @Prop()
-  // {required:false,type:Number}
+  // {isRequired:false,type:Number}
   propC?: number;
 
   @Prop()
@@ -208,7 +208,7 @@ export default class ClassComponent extends mixins(ExtendClassComponent) {
     }
   )
   // mode:{prop:'propH',event:'changeH'}
-  // props:{propH:{default:()=>[],type:Array,required:true}}
+  // props:{propH:{default:()=>[],type:Array,isRequired:true}}
   readonly propH!: string[];
 }
 </script>

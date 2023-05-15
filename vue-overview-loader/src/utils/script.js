@@ -1,4 +1,4 @@
-const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, getRuntimeTypeFromNode } = require("./commont")
+const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, getRuntimeTypeFromNode, mergeText } = require("./commont")
 const { PropInfo, LifecycleHookInfo, filterInfo, FilterInfo, EmitInfo, DataInfo, ComputedInfo, MethodInfo, ProvideInfo, InjectInfo, SetupInfo } = require("./meta")
 const tsUtils = require('./ts-ast-utils')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
@@ -315,7 +315,7 @@ function getEmitParamsTypeFromDefineEmits(context, emit) {
 function setEmitMap(emitMap, emitName, emitType, emitComment, emitParamsVerify) {
   const oldEmit = emitMap.get(emitName)
   if (oldEmit) {
-    oldEmit.comment = `${oldEmit.comment}\n\n${emitComment}`
+    oldEmit.comment = mergeText(oldEmit.comment, emitComment)
     const oldEmitType = oldEmit.type
     emitType && emitType.forEach((type, index) => {
       if (type && !oldEmitType[index]) oldEmitType[index] = type
@@ -363,7 +363,7 @@ function deepSetDataMap(context, dataOption, dataMap, dataName, parentDataCommen
     forEachDataOptionSetDataMap(context, dataValue.properties, dataMap, parentDataComment, dataName)
   }
   if (dataValue.type === 'CallExpression') {
-    const variableNode = getVariableNode(dataValue.callee, context)
+    const variableNode = getVariableNode(context, dataValue.callee)
     if (variableNode) {
       const returnNode = getFunFirstReturnNode(variableNode)
       if (returnNode && returnNode.argument.type === "ObjectExpression") {
@@ -387,7 +387,7 @@ function forEachDataOptionSetDataMap(context, dataOptions, dataMap, parentCommen
     const dataName = parentName ? `${parentName}.${dataOption.key.name}` : dataOption.key.name
     const dataComments = sourceCode.getCommentsBefore(dataOption)
     const dataComment = commentNodesToText(dataComments)
-    const dataInfo = new DataInfo(dataName, parentComment ? `${parentComment}\n\n${dataComment}` : dataComment)
+    const dataInfo = new DataInfo(dataName, mergeText(parentComment, dataComment))
     dataMap.set(dataName, dataInfo)
     deepSetDataMap(context, dataOption, dataMap, dataName, dataInfo.comment)
   })
@@ -401,7 +401,7 @@ function forEachDataOptionSetDataMap(context, dataOptions, dataMap, parentCommen
 function setComputedMap(computedMap, computedName, computedComment) {
   const oldComputed = computedMap.get(computedName)
   if (oldComputed) {
-    oldComputed.computedComment = `${oldComputed.computedComment}\n\n${computedComment}`
+    oldComputed.computedComment = mergeText(oldComputed.computedComment, computedComment)
   } else {
     const computedInfo = new ComputedInfo(computedName, computedComment)
     computedMap.set(computedName, computedInfo)
@@ -535,7 +535,7 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
       const filterName = filter.key.name
       const filterComments = sourceCode.getCommentsBefore(filter)
       let filterComment = commentNodesToText(filterComments)
-      const filterValueNode = getVariableNode(filter.value, context)
+      const filterValueNode = getVariableNode(context, filter.value)
       let importValue = undefined
       if (filterValueNode) {
         if (['ImportSpecifier', 'ImportDefaultSpecifier'].includes(filterValueNode.type)) {
@@ -543,7 +543,7 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
         } else {
           const variableComment = getVariableComment(context, filter.value)
           if (variableComment)
-            filterComment = `${filterComment}\n${variableComment}`
+            filterComment = mergeText(filterComment, variableComment)
         }
       }
       const filterInfo = new FilterInfo(filterName, filterComment, importValue)
@@ -664,7 +664,7 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
         const keyComments = sourceCode.getCommentsBefore(item)
         const keyComment = commentNodesToText(keyComments)
         let variableComment = getVariableComment(context, setupValue)
-        const setupComment = [keyComment, variableComment].filter(f => f).join('\n')
+        const setupComment = mergeText(keyComment, variableComment)
         const setupInfo = new SetupInfo(setupKeyName, setupComment)
         setupMap.set(setupKeyName, setupInfo)
       })
@@ -686,7 +686,12 @@ function setEmitMapFromEmitCall(context, emitMap, callExpression) {
   const emitType = getFunParamsRuntimeType(context, calleeParams.slice(1))
   setEmitMap(emitMap, emitName, emitType, emitComment)
 }
+const VueOptionKeys = ['props', 'name', 'extends', 'mixins', 'components', 'filters', ...LIFECYCLE_HOOKS, 'provide', 'inject', 'emits', 'methods', 'setup', 'computed', 'data',]
+function isVueOptions(node) {
+  return node.type === 'ObjectExpression' && node.properties.every(p => VueOptionKeys.includes(p.key.name))
+}
 module.exports = {
+  isVueOptions,
   getInjectFromAndTypeAndDefaultFromInjectOption,
   setEmitMapFromEmitCall,
   isUnAddSetupMap,
