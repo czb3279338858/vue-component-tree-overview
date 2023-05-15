@@ -253,7 +253,6 @@ export default {
       return this.componentData.modelOptionMap;
     },
     props() {
-      debugger;
       return this.getComponentOption("propMap");
     },
     emits() {

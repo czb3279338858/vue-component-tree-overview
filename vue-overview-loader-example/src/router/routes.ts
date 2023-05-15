@@ -20,5 +20,4 @@ const routes: Array<RouteConfig> = [
         component: SetupComponent
     }
 ]
-console.log(JSON.stringify(routes))
 export default routes

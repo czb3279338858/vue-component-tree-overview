@@ -42,8 +42,8 @@
 </template>
 <script>
 import Vue from "vue";
-import routes from "./routes";
 import VueRouter from "vue-router";
+const routes = window.routes.default;
 const router = new VueRouter({
   routes,
 });
