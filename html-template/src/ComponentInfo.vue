@@ -103,22 +103,20 @@
             </el-table-column>
             <el-table-column label="插槽参数">
               <template slot-scope="{ row: slot }">
-                <el-table :data="getSlotParams(slot)">
+                <el-table :data="getSlotAttrs(slot)">
                   <el-table-column label="key" width="100">
                     <template slot-scope="{ row: param }">
-                      <span v-html="getSlotParamKey(param.keyName)"></span>
+                      <span v-html="getSlotAttrKey(param.keyName)"></span>
                     </template>
                   </el-table-column>
                   <el-table-column label="value" width="100">
                     <template slot-scope="{ row: param }">
-                      <span v-html="getSlotParamValue(param)"></span>
+                      <span v-html="getAttrValueName(param)"></span>
                     </template>
                   </el-table-column>
                   <el-table-column label="value 注释">
                     <template slot-scope="{ row: param }">
-                      <span
-                        v-html="getSlotParamValueComment(param, slot)"
-                      ></span>
+                      <span v-html="getAttrValueComment(param, slot)"></span>
                     </template>
                   </el-table-column>
                 </el-table>
@@ -133,112 +131,7 @@
 </template>
 <script>
 import { Tree, Tooltip, Table, TableColumn, Card } from "element-ui";
-function getTreeDataFromTemplateTree(templates, id, parent) {
-  return templates.map((template, index) => {
-    const _id = id ? `${id}_${index}` : `${index}`;
-    let ret = {
-      ...template,
-      _id,
-      parent: parent || undefined,
-    };
-    ret["children"] = template.children
-      ? getTreeDataFromTemplateTree(template.children, _id, ret)
-      : undefined;
-    return ret;
-  });
-}
-function getSlotTemplatesFromTreeData(treeData) {
-  return treeData.reduce((ret, node) => {
-    if (node.template === "<slot>") {
-      ret.push(node);
-    }
-    if (node.children) {
-      ret = ret.concat(getSlotTemplatesFromTreeData(node.children));
-    }
-    return ret;
-  }, []);
-}
-function getIdentifierCommentFromMap(componentData, identifierName) {
-  for (const key of [
-    "propMap",
-    "setupMap",
-    "computedMap",
-    "dataMap",
-    "methodMap",
-    "injectMap",
-    "filterMap",
-    "extend",
-    "mixinSet",
-  ]) {
-    if (["extend", "mixinSet"].includes(key)) {
-      const map = componentData[key];
-      const info = map[identifierName];
-      const mixins = Array.isArray(info) ? info : [info];
-      for (const cData of mixins) {
-        if (!cData) break;
-        const comment = getIdentifierCommentFromMap(cData, identifierName);
-        if (comment !== undefined) return comment;
-      }
-    } else {
-      const map = componentData[key];
-      const info = map[identifierName];
-      if (info) {
-        const comments = [info.comment];
-        if (info.importValue) {
-          comments.push(info.importValue.comment);
-        }
-        return comments.filter((c) => c).join("\n");
-      }
-    }
-  }
-  return undefined;
-}
-function getAttrValueFromComment(
-  valueName,
-  currentTemplate,
-  componentData,
-  preFrom = []
-) {
-  // 一直向上遍历寻找attr的绑定值是否来自于作用域,直到根template
-  if (currentTemplate) {
-    const scopeAttr =
-      currentTemplate.attributes &&
-      currentTemplate.attributes.find(
-        (a) => a.scopeNames && a.scopeNames.includes(valueName)
-      );
-    if (scopeAttr) {
-      if (scopeAttr.vForName) {
-        // 如果是v-for
-        preFrom.push(`${valueName}来源于v-for循环值${scopeAttr.vForName}`);
-        return getAttrValueFromComment(
-          scopeAttr.vForName,
-          currentTemplate.parent,
-          componentData,
-          preFrom
-        );
-      } else {
-        // 如果是 v-slot,slot-scope
-        preFrom.push(`${valueName}来源于作用域插槽${scopeAttr.keyName}`);
-        return preFrom.join("\n");
-      }
-    } else {
-      return getAttrValueFromComment(
-        valueName,
-        currentTemplate.parent,
-        componentData,
-        preFrom
-      );
-    }
-  } else {
-    const comment = getIdentifierCommentFromMap(componentData, valueName);
-    if (comment) {
-      preFrom.push(`${valueName}来源于数据，其注释如下：\n${comment}`);
-    } else {
-      preFrom.push(`${valueName}未能找到任何注释`);
-    }
-  }
-  return preFrom.filter((p) => p).join("\n");
-}
+
 export default {
   components: {
     [Tree.name]: Tree,
@@ -250,28 +143,54 @@ export default {
   props: ["componentData"],
   computed: {
     model() {
-      console.log(this.componentData.extend);
       return this.componentData.modelOptionMap;
     },
     props() {
-      return this.getComponentOption("propMap");
+      return Object.values(this.propMap);
     },
     emits() {
-      return this.componentData.emitMap
-        ? Object.values(this.componentData.emitMap)
-        : [];
+      return Object.values(this.emitMap);
+    },
+    propMap() {
+      return this.getComponentOptionMap("propMap");
+    },
+    emitMap() {
+      return this.getComponentOptionMap("emitMap");
     },
     templateTree() {
       return this.componentData.template ? [this.componentData.template] : [];
     },
+    // 从组件数据中获取模板数据的树形结构
+    // 每个叶子有个唯一_id
+    // 每个叶子能够通过parent获取其父节点
     treeData() {
-      return getTreeDataFromTemplateTree(this.templateTree);
+      return this.getTreeDataFromTemplateTree(this.templateTree);
     },
+    // 所有slot标签
     slotTemplates() {
-      return getSlotTemplatesFromTreeData(this.treeData);
+      return this.getSlotTemplatesFromTreeData(this.treeData);
     },
+    // 是否template中的第一个标签，即vue文件中的第一个<template>
     isFirstTemplate() {
       return this.currentTemplate ? this.currentTemplate._id === "0" : false;
+    },
+    setupMap() {
+      return this.getComponentOptionMap("setupMap");
+    },
+    computedMap() {
+      return this.getComponentOptionMap("computedMap");
+    },
+    dataMap() {
+      return this.getComponentOptionMap("dataMap");
+    },
+    methodMap() {
+      return this.getComponentOptionMap("methodMap");
+    },
+    injectMap() {
+      return this.getComponentOptionMap("injectMap");
+    },
+    filterMap() {
+      return this.getComponentOptionMap("filterMap");
     },
   },
   data() {
@@ -280,9 +199,37 @@ export default {
     };
   },
   methods: {
-    getComponentOption(optionKey) {
+    // 递归获取所有的slot标签
+    getSlotTemplatesFromTreeData(treeData) {
+      return treeData.reduce((ret, node) => {
+        if (node.template === "<slot>") {
+          ret.push(node);
+        }
+        if (node.children) {
+          ret = ret.concat(this.getSlotTemplatesFromTreeData(node.children));
+        }
+        return ret;
+      }, []);
+    },
+    // 从组件数据中获取模板数据的树形结构
+    getTreeDataFromTemplateTree(templates, id, parent) {
+      return templates.map((template, index) => {
+        const _id = id ? `${id}_${index}` : `${index}`;
+        let ret = {
+          ...template,
+          _id,
+          parent: parent || undefined,
+        };
+        ret["children"] = template.children
+          ? this.getTreeDataFromTemplateTree(template.children, _id, ret)
+          : undefined;
+        return ret;
+      });
+    },
+    // 混入extends和mixins获取vue配置项的最终值
+    getComponentOptionMap(optionKey) {
       const mixins = [
-        ...(this.componentData.mixinsSet || []),
+        ...(this.componentData.mixinSet || []),
         this.componentData.extend,
       ];
       const currentOptionMap = this.componentData[optionKey];
@@ -296,38 +243,107 @@ export default {
           }
         }
       }
-      return Object.values(currentOptionMap);
+      return currentOptionMap;
     },
-    getSlotParamValueComment(attr, slot) {
+    // 通过变量名获取该变量名在组件数据中的注释
+    getIdentifierComment(identifierName) {
+      for (const map of [
+        this.propMap,
+        this.setupMap,
+        this.computedMap,
+        this.dataMap,
+        this.methodMap,
+        this.injectMap,
+        this.filterMap,
+      ]) {
+        const info = map[identifierName];
+        if (info) {
+          const comments = [info.comment];
+          if (info.importValue) {
+            comments.push(info.importValue.comment);
+          }
+          return comments.filter((c) => c).join("\n");
+        }
+      }
+      return "";
+    },
+    // 当属性绑定值是变量时，获取属性绑定值得注释
+    getAttrValueCommentFromComponent(valueName, currentTemplate, preFrom = []) {
+      // 一直向上遍历寻找attr的绑定值是否来自于作用域,直到根template
+      if (currentTemplate) {
+        const scopeAttr =
+          currentTemplate.attributes &&
+          currentTemplate.attributes.find(
+            (a) => a.scopeNames && a.scopeNames.includes(valueName)
+          );
+        if (scopeAttr) {
+          if (scopeAttr.vForName) {
+            // 如果是v-for
+            preFrom.push(`${valueName}来源于v-for循环值${scopeAttr.vForName}`);
+            return this.getAttrValueCommentFromComponent(
+              scopeAttr.vForName,
+              currentTemplate.parent,
+              preFrom
+            );
+          } else {
+            // 如果是 v-slot,slot-scope
+            preFrom.push(`${valueName}来源于作用域插槽${scopeAttr.keyName}`);
+            return preFrom.join("\n");
+          }
+        } else {
+          return this.getAttrValueCommentFromComponent(
+            valueName,
+            currentTemplate.parent,
+            preFrom
+          );
+        }
+      } else {
+        const comment = this.getIdentifierComment(valueName);
+        if (comment) {
+          preFrom.push(`${valueName}来源于数据，其注释如下：\n${comment}`);
+        } else {
+          preFrom.push(`${valueName}未能找到任何注释`);
+        }
+      }
+      return preFrom.filter((p) => p).join("\n");
+    },
+    // 获取属性绑定值的的注释
+    getAttrValueComment(attr, slot) {
       if (["VLiteral", "Literal"].includes(attr.valueType)) {
         return "";
       }
       return this.getBrFromLineBreak(
-        getAttrValueFromComment(attr.valueName, slot, this.componentData)
+        this.getAttrValueCommentFromComponent(attr.valueName, slot)
       );
     },
-    getSlotParamValue(attr) {
+    // 获取属性绑定值，用是否[]包裹来区分变量还是常量
+    getAttrValueName(attr) {
       if (["VLiteral", "Literal"].includes(attr.valueType)) {
         return attr.valueName;
       }
       return `[${attr.valueName}]`;
     },
-    getSlotParamKey(key) {
+    // slot标签的属性名
+    getSlotAttrKey(key) {
       return key.replace(":", "");
     },
-    getSlotParams(template) {
+    // 获取slot标签除name以外的所有属性
+    getSlotAttrs(template) {
       const attrs = template.attributes;
       const paramsAttrs = attrs.filter((attr) => attr.keyName !== "name");
       return paramsAttrs;
     },
+    // 获取slot标签name属性的值
     getSlotName(template) {
       const attrs = template.attributes;
       const nameAttr = attrs.find((attr) => attr.keyName === "name");
       return nameAttr ? nameAttr.valueName : "default";
     },
+    // 把函数\n的文本转为带<br/>的标签文本
     getBrFromLineBreak(str) {
       return str.replace(/\n/g, "<br/>");
     },
+    // 获取emit抛出数据的类型，emit可以有多个参数，每个参数又可以有多个类型，所以是多行
     getEmitTypeText(emitType) {
       const ret = emitType
         ? this.getBrFromLineBreak(
@@ -340,19 +356,18 @@ export default {
         : "";
       return ret;
     },
+    // 获取prop的类型，prop可以有多个类型，用 | 分割
     getPropTypeText(propType) {
       return propType ? propType.join(" | ") : "undefined";
     },
+    // 树组件选中某个标签
     checkTemplate(template) {
       this.currentTemplate = template;
       this.$refs.templateTree.setCheckedKeys([template._id]);
     },
-    checkFirstTemplate() {
-      this.checkTemplate(this.treeData[0]);
-    },
   },
   mounted() {
-    this.checkFirstTemplate();
+    this.checkTemplate(this.treeData[0]);
   },
 };
 </script>
