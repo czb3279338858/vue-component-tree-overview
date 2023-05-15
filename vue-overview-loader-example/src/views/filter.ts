@@ -29,4 +29,3 @@ export {
   // export {filterE} from './filter-e'
   filterE
 } from './filter-e'
-

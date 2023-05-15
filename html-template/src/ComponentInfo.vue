@@ -250,6 +250,7 @@ export default {
   props: ["componentData"],
   computed: {
     model() {
+      console.log(this.componentData.extend);
       return this.componentData.modelOptionMap;
     },
     props() {

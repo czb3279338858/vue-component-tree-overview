@@ -588,7 +588,7 @@ linter.defineRule('es-loader', {
 						let exportComment = commentNodesToText(exportComments)
 						const variableComment = getVariableComment(context, declaration.name)
 						if (variableComment) exportComment = mergeText(exportComment, variableComment)
-						exportSet.add(`export default { comment:'${exportComment}' }`)
+						exportSet.add(`export default { comment:${JSON.stringify(exportComment)} }`)
 					}
 				} else {
 					const variable = getVariableNode(context, declaration.name)
@@ -605,7 +605,7 @@ linter.defineRule('es-loader', {
 						let exportComment = commentNodesToText(exportComments)
 						const variableComment = getVariableComment(context, declaration.name)
 						if (variableComment) exportComment = mergeText(exportComment, variableComment)
-						exportSet.add(`export default { comment:'${exportComment}' }`)
+						exportSet.add(`export default { comment:${JSON.stringify(exportComment)}}`)
 					}
 				}
 			},
@@ -633,9 +633,9 @@ linter.defineRule('es-loader', {
 							initMeta()
 						} else {
 							if (comment) {
-								exportSet.add(`export const ${exportName} = { comment:'${mergeText(exportComment, variableComment)}' }`)
+								exportSet.add(`export const ${exportName} = { comment:${JSON.stringify(mergeText(exportComment, variableComment))} }`)
 							} else {
-								exportSet.add(`export const ${exportName} = { comment:'${exportComment}' }`)
+								exportSet.add(`export const ${exportName} = { comment:${JSON.stringify(exportComment)} }`)
 							}
 						}
 					})
@@ -656,11 +656,14 @@ linter.defineRule('es-loader', {
 							initMeta()
 						} else {
 							const variableComment = getVariableComment(context, specifier.local.name)
-							p[exportName] = `{ comment:'${mergeText(exportComment, variableComment)}' }`
+							p[exportName] = `{ comment:${JSON.stringify(mergeText(exportComment, variableComment))} }`
 						}
 						return p
 					}, {})
-					exportSet.add(`export ${JSON.stringify(exportObj)}`)
+					// export {filterB as filterD} => export const filterD = {comment:''}
+					Object.keys(exportObj).forEach(k => {
+						exportSet.add(`export const ${k} = ${exportObj[k]}`)
+					})
 				}
 			}
 		}
@@ -766,7 +769,7 @@ module.exports = function loader(source) {
 			parser: 'vueEslintParser'
 		};
 		linter.verify(source, config)
-		const newCode = JSON.stringify(Array.from(exportSet).join('\n'))
+		const newCode = Array.from(exportSet).join('\n')
 		exportSet.clear()
 		return newCode
 	}
