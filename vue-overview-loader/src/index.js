@@ -675,21 +675,26 @@ function getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHoo
 	const extend = nameAndExtendMap.get('extend')
 	const metaData = {
 		template,
+
 		propMap,
-		setupMap,
-		provideMap,
-		lifecycleHookMap,
-		filterMap,
-		computedMap,
 		emitMap,
+
+		setupMap,
+		computedMap,
 		dataMap,
 		methodMap,
 		injectMap,
-		name,
-		modelOptionMap,
+
 		extend,
+		mixinSet,
+
+		filterMap,
+
+		provideMap,
+		lifecycleHookMap,
+		name,
 		componentMap,
-		mixinSet
+		modelOptionMap,
 	}
 	return getCodeFromMetaData(metaData, ['importValue'])
 }

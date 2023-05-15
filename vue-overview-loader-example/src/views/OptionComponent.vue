@@ -67,6 +67,10 @@ function filterB(v) {
 }
 export default defineComponent({
   name: "option-component-name",
+  model: {
+    prop: "checked",
+    event: "change",
+  },
   extends: extendOption,
   mixins: [mixinA, mixinB],
   components: {
