@@ -666,9 +666,6 @@ function getCodeFromMetaData(value, noJsonKeys, key) {
 	if (key && (noJsonKeys.includes(key) || key === 'extend')) {
 		return value
 	} else {
-		if (typeof value === 'string') {
-			return `'${value.replace(/\'/g, '\'')}'`
-		}
 		return JSON.stringify(value)
 	}
 }
@@ -734,15 +731,15 @@ module.exports = function loader(source) {
 		initMeta()
 		return newCode;
 	}
-	// if (/.[t|j]s$/.test(resource)) {
-	// 	const config = {
-	// 		parserOptions,
-	// 		rules: { "es-loader": "error" },
-	// 		parser: 'vueEslintParser'
-	// 	};
-	// 	linter.verify(source, config)
-	// 	const newCode = Array.from(exportSet).join('\n')
-	// 	return newCode
-	// }
+	if (/.[t|j]s$/.test(resource)) {
+		const config = {
+			parserOptions,
+			rules: { "es-loader": "error" },
+			parser: 'vueEslintParser'
+		};
+		linter.verify(source, config)
+		const newCode = JSON.stringify(Array.from(exportSet).join('\n'))
+		return newCode
+	}
 	return source
 }

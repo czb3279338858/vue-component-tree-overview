@@ -99,7 +99,7 @@ function getVariableDeclarationNameAndComments(context, declaration) {
     const declarations = declaration.parent.declarations
     if (declarations.length === 1) {
       // const a = 1
-      variableComments = sourceCode.getCommentsBefore(variableDeclaration)
+      variableComments = sourceCode.getCommentsBefore(declaration.parent)
     } else {
       // let a,b=1
       variableComments = sourceCode.getCommentsBefore(declaration.id)
