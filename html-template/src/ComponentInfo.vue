@@ -21,7 +21,7 @@
           </span>
         </el-tree>
       </div>
-      <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto">
+      <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto tw-flex-grow">
         <div v-if="isFirstTemplate">
           <div class="tw-p-2">
             <div>组件名：{{ componentData.name || "无" }}</div>
@@ -255,10 +255,12 @@ export default {
   props: ["componentData", "index"],
   computed: {
     model() {
-      return this.componentData.modelOptionMap;
+      return this.componentData && this.componentData.modelOptionMap;
     },
     templateTree() {
-      return this.componentData.template ? [this.componentData.template] : [];
+      return this.componentData && this.componentData.template
+        ? [this.componentData.template]
+        : [];
     },
     // 从组件数据中获取模板数据的树形结构
     // 每个叶子有个唯一_id

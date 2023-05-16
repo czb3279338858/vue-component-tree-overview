@@ -20,20 +20,21 @@
             ref="routeTree"
           >
             <span slot-scope="{ data }">
-              <el-tooltip
+              <span>{{ data.path }}</span>
+              <!-- <el-tooltip
                 :content="getRouteTooltipContent(data)"
                 placement="top-start"
               >
-                <span>{{ data.path }}</span>
-              </el-tooltip>
+              </el-tooltip> -->
             </span>
           </el-tree>
         </div>
       </div>
       <div
-        class="tw-min-w-0 tw-overflow-auto tw-flex tw-border-black tw-border tw-border-l-0"
+        class="tw-min-w-0 tw-overflow-auto tw-flex tw-border-black tw-border tw-border-l-0 tw-flex-grow"
       >
         <component-info
+          class="tw-flex-grow"
           v-for="(componentData, index) in componentList"
           :componentData="componentData"
           :index="index"
@@ -87,6 +88,8 @@ export default Vue.extend({
         const match = router.match(this.searchUrl);
         this.routes = match.matched;
       }
+      this.componentList = [];
+      this.$refs.routeTree.setCheckedKeys([]);
     },
     getRouteTooltipContent(routeData) {
       const newRoute = {
@@ -98,7 +101,7 @@ export default Vue.extend({
       return JSON.stringify(newRoute);
     },
     checkRoute(data) {
-      this.componentList = [data.component];
+      this.componentList = [data.component || data.components.default];
       this.$refs.routeTree.setCheckedKeys([data._id]);
     },
     pushComponent(component, index) {
