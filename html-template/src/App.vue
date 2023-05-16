@@ -1,7 +1,11 @@
 <template>
   <div class="tw-p-2 tw-h-full tw-flex tw-flex-col">
     <div class="tw-flex">
-      <el-input v-model="searchUrl"></el-input>
+      <el-input
+        v-model="searchUrl"
+        class="tw-mr-2"
+        placeholder="请输入不含域名的url"
+      ></el-input>
       <el-button @click="checkUrl">查询</el-button>
     </div>
     <div class="tw-mt-2 tw-flex tw-min-h-0">
@@ -31,6 +35,7 @@
         </div>
       </div>
       <div
+        :key="currentId"
         class="tw-min-w-0 tw-overflow-auto tw-flex tw-border-black tw-border tw-border-l-0 tw-flex-grow"
       >
         <component-info
@@ -90,6 +95,7 @@ export default Vue.extend({
       }
       this.componentList = [];
       this.$refs.routeTree.setCheckedKeys([]);
+      this.currentId = "";
     },
     getRouteTooltipContent(routeData) {
       const newRoute = {
@@ -103,6 +109,7 @@ export default Vue.extend({
     checkRoute(data) {
       this.componentList = [data.component || data.components.default];
       this.$refs.routeTree.setCheckedKeys([data._id]);
+      this.currentId = data._id;
     },
     pushComponent(component, index) {
       this.componentList = this.componentList.slice(0, index + 1);
@@ -117,6 +124,7 @@ export default Vue.extend({
       searchUrl: "",
       routes,
       componentList: [],
+      currentId: "",
     };
   },
 });

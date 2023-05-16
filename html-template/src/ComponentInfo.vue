@@ -21,7 +21,7 @@
           </span>
         </el-tree>
       </div>
-      <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto tw-flex-grow">
+      <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto">
         <div v-if="isFirstTemplate">
           <div class="tw-p-2">
             <div>组件名：{{ componentData.name || "无" }}</div>
