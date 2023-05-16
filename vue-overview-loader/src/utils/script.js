@@ -8,7 +8,7 @@ const utils = require('eslint-plugin-vue/lib/utils/index')
  * 1、适用于标签属性的绑定值
  * 2、适用于{{}}中的绑定值
  * @param {*} container 
- * @returns [valueName, valueType,scopeNames, callNames，callParams,vForName]
+ * @returns [valueName, valueType,scopeNames, callNames，callParams]
  */
 function getExpressionContainerInfo(context, container) {
   // 没有绑定值时，例如 v-else
@@ -16,15 +16,16 @@ function getExpressionContainerInfo(context, container) {
 
   // 绑定指是常量
   if (container.expression.type === 'Literal') {
-    return [container.expression.raw, container.expression.type]
+    return [getFormatJsCode(context, container.expression), container.expression.type, , , [container.expression.raw]]
   }
 
   // 绑定值是变量（函数或变量），[变量名,'Identifier']
-  if (container.expression.type === 'Identifier') return [container.expression.name, container.expression.type]
+  if (container.expression.type === 'Identifier') return [getFormatJsCode(context, container.expression), container.expression.type, , , [container.expression.name]]
 
   // 表达式(e.a)直接返回文本
   if (['MemberExpression'].includes(container.expression.type)) {
-    return [getFormatJsCode(context, container.expression), container.expression.type]
+    const expressionText = getFormatJsCode(context, container.expression)
+    return [expressionText, container.expression.type, , , [expressionText]]
   }
 
   // 绑定值是函数调用
@@ -43,7 +44,7 @@ function getExpressionContainerInfo(context, container) {
   // 绑定值是v-for的值
   // 遍历的对象只支持变量
   if (container.expression.type === 'VForExpression') {
-    return [getFormatJsCode(context, container.expression), container.expression.type, getPatternNames(container.expression.left), undefined, undefined, container.expression.right.name]
+    return [getFormatJsCode(context, container.expression), container.expression.type, getPatternNames(container.expression.left), undefined, [container.expression.right.name]]
   }
 
   // 绑定值是slot-scope或v-slot

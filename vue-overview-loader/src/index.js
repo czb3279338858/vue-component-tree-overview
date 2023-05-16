@@ -155,8 +155,8 @@ linter.defineRule("vue-loader", {
 							if (value && value.type === "VLiteral") {
 								return new Attribute(keyName, value.value, value.type)
 							} else {
-								const [valueName, valueType, scopeNames, callNames, callParams, vForName] = getExpressionContainerInfo(context, value)
-								return new Attribute(keyName, valueName, valueType, scopeNames, callNames, callParams, vForName)
+								const [valueName, valueType, scopeNames, callNames, callParams] = getExpressionContainerInfo(context, value)
+								return new Attribute(keyName, valueName, valueType, scopeNames, callNames, callParams)
 							}
 						})
 						const comment = getTemplateCommentBefore(element)
@@ -702,27 +702,27 @@ function getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHoo
 	const name = nameAndExtendMap.get('name')
 	const extend = nameAndExtendMap.get('extend')
 	const metaData = {
+		name,
+		modelOptionMap,
 		template,
-
 		propMap,
 		emitMap,
 
 		setupMap,
+		injectMap,
+		provideMap,
+		lifecycleHookMap,
+
 		computedMap,
 		dataMap,
 		methodMap,
-		injectMap,
+		filterMap,
 
 		extend,
 		mixinSet,
 
-		filterMap,
-
-		provideMap,
-		lifecycleHookMap,
-		name,
 		componentMap,
-		modelOptionMap,
+
 	}
 	return getCodeFromMetaData(metaData, ['importValue'])
 }

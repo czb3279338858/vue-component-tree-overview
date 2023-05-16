@@ -8,23 +8,21 @@ class PropInfo {
   }
 }
 /**
- * keyName：attr左边
- * valueName：attr右边
+ * keyName：attr左边 => :class
+ * valueName：attr右边 => getAttrB1(getAttrB2(dataA))
  * valueType：attr右边的类型,VLiteral \Literal \Identifier \CallExpression \MemberExpression \VFilterSequenceExpression \VForExpression \VSlotScopeExpression \undefined
  * scopeNames：v-for,v-slot,slot-scope有作用域
- * callNames：attr右边是函数调用或filter
- * callParams：attr右边是函数调用或filter的参数
- * vForName：v-for的值
+ * callNames：attr右边是函数调用或filter => [getAttrB1,getAttrB2]
+ * callParams：attr右边是函数调用或filter的参数，或绑定值是变量时，或vForName的循环值 => [dataA]
  */
 class Attribute {
-  constructor(keyName, valueName, valueType, scopeNames, callNames, callParams, vForName) {
+  constructor(keyName, valueName, valueType, scopeNames, callNames, callParams) {
     this.keyName = keyName
     this.valueName = valueName
     this.valueType = valueType
     this.scopeNames = scopeNames
     this.callNames = callNames
     this.callParams = callParams
-    this.vForName = vForName
   }
 }
 /**

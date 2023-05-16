@@ -104,15 +104,9 @@
             <el-table-column label="插槽参数">
               <template slot-scope="{ row: slot }">
                 <el-table :data="getSlotAttrs(slot)">
-                  <el-table-column label="key" width="100">
-                    <template slot-scope="{ row: param }">
-                      <span v-html="getSlotAttrKey(param.keyName)"></span>
-                    </template>
+                  <el-table-column label="key" width="100" prop="keyName">
                   </el-table-column>
-                  <el-table-column label="value" width="100">
-                    <template slot-scope="{ row: param }">
-                      <span v-html="getAttrValueName(param)"></span>
-                    </template>
+                  <el-table-column label="value" width="100" prop="valueName">
                   </el-table-column>
                   <el-table-column label="value 注释">
                     <template slot-scope="{ row: param }">
@@ -247,18 +241,18 @@ export default {
     },
     // 通过变量名获取该变量名在组件数据中的注释
     getIdentifierComment(identifierName) {
-      for (const map of [
-        this.propMap,
-        this.setupMap,
-        this.computedMap,
-        this.dataMap,
-        this.methodMap,
-        this.injectMap,
-        this.filterMap,
+      for (const key of [
+        "propMap",
+        "setupMap",
+        "computedMap",
+        "dataMap",
+        "methodMap",
+        "injectMap",
+        "filterMap",
       ]) {
-        const info = map[identifierName];
+        const info = this[key][identifierName];
         if (info) {
-          const comments = [info.comment];
+          const comments = [`${key}：${info.comment}`];
           if (info.importValue) {
             comments.push(info.importValue.comment);
           }
@@ -277,9 +271,11 @@ export default {
             (a) => a.scopeNames && a.scopeNames.includes(valueName)
           );
         if (scopeAttr) {
-          if (scopeAttr.vForName) {
+          if (scopeAttr.valueType === "VForExpression") {
             // 如果是v-for
-            preFrom.push(`${valueName}来源于v-for循环值${scopeAttr.vForName}`);
+            preFrom.push(
+              `${valueName}来源于v-for循环值${scopeAttr.callParams[0]}`
+            );
             return this.getAttrValueCommentFromComponent(
               scopeAttr.vForName,
               currentTemplate.parent,
@@ -315,17 +311,6 @@ export default {
       return this.getBrFromLineBreak(
         this.getAttrValueCommentFromComponent(attr.valueName, slot)
       );
-    },
-    // 获取属性绑定值，用是否[]包裹来区分变量还是常量
-    getAttrValueName(attr) {
-      if (["VLiteral", "Literal"].includes(attr.valueType)) {
-        return attr.valueName;
-      }
-      return `[${attr.valueName}]`;
-    },
-    // slot标签的属性名
-    getSlotAttrKey(key) {
-      return key.replace(":", "");
     },
     // 获取slot标签除name以外的所有属性
     getSlotAttrs(template) {
