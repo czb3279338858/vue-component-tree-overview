@@ -1,5 +1,4 @@
 const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   entry: {
@@ -60,11 +59,5 @@ module.exports = {
       'vue-overview-loader': require.resolve('../vue-overview-loader/src/'),
     },
   },
-  mode: 'development',
-  plugins: [
-    new HtmlWebpackPlugin({
-      chunks: ['routes'],
-      template: './public/index.html'
-    })
-  ]
+  mode: 'development'
 };
