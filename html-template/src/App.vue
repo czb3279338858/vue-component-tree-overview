@@ -30,11 +30,15 @@
           </el-tree>
         </div>
       </div>
-      <div class="tw-min-w-0 tw-overflow-auto tw-flex">
+      <div
+        class="tw-min-w-0 tw-overflow-auto tw-flex tw-border-black tw-border tw-border-l-0"
+      >
         <component-info
           v-for="(componentData, index) in componentList"
           :componentData="componentData"
+          :index="index"
           :key="index"
+          @pushComponent="pushComponent"
         ></component-info>
       </div>
     </div>
@@ -96,6 +100,12 @@ export default Vue.extend({
     checkRoute(data) {
       this.componentList = [data.component];
       this.$refs.routeTree.setCheckedKeys([data._id]);
+    },
+    pushComponent(component, index) {
+      this.componentList = this.componentList.slice(0, index + 1);
+      if (component) {
+        this.componentList.push(component);
+      }
     },
   },
   data() {

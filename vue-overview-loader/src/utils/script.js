@@ -319,7 +319,7 @@ function setEmitMap(emitMap, emitName, emitType, emitComment, emitParamsVerify) 
     oldEmit.comment = mergeText(oldEmit.comment, emitComment)
     const oldEmitType = oldEmit.type
     emitType && emitType.forEach((type, index) => {
-      if (type && !oldEmitType[index]) oldEmitType[index] = type
+      if (type && (!oldEmitType[index] || oldEmitType[index].every(t => type.includes(t)))) oldEmitType[index] = type
     })
     if (emitParamsVerify && !oldEmit.paramsVerify) {
       oldEmit.paramsVerify = emitParamsVerify

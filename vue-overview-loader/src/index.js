@@ -12,7 +12,6 @@ const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPatte
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./utils/template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption, isVueOptions } = require('./utils/script')
 const { TemplateInfo, PropInfo, SetupInfo, LifecycleHookInfo, FilterInfo, EmitInfo, DataInfo, MethodInfo, ProvideInfo, InjectInfo, Attribute } = require('./utils/meta')
-const { at } = require('eslint-plugin-vue/lib/utils/vue2-builtin-components')
 
 const linter = new Linter()
 const parserOptions = {
@@ -171,8 +170,8 @@ linter.defineRule("vue-loader", {
 					},
 					// 标签内{{ }}
 					'VElement>VExpressionContainer'(node) {
-						const [value, type, , callNames, callParams,] = getExpressionContainerInfo(context, node)
-						const templateInfo = new TemplateInfo(`${getFormatJsCode(context, node)}`, type, undefined, getTemplateCommentBefore(node), undefined, value, callNames, callParams)
+						const [, type, , callNames, callParams,] = getExpressionContainerInfo(context, node)
+						const templateInfo = new TemplateInfo(`${getFormatJsCode(context, node)}`, type, undefined, getTemplateCommentBefore(node), undefined, callNames, callParams)
 						addTemplateMap(node, templateInfo, templateMap)
 					}
 				},
@@ -678,22 +677,25 @@ function getCodeFromMetaData(value, noJsonKeys, key) {
 	}
 	if (Array.isArray(value)) {
 		if (key === 'mixinSet') {
-			return value.length ? `[${value.map(item => item).join(',')}]` : undefined
+			return `[${value.map(item => item).join(',')}]`
 		} else {
-			return value.length ? `[${value.map(item => getCodeFromMetaData(item, noJsonKeys)).join(',')}]` : undefined
+			return `[${value.map(item => getCodeFromMetaData(item, noJsonKeys)).join(',')}]`
 		}
 	}
 	if (typeof value === 'object' && value !== null) {
 		const keys = Object.keys(value)
 		if (key === 'componentMap') {
-			return keys.length ? `{${keys.map(key => `'${key}':${value[key]}`).join(',')}}` : undefined
+			return `{${keys.map(key => `'${key}':${value[key]}`).join(',')}}`
 		} else {
-			return keys.length ? `{${keys.map(key => `'${key}':${getCodeFromMetaData(value[key], noJsonKeys, key)}`).join(',')}}` : undefined
+			return `{${keys.map(key => `'${key}':${getCodeFromMetaData(value[key], noJsonKeys, key)}`).join(',')}}`
 		}
 	}
 	if (key && (noJsonKeys.includes(key) || key === 'extend')) {
 		return value
 	} else {
+		if (value === undefined) {
+			return 'undefined'
+		}
 		return JSON.stringify(value)
 	}
 }
@@ -707,7 +709,6 @@ function getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHoo
 		template,
 		propMap,
 		emitMap,
-
 		setupMap,
 		injectMap,
 		provideMap,
@@ -757,7 +758,6 @@ module.exports = function loader(source) {
 		}
 		// 获取新代码
 		const exportDefaultCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
-
 		newCode += `export default ${exportDefaultCode}`
 		initMeta()
 		return newCode;

@@ -31,17 +31,17 @@ class Attribute {
  * attributes:{@link Attribute}[]
  * value 只有 {{}} 绑定 才有 {{ data }} => data
  * callNames 只有 {{}} 绑定 函数调用时 才有
- * callParams只有 {{}} 绑定函数调用时才有
+ * callParams 只有 {{}} 绑定函数调用时才有
  */
 class TemplateInfo {
-  constructor(template, type, attributes, comment, children, value, callNames, callParams) {
+  constructor(template, type, attributes, comment, children, callNames, callParams) {
     this.template = template
-    this.callNames = callNames
     this.type = type
     this.attributes = attributes
     this.comment = comment
     this.children = children
-    this.value = value
+    // this.value = value
+    this.callNames = callNames
     this.callParams = callParams
   }
 }
@@ -112,7 +112,7 @@ class MethodInfo {
  * {
  *   name:"s",
  *   nameType:'Identifier'
- *   value:'provideSymbolFrom',
+ *   value:'provideSymbolFrom', 支持'a.b',支持常量，但是和变量没有区别
  *   valueType:'Identifier',
  *   comment:'xxx'
  * }
@@ -131,9 +131,9 @@ class ProvideInfo {
 /**
  * {
  *   name:"injectB",
- *   from:'injectSymbol',
+ *   from:'injectSymbol', 当是字符串时'"injectFrom"'
  *   fromType:'Identifier' | 'Literal'
- *   defaultValue:undefined,
+ *   defaultValue:undefined | '()=>['1']'
  *   comment:'xxx'
  * }
  */
