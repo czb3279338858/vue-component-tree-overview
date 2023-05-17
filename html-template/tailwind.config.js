@@ -1,11 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   prefix: 'tw-',
-  purge: [
+  content: [
     './src/**/*.vue',
   ],
-  darkMode: false,
-  content: [],
   theme: {
     extend: {},
   },
