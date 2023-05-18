@@ -2,9 +2,7 @@
   "version": "1.0.0",
   "description": "webpack loader",
   "name": "vue-overview-loader",
-  "scripts": {
-    "buildExamples": "webpack build --config=./examples/simple/webpack.config.js"
-  },
+  "scripts": {},
   "devDependencies": {
     "webpack": "^5.76.2",
     "webpack-cli": "^5.0.1",

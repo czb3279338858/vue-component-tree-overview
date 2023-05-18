@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build-routes": "webpack build --config=./webpack.config.js",
+    "build-loader": "webpack build --config=./webpack.config.js",
     "get-webpack-config": "vue inspect > vue-cli-webpack-config-output.js",
     "get-eslint-config": "eslint --print-config ./.eslintrc.js"
   },

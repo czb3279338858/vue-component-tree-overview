@@ -155,6 +155,7 @@ importers:
 
   vue-overview-plugin-example:
     specifiers:
+      '@types/node': ^20.2.0
       '@typescript-eslint/eslint-plugin': ^5.4.0
       '@typescript-eslint/parser': ^5.4.0
       '@vue/cli-plugin-babel': ~5.0.0
@@ -184,6 +185,7 @@ importers:
       vue-router: 3.6.5_vue@2.7.14
       vuex: 3.6.2_vue@2.7.14
     devDependencies:
+      '@types/node': 20.2.0
       '@typescript-eslint/eslint-plugin': 5.59.2_jotbivdhkn6m37ggqnnyyijnta
       '@typescript-eslint/parser': 5.55.0_sgaiclxgc5mltnpgmg7py4v6ca
       '@vue/cli-plugin-babel': 5.0.8_6hpxtzjy4bvvjtyet725mhtrta
@@ -1634,26 +1636,26 @@ packages:
     resolution: {integrity: sha512-ALYone6pm6QmwZoAgeyNksccT9Q4AWZQ6PvfwR37GT6r6FWUPguq6sUmNGSMV2Wr761oQoBxwGGa6DR5o1DC9g==}
     dependencies:
       '@types/connect': 3.4.35
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   /@types/bonjour/3.5.10:
     resolution: {integrity: sha512-p7ienRMiS41Nu2/igbJxxLDWrSZ0WxM8UQgCeO9KhoVF7cOVFkrKsiDr1EsJIla8vV3oEEjGcz11jc5yimhzZw==}
     dependencies:
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   /@types/connect-history-api-fallback/1.5.0:
     resolution: {integrity: sha512-4x5FkPpLipqwthjPsF7ZRbOv3uoLUFkTA9G9v583qi4pACvq0uTELrB8OLUzPWUI4IJIyvM85vzkV1nyiI2Lig==}
     dependencies:
       '@types/express-serve-static-core': 4.17.31
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   /@types/connect/3.4.35:
     resolution: {integrity: sha512-cdeYyv4KWoEgpBISTxWvqYsVy444DOqehiF3fM3ne10AmJ62RSyNkUnxMJXHQWRQQX2eR94m5y1IZyDwBjV9FQ==}
     dependencies:
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   /@types/eslint-scope/3.7.4:
@@ -1677,7 +1679,7 @@ packages:
   /@types/express-serve-static-core/4.17.31:
     resolution: {integrity: sha512-DxMhY+NAsTwMMFHBTtJFNp5qiHKJ7TeqOo23zVEM9alT1Ml27Q3xcTH0xwxn7Q0BbMcVEJOs/7aQtUWupUQN3Q==}
     dependencies:
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
       '@types/qs': 6.9.7
       '@types/range-parser': 1.2.4
     dev: true
@@ -1698,7 +1700,7 @@ packages:
   /@types/http-proxy/1.17.11:
     resolution: {integrity: sha512-HC8G7c1WmaF2ekqpnFq626xd3Zz0uvaqFmBJNRZCGEZCXkvSdJoNFn/8Ygbd9fKNQj8UzLdCETaI0UWPAjK7IA==}
     dependencies:
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   /@types/json-schema/7.0.11:
@@ -1713,8 +1715,16 @@ packages:
     resolution: {integrity: sha512-jhuKLIRrhvCPLqwPcx6INqmKeiA5EWrsCOPhrlFSrbrmU4ZMPjj5Ul/oLCMDO98XRUIwVm78xICz4EPCektzeQ==}
     dev: true
 
-  /@types/node/18.15.3:
-    resolution: {integrity: sha512-p6ua9zBxz5otCmbpb5D3U4B5Nanw6Pk3PPyX05xnxbB/fRv71N7CPmORg7uAD5P70T0xmx1pzAx/FUfa5X+3cw==}
+  /@types/node/10.17.60:
+    resolution: {integrity: sha512-F0KIgDJfy2nA3zMLmWGKxcH2ZVEtCZXHHdOQs2gSaQ27+lNeEfGxzkIw90aXswATX7AZ33tahPbzy6KAfUreVw==}
+    dev: true
+
+  /@types/node/15.14.9:
+    resolution: {integrity: sha512-qjd88DrCxupx/kJD5yQgZdcYKZKSIGBVDIBE1/LTGcNm3d2Np/jxojkdePDdfnBHJc5W7vSMpbJ1aB7p/Py69A==}
+    dev: true
+
+  /@types/node/20.2.0:
+    resolution: {integrity: sha512-3iD2jaCCziTx04uudpJKwe39QxXgSUnpxXSvRQjRvHPxFQfmfP4NXIm/NURVeNlTCc+ru4WqjYGTmpXrW9uMlw==}
     dev: true
 
   /@types/normalize-package-data/2.4.1:
@@ -1751,13 +1761,13 @@ packages:
     resolution: {integrity: sha512-NUo5XNiAdULrJENtJXZZ3fHtfMolzZwczzBbnAeBbqBwG+LaG6YaJtuwzwGSQZ2wsCrxjEhNNjAkKigy3n8teQ==}
     dependencies:
       '@types/mime': 3.0.1
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   /@types/sockjs/0.3.33:
     resolution: {integrity: sha512-f0KEEe05NvUnat+boPTZ0dgaLZ4SfSouXUgv5noUiefG2ajgKjmETo9ZJyuqsl7dfl2aHlLJUiki6B4ZYldiiw==}
     dependencies:
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   /@types/webpack-env/1.18.0:
@@ -1767,7 +1777,7 @@ packages:
   /@types/ws/8.5.4:
     resolution: {integrity: sha512-zdQDHKUgcX/zBc4GrwsE/7dVdAD8JR4EuiAXiiUhhfyIJXXb2+PrGshFyeXWQPMmmZ2XxgaqclgpIC7eTXc1mg==}
     dependencies:
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   /@typescript-eslint/eslint-plugin/5.59.2_jotbivdhkn6m37ggqnnyyijnta:
@@ -5368,7 +5378,7 @@ packages:
     resolution: {integrity: sha512-7vuh85V5cdDofPyxn58nrPjBktZo0u9x1g8WtjQol+jZDaE+fhN+cIvTj11GndBnMnyfrUOG1sZQxCdjKh+DKg==}
     engines: {node: '>= 10.13.0'}
     dependencies:
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
     dev: true
@@ -5377,7 +5387,7 @@ packages:
     resolution: {integrity: sha512-CqRA220YV/6jCo8VWvAt1KKx6eek1VIHMPeLEbpcfSfkEeWyBNppynM/o6q+Wmw+sOhos2ml34wZbSX3G13//g==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
-      '@types/node': 18.15.3
+      '@types/node': 20.2.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
     dev: true
@@ -8609,7 +8619,7 @@ packages:
       '@protobufjs/pool': registry.npmmirror.com/@protobufjs/pool/1.1.0
       '@protobufjs/utf8': registry.npmmirror.com/@protobufjs/utf8/1.1.0
       '@types/long': registry.npmmirror.com/@types/long/4.0.2
-      '@types/node': registry.npmmirror.com/@types/node/10.17.60
+      '@types/node': 10.17.60
       long: registry.npmmirror.com/long/4.0.0
     dev: true
 
@@ -10664,7 +10674,7 @@ packages:
     name: '@types/accepts'
     version: 1.3.5
     dependencies:
-      '@types/node': registry.npmmirror.com/@types/node/18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   registry.npmmirror.com/@types/body-parser/1.19.2:
@@ -10673,7 +10683,7 @@ packages:
     version: 1.19.2
     dependencies:
       '@types/connect': registry.npmmirror.com/@types/connect/3.4.35
-      '@types/node': registry.npmmirror.com/@types/node/18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   registry.npmmirror.com/@types/connect/3.4.35:
@@ -10681,7 +10691,7 @@ packages:
     name: '@types/connect'
     version: 3.4.35
     dependencies:
-      '@types/node': registry.npmmirror.com/@types/node/18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   registry.npmmirror.com/@types/cors/2.8.12:
@@ -10731,7 +10741,7 @@ packages:
     name: '@types/express-serve-static-core'
     version: 4.17.31
     dependencies:
-      '@types/node': registry.npmmirror.com/@types/node/18.15.3
+      '@types/node': 20.2.0
       '@types/qs': registry.npmmirror.com/@types/qs/6.9.7
       '@types/range-parser': registry.npmmirror.com/@types/range-parser/1.2.4
     dev: true
@@ -10770,7 +10780,7 @@ packages:
     name: '@types/keyv'
     version: 3.1.4
     dependencies:
-      '@types/node': registry.npmmirror.com/@types/node/18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   registry.npmmirror.com/@types/long/4.0.2:
@@ -10783,24 +10793,6 @@ packages:
     resolution: {integrity: sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@types/minimatch/-/minimatch-3.0.5.tgz}
     name: '@types/minimatch'
     version: 3.0.5
-    dev: true
-
-  registry.npmmirror.com/@types/node/10.17.60:
-    resolution: {integrity: sha512-F0KIgDJfy2nA3zMLmWGKxcH2ZVEtCZXHHdOQs2gSaQ27+lNeEfGxzkIw90aXswATX7AZ33tahPbzy6KAfUreVw==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@types/node/-/node-10.17.60.tgz}
-    name: '@types/node'
-    version: 10.17.60
-    dev: true
-
-  registry.npmmirror.com/@types/node/15.14.9:
-    resolution: {integrity: sha512-qjd88DrCxupx/kJD5yQgZdcYKZKSIGBVDIBE1/LTGcNm3d2Np/jxojkdePDdfnBHJc5W7vSMpbJ1aB7p/Py69A==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@types/node/-/node-15.14.9.tgz}
-    name: '@types/node'
-    version: 15.14.9
-    dev: true
-
-  registry.npmmirror.com/@types/node/18.15.3:
-    resolution: {integrity: sha512-p6ua9zBxz5otCmbpb5D3U4B5Nanw6Pk3PPyX05xnxbB/fRv71N7CPmORg7uAD5P70T0xmx1pzAx/FUfa5X+3cw==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@types/node/-/node-18.15.3.tgz}
-    name: '@types/node'
-    version: 18.15.3
     dev: true
 
   registry.npmmirror.com/@types/normalize-package-data/2.4.1:
@@ -10826,7 +10818,7 @@ packages:
     name: '@types/responselike'
     version: 1.0.0
     dependencies:
-      '@types/node': registry.npmmirror.com/@types/node/18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   registry.npmmirror.com/@types/through/0.0.30:
@@ -10834,7 +10826,7 @@ packages:
     name: '@types/through'
     version: 0.0.30
     dependencies:
-      '@types/node': registry.npmmirror.com/@types/node/18.15.3
+      '@types/node': 20.2.0
     dev: true
 
   registry.npmmirror.com/@types/vinyl/2.0.7:
@@ -10843,7 +10835,7 @@ packages:
     version: 2.0.7
     dependencies:
       '@types/expect': registry.npmmirror.com/@types/expect/1.20.4
-      '@types/node': registry.npmmirror.com/@types/node/15.14.9
+      '@types/node': 20.2.0
     dev: true
 
   registry.npmmirror.com/@typescript-eslint/parser/5.55.0_eslint@7.32.0:
@@ -14374,7 +14366,7 @@ packages:
     version: 27.5.1
     engines: {node: '>= 10.13.0'}
     dependencies:
-      '@types/node': registry.npmmirror.com/@types/node/18.15.3
+      '@types/node': 20.2.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
     dev: true
@@ -14833,7 +14825,7 @@ packages:
     version: 2.3.0
     engines: {node: '>=12'}
     dependencies:
-      '@types/node': registry.npmmirror.com/@types/node/15.14.9
+      '@types/node': 15.14.9
       '@types/vinyl': registry.npmmirror.com/@types/vinyl/2.0.7
       vinyl: registry.npmmirror.com/vinyl/2.2.1
       vinyl-file: registry.npmmirror.com/vinyl-file/3.0.0
