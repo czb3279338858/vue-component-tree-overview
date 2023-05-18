@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build-routes": "webpack build --config=./webpack.config.js",
+    "build-routes-plugin": "vue-cli-service build",
     "get-webpack-config": "vue inspect > vue-cli-webpack-config-output.js",
     "get-eslint-config": "eslint --print-config ./.eslintrc.js"
   },
