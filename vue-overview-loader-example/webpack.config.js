@@ -11,7 +11,7 @@ module.exports = {
     }
   },
   output: {
-    path: path.join(__dirname, '../html-template/public/'),
+    path: path.join(__dirname, './dist'),
     filename: '[name].chunk.js',
   },
   resolve: {
