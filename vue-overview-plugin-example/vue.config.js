@@ -4,7 +4,12 @@ module.exports = defineConfig({
   transpileDependencies: true,
   configureWebpack: {
     plugins: [
-      new VueOverviewPlugin()
+      new VueOverviewPlugin({
+        entry: './src/router/routes.ts',
+        loaderOptions: {
+          exclude: /routes.ts$/
+        }
+      })
     ]
   }
 })
