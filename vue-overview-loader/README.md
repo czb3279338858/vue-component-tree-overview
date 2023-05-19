@@ -1,4 +1,10 @@
 # 支持的语法
+# 路由中
+- import() 导入组件
+
+# 其他 ts|js 文件
+- 参考 import、export 语法
+## vue中
 - 支持 option 组件、class 组件、`<script setup>` 组件
   - class
     - 不支持@Watch

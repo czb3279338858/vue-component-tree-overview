@@ -38,7 +38,7 @@ class VueOverviewPlugin {
             test: /\.(ts|js|vue)$/,
             use: [
               {
-                loader: path.join(__dirname, '../../vue-overview-loader/src/index.js'),
+                loader: path.join(__dirname, '../node_modules/vue-overview-loader/src/index.js'),
                 options: {
                   routes
                 },
