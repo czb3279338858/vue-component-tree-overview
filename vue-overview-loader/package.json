@@ -2,7 +2,14 @@
   "version": "0.0.1",
   "description": "webpack loader，能够处理 .vue|js|ts 文件，提取 vue 项目代码大纲，需要配合 vue-overview-loader-plugin 使用",
   "name": "vue-overview-loader",
-  "scripts": {},
+  "main": "./src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/czb3279338858/vue-component-tree-overview/tree/main/vue-overview-loader"
+  },
+  "scripts": {
+    "publish": "npm publish"
+  },
   "devDependencies": {
     "webpack": "^5.76.2",
     "webpack-cli": "^5.0.1",
