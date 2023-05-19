@@ -2,7 +2,6 @@
 import { RouteConfig } from 'vue-router'
 import ClassComponent from '../views/ClassComponent.vue'
 import OptionComponent from '../views/OptionComponent.vue'
-import SetupComponent from '../views/SetupComponent.vue'
 const routes: Array<RouteConfig> = [
     {
         path: '/options-component',
@@ -17,7 +16,7 @@ const routes: Array<RouteConfig> = [
     },
     {
         path: '/setup-component',
-        component: SetupComponent
+        component: () => import(/* webpackChunkName: "setup-component" */ '../views/SetupComponent.vue')
     }
 ]
 export default routes

@@ -6,8 +6,8 @@ module.exports = defineConfig({
     plugins: [
       new VueOverviewPlugin({
         entry: './src/router/routes.ts',
-        loaderOptions: {
-          exclude: /routes.ts$/
+        routes: {
+          include: /routes\.ts$/,
         }
       })
     ]

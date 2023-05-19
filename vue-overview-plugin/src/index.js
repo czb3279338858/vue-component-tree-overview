@@ -10,7 +10,7 @@ class VueOverviewPlugin {
     this.options = options;
   }
   apply(compiler) {
-    const { entry, loaderOptions: { exclude } } = this.options
+    const { entry, routes } = this.options
     const options = compiler.options
     const newPlugins = options.plugins.filter(p => !(p instanceof VueOverviewPlugin || p instanceof HtmlWebpackPlugin || p.__pluginConstructorName === 'VueLoaderPlugin'))
     const newOptions = {
@@ -36,7 +36,7 @@ class VueOverviewPlugin {
               {
                 loader: 'vue-overview-loader',
                 options: {
-                  exclude
+                  routes
                 },
               },
             ],
