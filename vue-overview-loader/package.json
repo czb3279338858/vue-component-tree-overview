@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "description": "webpack loader",
+  "version": "0.0.1",
+  "description": "webpack loader，能够处理 .vue|js|ts 文件，提取 vue 项目代码大纲，需要配合 vue-overview-loader-plugin 使用",
   "name": "vue-overview-loader",
   "scripts": {},
   "devDependencies": {
