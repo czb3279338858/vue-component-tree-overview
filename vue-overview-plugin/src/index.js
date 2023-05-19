@@ -15,6 +15,9 @@ class VueOverviewPlugin {
     const newPlugins = options.plugins.filter(p => !(p instanceof VueOverviewPlugin || p instanceof HtmlWebpackPlugin || p.__pluginConstructorName === 'VueLoaderPlugin'))
     const newOptions = {
       ...options,
+      performance: {
+        hints: false
+      },
       entry: {
         routes: {
           import: path.join(options.context, entry),
@@ -77,7 +80,13 @@ class VueOverviewPlugin {
         })
       ]
     }
-    webpack(newOptions, (err, stats) => { console.log('1111111111', err) })
+    webpack(newOptions, (err, stats) => {
+      if (err) {
+        console.error('vue-overview-plugin:', err)
+      } else {
+        console.log('vue-overview-plugin:打包完成')
+      }
+    })
   }
 }
 
