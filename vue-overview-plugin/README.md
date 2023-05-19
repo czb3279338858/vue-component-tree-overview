@@ -3,7 +3,7 @@
   - 会调用 vue-overview-loader 对 .vue | js | ts 文件进行处理
   - 路由信息文件会把 import() 处理为同步导入
   - 其他文件会获取代码大纲
-  
+  - 打包的结果会输出到项目输出目录/vue-overview中，点击 index.html 可以直接访问代码大纲
 - vue.config.js
 ```
 const { defineConfig } = require('@vue/cli-service')
