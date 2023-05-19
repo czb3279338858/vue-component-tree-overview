@@ -1,4 +1,4 @@
-# 支持的语法及待办事项
+# 支持的语法
 - 支持 option 组件、class 组件、`<script setup>` 组件
   - class
     - 不支持@Watch
