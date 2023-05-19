@@ -3,7 +3,7 @@
  * https://webpack.js.org/contribute/writing-a-loader
  */
 
-const { Linter, SourceCode } = require('eslint')
+const { Linter } = require('eslint')
 const { parseForESLint } = require('vue-eslint-parser')
 const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')

@@ -11,26 +11,27 @@ class VueOverviewPlugin {
   }
   apply(compiler) {
     const { entry, routes } = this.options
+    const webpackVersion = webpack.version
     const options = compiler.options
     const newPlugins = options.plugins.filter(p => !(p instanceof VueOverviewPlugin || p instanceof HtmlWebpackPlugin || p.__pluginConstructorName === 'VueLoaderPlugin'))
+    const entryOption = webpackVersion.startsWith('4') ? path.join(options.context, entry) : {
+      routes: {
+        import: path.join(options.context, entry),
+        library: {
+          name: 'routes',
+          type: 'var',
+        }
+      }
+    }
     const newOptions = {
       ...options,
       performance: {
         hints: false
       },
-      entry: {
-        routes: {
-          import: path.join(options.context, entry),
-          library: {
-            name: 'routes',
-            type: 'var',
-          }
-        }
-      },
+      entry: entryOption,
       output: {
         ...options.output,
         path: path.join(options.output.path, 'vue-overview'),
-        enabledLibraryTypes: ['var']
       },
       module: {
         rules: [

@@ -4,3 +4,4 @@ packages:
   - 'html-template'
   - 'vue-overview-plugin'
   - 'vue-overview-plugin-example'
+  - 'vue-overview-plugin-example-4'
