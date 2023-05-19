@@ -29,7 +29,8 @@ class VueOverviewPlugin {
       },
       output: {
         ...options.output,
-        path: path.join(options.output.path, 'vue-overview')
+        path: path.join(options.output.path, 'vue-overview'),
+        enabledLibraryTypes: ['var']
       },
       module: {
         rules: [
@@ -82,7 +83,7 @@ class VueOverviewPlugin {
     }
     webpack(newOptions, (err, stats) => {
       if (err) {
-        console.error('vue-overview-plugin:', err)
+        console.error('vue-overview-plugin:打包失败', err)
       } else {
         console.log('vue-overview-plugin:打包完成')
       }
