@@ -29,6 +29,7 @@
     "sass": "^1.32.7",
     "sass-loader": "^12.0.0",
     "typescript": "~4.5.5",
+    "vue-overview-plugin": "^0.0.1",
     "vue-template-compiler": "^2.6.14"
   }
 }
