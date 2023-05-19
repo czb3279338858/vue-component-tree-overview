@@ -38,7 +38,7 @@ class VueOverviewPlugin {
             test: /\.(ts|js|vue)$/,
             use: [
               {
-                loader: 'vue-overview-loader',
+                loader: path.join(__dirname, '../../vue-overview-loader/src/index.js'),
                 options: {
                   routes
                 },
@@ -49,10 +49,10 @@ class VueOverviewPlugin {
             test: /\.ts$/,
             use: [
               {
-                loader: 'babel-loader'
+                loader: path.join(__dirname, '../node_modules/babel-loader/lib/index.js')
               },
               {
-                loader: 'ts-loader',
+                loader: path.join(__dirname, '../node_modules/ts-loader/index.js'),
                 options: {
                   transpileOnly: true,
                   appendTsSuffixTo: [
@@ -64,14 +64,6 @@ class VueOverviewPlugin {
             ]
           }
         ],
-      },
-      resolveLoader: {
-        ...options.resolveLoader,
-        alias: {
-          'vue-overview-loader': path.join(__dirname, '../../vue-overview-loader/src/index.js'),
-          'babel-loader': path.join(__dirname, '../node_modules/babel-loader/lib/index.js'),
-          'ts-loader': path.join(__dirname, '../node_modules/ts-loader/index.js')
-        },
       },
       plugins: [
         ...newPlugins,
