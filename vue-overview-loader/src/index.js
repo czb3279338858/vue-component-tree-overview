@@ -752,7 +752,7 @@ linter.defineRule('routes-loader', {
 
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
-	const { routes: { include } } = this.getOptions()
+	const { routes: { include } } = this.query
 	if (/node_module/.test(resource)) return source
 	if (include && include.test(resource)) {
 		const config = {

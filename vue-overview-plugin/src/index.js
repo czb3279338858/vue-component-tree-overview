@@ -46,24 +46,24 @@ class VueOverviewPlugin {
               },
             ],
           },
-          {
-            test: /\.ts$/,
-            use: [
-              {
-                loader: path.join(__dirname, '../node_modules/babel-loader/lib/index.js')
-              },
-              {
-                loader: path.join(__dirname, '../node_modules/ts-loader/index.js'),
-                options: {
-                  transpileOnly: true,
-                  appendTsSuffixTo: [
-                    '\\.vue$'
-                  ],
-                  happyPackMode: false
-                }
-              }
-            ]
-          }
+          // {
+          //   test: /\.ts$/,
+          //   use: [
+          //     {
+          //       loader: path.join(__dirname, '../node_modules/babel-loader/lib/index.js')
+          //     },
+          //     {
+          //       loader: path.join(__dirname, '../node_modules/ts-loader/index.js'),
+          //       options: {
+          //         transpileOnly: true,
+          //         appendTsSuffixTo: [
+          //           '\\.vue$'
+          //         ],
+          //         happyPackMode: false
+          //       }
+          //     }
+          //   ]
+          // }
         ],
       },
       plugins: [

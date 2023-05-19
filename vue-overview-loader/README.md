@@ -211,3 +211,5 @@
 - 根据 ts 获取具体类型
 - class 多个装饰器
 - require.context => import
+- babel-loader 需要同时支持webpack4和5
+- webpack 需要研究下var怎么注入
