@@ -29,7 +29,9 @@ module.exports = {
           {
             loader: 'vue-overview-loader',
             options: {
-              exclude: /routes.ts$/
+              routes: {
+                include: /routes.ts$/
+              }
             },
           },
         ],

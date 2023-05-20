@@ -8,30 +8,30 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 class VueOverviewPlugin {
   constructor(options = {}) {
     this.options = options;
+    this.webpackPromise
   }
   apply(compiler) {
     const { entry, routes } = this.options
-    const webpackVersion = webpack.version
     const options = compiler.options
-    const newPlugins = options.plugins.filter(p => !(p instanceof VueOverviewPlugin || p instanceof HtmlWebpackPlugin || p.__pluginConstructorName === 'VueLoaderPlugin'))
-    const entryOption = webpackVersion.startsWith('4') ? path.join(options.context, entry) : {
-      routes: {
-        import: path.join(options.context, entry),
-        library: {
-          name: 'routes',
-          type: 'var',
-        }
-      }
-    }
     const newOptions = {
-      ...options,
       performance: {
         hints: false
       },
-      entry: entryOption,
+      entry: {
+        routes: {
+          import: path.join(options.context, entry),
+          library: {
+            name: 'routes',
+            type: 'var',
+          }
+        }
+      },
       output: {
-        ...options.output,
         path: path.join(options.output.path, 'vue-overview'),
+      },
+      resolve: {
+        alias: options.resolve.alias,
+        extensions: options.resolve.extensions
       },
       module: {
         rules: [
@@ -46,40 +46,46 @@ class VueOverviewPlugin {
               },
             ],
           },
-          // {
-          //   test: /\.ts$/,
-          //   use: [
-          //     {
-          //       loader: path.join(__dirname, '../node_modules/babel-loader/lib/index.js')
-          //     },
-          //     {
-          //       loader: path.join(__dirname, '../node_modules/ts-loader/index.js'),
-          //       options: {
-          //         transpileOnly: true,
-          //         appendTsSuffixTo: [
-          //           '\\.vue$'
-          //         ],
-          //         happyPackMode: false
-          //       }
-          //     }
-          //   ]
-          // }
+          {
+            test: /\.ts$/,
+            use: [
+              {
+                loader: path.join(__dirname, '../node_modules/babel-loader/lib/index.js')
+              },
+              {
+                loader: path.join(__dirname, '../node_modules/ts-loader/index.js'),
+                options: {
+                  transpileOnly: true,
+                  appendTsSuffixTo: [
+                    '\\.vue$'
+                  ],
+                  happyPackMode: false
+                }
+              }
+            ]
+          }
         ],
       },
       plugins: [
-        ...newPlugins,
         new HtmlWebpackPlugin({
           template: path.join(__dirname, './index.html'),
           inject: false
         })
       ]
     }
-    webpack(newOptions, (err, stats) => {
-      if (err) {
-        console.error('vue-overview-plugin:打包失败', err)
-      } else {
-        console.log('vue-overview-plugin:打包完成')
-      }
+    this.webpackPromise = new Promise((resolve, reject) => {
+      webpack(newOptions, (err, stats) => {
+        resolve()
+        if (err) {
+          console.error('vue-overview-plugin:打包失败', err)
+        } else {
+          console.log('vue-overview-plugin:打包完成')
+        }
+      })
+    })
+    compiler.hooks.afterEmit.tapAsync('VueOverviewPlugin', async (compilation, callback) => {
+      await this.webpackPromise
+      callback()
     })
   }
 }

@@ -10,17 +10,11 @@
   "scripts": {
     "publish": "npm publish"
   },
-  "devDependencies": {
-    "html-webpack-plugin": "^4",
-    "webpack": "^4"
-  },
-  "peerDependencies": {
-    "html-webpack-plugin": ">=4.0.0",
-    "webpack": ">=4.0.0"
-  },
   "dependencies": {
     "babel-loader": "^9.1.2",
+    "html-webpack-plugin": "^5.5.1",
     "ts-loader": "^9.4.2",
-    "vue-overview-loader": "^0.0.1"
+    "vue-overview-loader": "^0.0.1",
+    "webpack": "^5.76.2"
   }
 }
