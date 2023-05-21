@@ -12,7 +12,6 @@ module.exports = {
   },
   output: {
     path: path.join(__dirname, './dist'),
-    filename: '[name].chunk.js',
   },
   resolve: {
     extensions: [
@@ -27,7 +26,7 @@ module.exports = {
         test: /\.(ts|js|vue)$/,
         use: [
           {
-            loader: 'vue-overview-loader',
+            loader: require.resolve('../vue-overview-loader/src/'),
             options: {
               routes: {
                 include: /routes.ts$/
@@ -56,10 +55,5 @@ module.exports = {
       }
     ],
   },
-  resolveLoader: {
-    alias: {
-      'vue-overview-loader': require.resolve('../vue-overview-loader/src/'),
-    },
-  },
-  mode: 'development'
+  // mode: 'development'
 };
