@@ -731,41 +731,42 @@ function getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHoo
 	return getCodeFromMetaData(metaData, ['importValue'])
 }
 
-let routesCode
-let importIndex = 0
-linter.defineRule('routes-loader', {
-	create(context) {
-		return {
-			"Program"(node) {
-				routesCode = context.getSourceCode().text
-			},
-			ImportExpression(node) {
-				const funNode = node.parent
-				const funNodeText = context.getSourceCode().getText(funNode)
-				const importName = `_component${importIndex++}`
-				routesCode = routesCode.replace(funNodeText, importName)
-				routesCode = `import ${importName} from ${node.source.raw};\n${routesCode}`
-			}
-		}
-	}
-})
+// let routesCode
+// let importIndex = 0
+// linter.defineRule('routes-loader', {
+// 	create(context) {
+// 		return {
+// 			"Program"(node) {
+// 				routesCode = context.getSourceCode().text
+// 			},
+// 			ImportExpression(node) {
+// 				const funNode = node.parent
+// 				const funNodeText = context.getSourceCode().getText(funNode)
+// 				const importName = `_component${importIndex++}`
+// 				routesCode = routesCode.replace(funNodeText, importName)
+// 				routesCode = `import ${importName} from ${node.source.raw};\n${routesCode}`
+// 			}
+// 		}
+// 	}
+// })
 
 module.exports = function loader(source) {
 	const { loaders, resource, request, version, webpack } = this;
 	const { routes: { include } } = this.query
-	if (/node_module/.test(resource)) return source
-	if (include && include.test(resource)) {
-		const config = {
-			parserOptions,
-			rules: { "routes-loader": "error" },
-			parser: 'vueEslintParser'
-		};
-		linter.verify(source, config)
-		const ret = routesCode
-		routesCode = undefined
-		importIndex = 0
-		return ret
-	}
+	if (/node_module/.test(resource) || (include && include.test(resource))) return source
+	// if (include && include.test(resource)) {
+	// 	return source
+	// 	const config = {
+	// 		parserOptions,
+	// 		rules: { "routes-loader": "error" },
+	// 		parser: 'vueEslintParser'
+	// 	};
+	// 	linter.verify(source, config)
+	// 	const ret = routesCode
+	// 	routesCode = undefined
+	// 	importIndex = 0
+	// 	return ret
+	// }
 	if (/.vue$/.test(resource)) {
 		const config = {
 			parserOptions,

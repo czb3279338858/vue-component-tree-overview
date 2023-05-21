@@ -106,8 +106,14 @@ export default Vue.extend({
       };
       return JSON.stringify(newRoute);
     },
-    checkRoute(data) {
-      this.componentList = [data.component || data.components.default];
+    async checkRoute(data) {
+      const component = data.component || data.components.default;
+      if (typeof component === "function") {
+        const componentData = await component();
+        this.componentList = [componentData.default];
+      } else {
+        this.componentList = [component];
+      }
       this.$refs.routeTree.setCheckedKeys([data._id]);
       this.currentId = data._id;
     },
