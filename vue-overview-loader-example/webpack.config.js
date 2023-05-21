@@ -29,7 +29,7 @@ module.exports = {
         test: /\.(ts|js|vue)$/,
         use: [
           {
-            loader: path.join(__dirname, '../node_modules/vue-overview-loader/src/index.js'),
+            loader: path.join(__dirname, './node_modules/vue-overview-loader/src/index.js'),
             options: {
               routes: {
                 include: /routes.ts$/
@@ -42,10 +42,10 @@ module.exports = {
         test: /\.ts$/,
         use: [
           {
-            loader: path.join(__dirname, '../node_modules/babel-loader/lib/index.js')
+            loader: path.join(__dirname, './node_modules/babel-loader/lib/index.js')
           },
           {
-            loader: path.join(__dirname, '../node_modules/ts-loader/index.js'),
+            loader: path.join(__dirname, './node_modules/ts-loader/index.js'),
             options: {
               transpileOnly: true,
               appendTsSuffixTo: [
@@ -58,5 +58,5 @@ module.exports = {
       }
     ],
   },
-  // mode: 'development'
+  mode: 'development'
 };

@@ -16,6 +16,7 @@
 
 <body>
   <div id="app"></div>
+  <script src="./routes.js"></script>
   <% for (var jsFile of htmlWebpackPlugin.files.js) { %>
     <script><%= compilation.assets[jsFile.substr(htmlWebpackPlugin.files.publicPath.length)].source() %></script>
     <% } %>
