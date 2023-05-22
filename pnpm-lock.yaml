@@ -5,8 +5,10 @@ importers:
   .:
     specifiers:
       '@vue/cli': ^5.0.8
+      webpack: ^5.76.2
     devDependencies:
       '@vue/cli': registry.npmmirror.com/@vue/cli/5.0.8
+      webpack: registry.npmmirror.com/webpack/5.83.1
 
   html-template:
     specifiers:
