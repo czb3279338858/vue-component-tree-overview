@@ -11,12 +11,11 @@
     "publish": "npm publish"
   },
   "dependencies": {
-    "@babel/core": "7",
-    "babel-loader": "^9.1.2",
+    "babel-loader": "^8",
     "html-webpack-plugin": "^5.5.1",
     "ts-loader": "^9.4.2",
     "typescript": "~4.5.5",
-    "vue-overview-loader": "workspace:0",
+    "vue-overview-loader": "^0",
     "webpack": "^5.76.2"
   }
 }

@@ -17,7 +17,10 @@
   },
   "homepage": "https://github.com/czb3279338858/vue-component-tree-overview#readme",
   "devDependencies": {
-    "@vue/cli": "^5.0.8",
-    "webpack": "^5.76.2"
+    "@vue/cli": "^5.0.8"
+  },
+  "dependencies": {
+    "webpack": "^5.76.2",
+    "webpack-cli": "^5.1.1"
   }
 }

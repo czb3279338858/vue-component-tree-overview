@@ -6,7 +6,7 @@
 - vue.config.js
 ```
 const { defineConfig } = require('@vue/cli-service')
-const VueOverviewPlugin = require('../vue-overview-plugin/src/index')
+const VueOverviewPlugin = require('vue-overview-plugin')
 
 module.exports = defineConfig({
   transpileDependencies: true,

@@ -10,15 +10,11 @@
   "scripts": {
     "publish": "npm publish"
   },
-  "devDependencies": {
-    "webpack": "^5.76.2",
-    "webpack-cli": "^5.0.1",
-    "webpack-defaults": "^4.0.0"
-  },
   "dependencies": {
     "@typescript-eslint/parser": "^5.55.0",
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3",
+    "typescript": "~4.5.5",
     "vue-eslint-parser": "^9.1.0"
   }
 }
