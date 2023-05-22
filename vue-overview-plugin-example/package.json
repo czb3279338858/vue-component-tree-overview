@@ -14,6 +14,7 @@
     "vue-router": "^3.5.1"
   },
   "devDependencies": {
+    "vue-overview-plugin": "workspace:0",
     "@typescript-eslint/eslint-plugin": "^5.4.0",
     "@typescript-eslint/parser": "^5.4.0",
     "@vue/cli-plugin-babel": "~5.0.0",
@@ -27,7 +28,6 @@
     "sass": "^1.32.7",
     "sass-loader": "^12.0.0",
     "typescript": "~4.5.5",
-    "vue-overview-plugin": "^0.0.1",
     "vue-template-compiler": "^2.6.14"
   }
 }

@@ -3,6 +3,7 @@
  * https://webpack.js.org/contribute/writing-a-plugin/#basic-plugin-architecture
  */
 const webpack = require('webpack');
+
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 class VueOverviewPlugin {
@@ -28,6 +29,7 @@ class VueOverviewPlugin {
       },
       output: {
         path: path.join(options.output.path, 'vue-overview'),
+        asyncChunks: false
       },
       resolve: {
         alias: options.resolve.alias,
