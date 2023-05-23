@@ -691,7 +691,11 @@ const VueOptionKeys = ['props', 'name', 'extends', 'mixins', 'components', 'filt
 function isVueOptions(node) {
   return node.type === 'ObjectExpression' && node.properties.every(p => VueOptionKeys.includes(p.key.name))
 }
+function isClassComponent(node) {
+  return node.superClass && node.superClass.name === "Vue"
+}
 module.exports = {
+  isClassComponent,
   isVueOptions,
   getInjectFromAndTypeAndDefaultFromInjectOption,
   setEmitMapFromEmitCall,

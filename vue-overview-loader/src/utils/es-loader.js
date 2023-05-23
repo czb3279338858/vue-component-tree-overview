@@ -1,6 +1,6 @@
 const { getCodeFromMap } = require('./code')
 const { commentNodesToText, getFormatJsCode, getVariableComment, getVariableDeclarationNameAndComments, mergeText, getVariableNode, } = require('./commont')
-const { setMapFormVueOptions, isVueOptions } = require('./script')
+const { setMapFormVueOptions, isVueOptions, isClassComponent } = require('./script')
 function getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta) {
   const sourceCode = context.getSourceCode()
   return {
@@ -29,6 +29,9 @@ function getEsLoader(context, exportSet, templateMap, componentMap, propMap, set
           const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
           exportSet.add(`export default ${exportCode}`)
           initMeta()
+        } if (isClassComponent(variableInit)) {
+          // export default class ExtendClass extends Vue
+          debugger
         } else {
           // export default filterB
           const exportComments = sourceCode.getCommentsBefore(node)

@@ -9,7 +9,7 @@ import {
     "propA",
   ],
 })
-export default class ClassComponent extends Vue {
+export default class ExtendClass extends Vue {
   // 生命周期
   mounted() {
     console.log("mounted");
