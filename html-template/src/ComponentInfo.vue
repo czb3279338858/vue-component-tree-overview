@@ -24,7 +24,11 @@
       <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto">
         <div v-if="isFirstTemplate">
           <div class="tw-p-2">
-            <div>组件名：{{ componentData.name || "无" }}</div>
+            <div>
+              <div>组件注释：</div>
+              {{ currentTemplate.comment }}
+            </div>
+            <div class="tw-mt-2">组件名：{{ componentData.name || "无" }}</div>
             <!-- model -->
             <el-card v-if="model" class="tw-mt-2">
               <div slot="header">model</div>
