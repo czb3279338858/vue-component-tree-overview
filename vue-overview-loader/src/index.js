@@ -582,10 +582,9 @@ linter.defineRule('es-loader', {
 						initMeta()
 					} else {
 						// export default {a:1}
+						// export default new ClassName()
 						const exportComments = sourceCode.getCommentsBefore(node)
 						let exportComment = commentNodesToText(exportComments)
-						const variableComment = getVariableComment(context, declaration.name)
-						if (variableComment) exportComment = mergeText(exportComment, variableComment)
 						exportSet.add(`export default { comment:${JSON.stringify(exportComment)} }`)
 					}
 				} else {
