@@ -41,7 +41,7 @@ class VueOverviewPlugin {
             test: /\.(ts|js|vue)$/,
             use: [
               {
-                loader: path.join(__dirname, '../node_modules/vue-overview-loader/src/index.js'),
+                loader: require.resolve('vue-overview-loader'),
                 options: {
                   routes
                 },
@@ -52,10 +52,10 @@ class VueOverviewPlugin {
             test: /\.ts$/,
             use: [
               {
-                loader: path.join(__dirname, '../node_modules/babel-loader/lib/index.js')
+                loader: require.resolve('babel-loader'),
               },
               {
-                loader: path.join(__dirname, '../node_modules/ts-loader/index.js'),
+                loader: require.resolve('ts-loader'),
                 options: {
                   transpileOnly: true,
                   appendTsSuffixTo: [
