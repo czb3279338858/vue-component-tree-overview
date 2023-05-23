@@ -1,5 +1,5 @@
 {
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "webpack loader，能够处理 .vue|js|ts 文件，提取 vue 项目代码大纲，需要配合 vue-overview-loader-plugin 使用",
   "name": "vue-overview-loader",
   "main": "./src/index.js",
@@ -15,6 +15,6 @@
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3",
     "typescript": "~4.5.5",
-    "vue-eslint-parser": "^9.1.0"
+    "vue-eslint-parser": "^8"
   }
 }

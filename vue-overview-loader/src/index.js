@@ -5,7 +5,6 @@
 
 const { Linter } = require('eslint')
 const { parseForESLint } = require('vue-eslint-parser')
-const typescriptEslintParser = require('@typescript-eslint/parser')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, setSome, getVariableComment, getVariableDeclarationNameAndComments, mergeText, getVariableNode, } = require('./utils/commont')
@@ -17,7 +16,7 @@ const linter = new Linter()
 const parserOptions = {
 	ecmaVersion: 2020,
 	sourceType: "module",
-	parser: typescriptEslintParser,
+	parser: '@typescript-eslint/parser',
 	extraFileExtensions: [
 		".vue"
 	],
