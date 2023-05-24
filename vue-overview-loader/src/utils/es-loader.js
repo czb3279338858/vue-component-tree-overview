@@ -1,7 +1,8 @@
 const { getCodeFromMap } = require('./code')
-const { commentNodesToText, getFormatJsCode, getVariableComment, getVariableDeclarationNameAndComments, mergeText, getVariableNode, } = require('./commont')
+const { commentNodesToText, getFormatJsCode, getVariableComment, getVariableDeclarationNameAndComments, mergeText, getVariableNode, isInnerImport, } = require('./commont')
 const { setMapFormVueOptions, isVueOptions } = require('./script')
-function getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta) {
+
+function getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta, importSet) {
   const sourceCode = context.getSourceCode()
   return {
     'Program ExportDefaultDeclaration'(node) {
@@ -58,6 +59,7 @@ function getEsLoader(context, exportSet, templateMap, componentMap, propMap, set
           const exportName = name
           if (isVueOptions(init)) {
             setMapFormVueOptions(context, init, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
+
             const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
             exportSet.add(`export const ${exportName} = ${exportCode}`)
             initMeta()
@@ -95,7 +97,13 @@ function getEsLoader(context, exportSet, templateMap, componentMap, propMap, set
           exportSet.add(`export const ${k} = ${exportObj[k]}`)
         })
       }
-    }
+    },
+    // import
+    'ImportDeclaration'(node) {
+      if (isInnerImport(node)) {
+        importSet.add(getFormatJsCode(context, node))
+      }
+    },
   }
 }
 module.exports = { getEsLoader }

@@ -10,9 +10,11 @@
     </div>
     <div class="tw-mt-2 tw-flex tw-min-h-0">
       <!-- 路由信息，全部或搜索结果 -->
-      <div class="tw-border-black tw-border tw-p-2">
+      <div
+        class="tw-border-black tw-border tw-p-2 tw-min-h-0 tw-flex tw-flex-col"
+      >
         <div>路由信息</div>
-        <div class="tw-overflow-atuo">
+        <div class="tw-overflow-auto tw-min-h-0">
           <el-tree
             :data="treeData"
             default-expand-all

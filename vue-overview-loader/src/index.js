@@ -122,7 +122,6 @@ function initMeta() {
 	provideMap.clear()
 	injectMap.clear()
 	componentMap.clear()
-	importSet.clear()
 	mixinSet.clear()
 	nameAndExtendMap.set('name', undefined)
 	nameAndExtendMap.set('extend', undefined)
@@ -130,6 +129,8 @@ function initMeta() {
 	modelOptionMap.set('event', 'input')
 }
 initMeta()
+importSet.clear()
+exportSet.clear()
 
 
 linter.defineRule("vue-loader", {
@@ -140,7 +141,7 @@ linter.defineRule("vue-loader", {
 
 linter.defineRule('es-loader', {
 	create(context) {
-		return getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta)
+		return getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta, importSet)
 	}
 })
 
@@ -157,18 +158,24 @@ module.exports = function loader(source) {
 		})
 		newCode += `export default ${exportDefaultCode}`
 		initMeta()
+		importSet.clear()
+		exportSet.clear()
 		return newCode;
 	}
 	if (/.[t|j]s$/.test(resource)) {
-		//TODO: 需要补充import
 		const config = {
 			parserOptions,
 			rules: { "es-loader": "error" },
 			parser: 'vueEslintParser'
 		};
 		linter.verify(source, config)
-		const newCode = Array.from(exportSet).join('\n')
+		let newCode = ''
+		importSet.forEach((value) => {
+			newCode += `${value}\n`
+		})
+		newCode += Array.from(exportSet).join('\n')
 		exportSet.clear()
+		importSet.clear()
 		return newCode
 	}
 	return source

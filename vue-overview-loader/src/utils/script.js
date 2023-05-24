@@ -530,7 +530,7 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
         const variable = getVariableNode(context, componentValue)
         if (isInnerImport(variable.parent)) {
           const componentKey = casing.kebabCase(component.key.value || component.key.name)
-          componentMap.set(`"${componentKey}"`, componentValue)
+          componentMap.set(componentKey, componentValue)
         }
       }
     })
