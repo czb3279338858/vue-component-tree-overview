@@ -1,8 +1,9 @@
 const
   // filterF 定义注释
-  filterF = (val: string) => val,
-  // filterB 定义注释
-  filterB = (val: string) => val
+  filterF = (val: string) => val
+
+// filterB 定义注释
+function filterB(val: string) { return val }
 
 // export default 注释
 export default filterB

@@ -689,7 +689,7 @@ function setEmitMapFromEmitCall(context, emitMap, callExpression) {
 }
 const VueOptionKeys = ['props', 'name', 'extends', 'mixins', 'components', 'filters', ...LIFECYCLE_HOOKS, 'provide', 'inject', 'emits', 'methods', 'setup', 'computed', 'data',]
 function isVueOptions(node) {
-  return node.type === 'ObjectExpression' && node.properties.every(p => VueOptionKeys.includes(p.key.name))
+  return node && node.type === 'ObjectExpression' && node.properties.every(p => VueOptionKeys.includes(p.key.name))
 }
 // 用来判断导出是否一个class组件，但是vue-eslint-parser在解析js\ts和vue时不太一致
 function isClassComponent(node) {
