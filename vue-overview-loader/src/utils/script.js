@@ -546,8 +546,7 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
       let importValue = undefined
       if (filterValueNode) {
         if (['ImportSpecifier', 'ImportDefaultSpecifier'].includes(filterValueNode.type)) {
-          const variable = getVariableNode(context, filter.value.name)
-          if (isInnerImport(variable.parent)) {
+          if (isInnerImport(filterValueNode.parent)) {
             importValue = filter.value.name
           }
         } else {

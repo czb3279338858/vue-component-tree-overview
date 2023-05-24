@@ -124,6 +124,7 @@ function getVariableDeclarationNameAndComments(context, declaration) {
 function getVariableComment(context, variableName) {
   const sourceCode = context.getSourceCode()
   const variableNode = getVariableNode(context, variableName)
+  if (!variableNode) return ''
   let variableComments = []
   if (variableNode.type === 'FunctionDeclaration') {
     variableComments = sourceCode.getCommentsBefore(variableNode)

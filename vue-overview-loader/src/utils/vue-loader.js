@@ -288,7 +288,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
                 })
               } else {
                 // export default class HomeView extends SuperClass {}
-                const variable = getVariableNode(context, node.superClass.nam)
+                const variable = getVariableNode(context, node.superClass.name)
                 if (isInnerImport(variable.parent)) {
                   nameAndExtendMap.set('extend', node.superClass.name)
                 }
