@@ -254,8 +254,12 @@ function setSome(set, someFun) {
 function mergeText(...texts) {
   return texts.filter(t => t).join('\n')
 }
-
+function isInnerImport(ImportDeclaration) {
+  const importSource = ImportDeclaration.source.value
+  return /^[@\.]/.test(importSource)
+}
 module.exports = {
+  isInnerImport,
   mergeText,
   setSome,
   getVariableDeclarationNameAndComments,

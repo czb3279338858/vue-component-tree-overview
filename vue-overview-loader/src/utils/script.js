@@ -1,5 +1,5 @@
-const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, getRuntimeTypeFromNode, mergeText } = require("./commont")
-const { PropInfo, LifecycleHookInfo, filterInfo, FilterInfo, EmitInfo, DataInfo, ComputedInfo, MethodInfo, ProvideInfo, InjectInfo, SetupInfo } = require("./meta")
+const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, getRuntimeTypeFromNode, mergeText, isInnerImport } = require("./commont")
+const { PropInfo, LifecycleHookInfo, FilterInfo, EmitInfo, DataInfo, ComputedInfo, MethodInfo, ProvideInfo, InjectInfo, SetupInfo } = require("./meta")
 const tsUtils = require('./ts-ast-utils')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const utils = require('eslint-plugin-vue/lib/utils/index')
@@ -512,7 +512,10 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
   if (optionKeyName === 'mixins') {
     optionValue.elements.forEach(mixin => {
       const mixinName = mixin.name
-      mixinSet.add(mixinName)
+      const variable = getVariableNode(context, mixinName)
+      if (isInnerImport(variable.parent)) {
+        mixinSet.add(mixinName)
+      }
     })
   }
 
@@ -523,9 +526,12 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
   if (optionKeyName === 'components') {
     optionValue.properties.forEach(component => {
       if (component.type === 'Property') {
-        const componentKey = casing.kebabCase(component.key.value || component.key.name)
         const componentValue = component.value.name
-        componentMap.set(`"${componentKey}"`, componentValue)
+        const variable = getVariableNode(context, componentValue)
+        if (isInnerImport(variable.parent)) {
+          const componentKey = casing.kebabCase(component.key.value || component.key.name)
+          componentMap.set(`"${componentKey}"`, componentValue)
+        }
       }
     })
   }
@@ -540,7 +546,10 @@ function setMapFromVueCommonOption(context, optionKeyName, optionValue, mixinSet
       let importValue = undefined
       if (filterValueNode) {
         if (['ImportSpecifier', 'ImportDefaultSpecifier'].includes(filterValueNode.type)) {
-          importValue = filter.value.name
+          const variable = getVariableNode(context, filter.value.name)
+          if (isInnerImport(variable.parent)) {
+            importValue = filter.value.name
+          }
         } else {
           const variableComment = getVariableComment(context, filter.value)
           if (variableComment)
@@ -575,7 +584,10 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
 
     // extend
     if (optionKeyName === 'extends') {
-      nameAndExtendMap.set('extend', optionValue.name)
+      const variable = getVariableNode(context, optionValue.name)
+      if (isInnerImport(variable.parent)) {
+        nameAndExtendMap.set('extend', optionValue.name)
+      }
     }
 
     // 生命周期

@@ -1,6 +1,6 @@
 # 支持的语法
 # 路由中
-- import() 导入组件
+- 支持 import() 导入组件，在用于显示数据的模板中实现的
 
 # 其他 ts|js 文件
 - 参考 import、export 语法
@@ -195,6 +195,7 @@
     - `<script setup>`
       - 没有存在 dataMap 中而是在 setupMap 中
   - import、export 语法
+    - import 导入路径为 @ 或 . 开头的才会被保留
     - import a from ''
     - import {default as b} from ''
     - import {a} from '' 不能用于导入.vue组件

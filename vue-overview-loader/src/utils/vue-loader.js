@@ -1,6 +1,6 @@
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
-const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, mergeText } = require('./commont')
+const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, mergeText, isInnerImport, getVariableNode } = require('./commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption } = require('./script')
 const { Attribute, LifecycleHookInfo, TemplateInfo, MethodInfo, SetupInfo, ProvideInfo, DataInfo, InjectInfo, EmitInfo, PropInfo } = require('./meta')
@@ -279,12 +279,18 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
                 const mixins = node.superClass.arguments
                 mixins.forEach(m => {
                   if (m.type === 'Identifier') {
-                    mixinSet.add(m.name)
+                    const variable = getVariableNode(context, m.name)
+                    if (isInnerImport(variable.parent)) {
+                      mixinSet.add(m.name)
+                    }
                   }
                 })
               } else {
                 // export default class HomeView extends SuperClass {}
-                nameAndExtendMap.set('extend', node.superClass.name)
+                const variable = getVariableNode(context, node.superClass.nam)
+                if (isInnerImport(variable.parent)) {
+                  nameAndExtendMap.set('extend', node.superClass.name)
+                }
               }
             }
           },
@@ -300,7 +306,9 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
 
         // import
         'ImportDeclaration'(node) {
-          importSet.add(getFormatJsCode(context, node))
+          if (isInnerImport(node)) {
+            importSet.add(getFormatJsCode(context, node))
+          }
         },
       },
     ),
@@ -418,16 +426,18 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
         }
       },
       'ImportDeclaration'(node) {
-        const specifiers = node.specifiers
-        specifiers.forEach(specifier => {
-          const importType = specifier.type
-          // import { default as ClassComponent2 } from "./ClassComponent.vue";
-          // import ClassComponent from "./ClassComponent.vue";
-          if ((importType === 'ImportSpecifier' && specifier.imported.name === 'default') || importType === "ImportDefaultSpecifier") {
-            const importName = specifier.local.name
-            setupScriptImportSet.add(importName)
-          }
-        })
+        if (isInnerImport(node)) {
+          const specifiers = node.specifiers
+          specifiers.forEach(specifier => {
+            const importType = specifier.type
+            // import { default as ClassComponent2 } from "./ClassComponent.vue";
+            // import ClassComponent from "./ClassComponent.vue";
+            if ((importType === 'ImportSpecifier' && specifier.imported.name === 'default') || importType === "ImportDefaultSpecifier") {
+              const importName = specifier.local.name
+              setupScriptImportSet.add(importName)
+            }
+          })
+        }
       }
     }),
   )

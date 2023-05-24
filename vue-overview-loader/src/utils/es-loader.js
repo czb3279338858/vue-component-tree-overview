@@ -1,6 +1,6 @@
 const { getCodeFromMap } = require('./code')
 const { commentNodesToText, getFormatJsCode, getVariableComment, getVariableDeclarationNameAndComments, mergeText, getVariableNode, } = require('./commont')
-const { setMapFormVueOptions, isVueOptions, isClassComponent } = require('./script')
+const { setMapFormVueOptions, isVueOptions } = require('./script')
 function getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta) {
   const sourceCode = context.getSourceCode()
   return {
