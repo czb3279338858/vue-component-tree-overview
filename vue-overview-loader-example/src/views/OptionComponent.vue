@@ -56,8 +56,7 @@ import filterDefault, {
   filterF,
   filterF as filterF2,
 } from "./filter";
-// import extendOption from "./extendOption";
-import extendClass from './extendClass'
+import extendOption from "./extendOption";
 import mixinB, { mixinA } from "./mixinOption";
 import ClassComponent from "./ClassComponent.vue";
 import { defineComponent, PropType, ref } from "vue";
@@ -72,8 +71,7 @@ export default defineComponent({
     prop: "checked",
     event: "change",
   },
-  // extends: extendOption,
-  extends: extendClass,
+  extends: extendOption,
   mixins: [mixinA, mixinB],
   components: {
     "class-component": ClassComponent,

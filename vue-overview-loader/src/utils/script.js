@@ -691,8 +691,18 @@ const VueOptionKeys = ['props', 'name', 'extends', 'mixins', 'components', 'filt
 function isVueOptions(node) {
   return node.type === 'ObjectExpression' && node.properties.every(p => VueOptionKeys.includes(p.key.name))
 }
+// 用来判断导出是否一个class组件，但是vue-eslint-parser在解析js\ts和vue时不太一致
 function isClassComponent(node) {
-  return node.superClass && node.superClass.name === "Vue"
+  if (node.type === 'ClassExpression') {
+    if (node.superClass) {
+      return node.superClass.name === "Vue"
+    }
+    // 是否有名为Component得装饰器
+    const decorateParent = node.parent.parent.parent
+    const componentDecorate = decorateParent.body.find(b => b.type === 'ExpressionStatement' && b.expression.right && b.expression.right.type === 'CallExpression' && b.expression.right.callee.name === '__decorate' && b.expression.right.arguments[0] && b.expression.right.arguments[0].elements.some(e => e.name === 'Component' || (e.type === 'CallExpression' && e.callee.name === 'Component')))
+    return componentDecorate
+  }
+  return false
 }
 module.exports = {
   isClassComponent,

@@ -29,9 +29,6 @@ function getEsLoader(context, exportSet, templateMap, componentMap, propMap, set
           const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
           exportSet.add(`export default ${exportCode}`)
           initMeta()
-        } if (isClassComponent(variableInit)) {
-          // export default class ExtendClass extends Vue
-          debugger
         } else {
           // export default filterB
           const exportComments = sourceCode.getCommentsBefore(node)
