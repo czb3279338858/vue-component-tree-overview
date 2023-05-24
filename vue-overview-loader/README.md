@@ -195,7 +195,8 @@
     - `<script setup>`
       - 没有存在 dataMap 中而是在 setupMap 中
   - import、export 语法
-    - import 导入路径为 @ 或 . 开头的才会被保留
+    - import 导入路径为 @ 或 . 开头的才会被认为是内部代码才会进行处理
+      - node_module 和 routes.include 匹配的代码都不进行处理
     - import a from ''
     - import {default as b} from ''
     - import {a} from '' 不能用于导入.vue组件

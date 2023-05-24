@@ -117,20 +117,20 @@ export default defineComponent({
       provideAFrom: "",
     };
   },
-  provide: {
-    // provideA注释
-    provideA: "provideAFrom",
-  },
-  // provide() {
-  //   let s = Symbol();
-  //   return {
-  //     // provideSymbol注释
-  //     [s]: this.provideSymbolFrom.a,
-  //     // provideA注释，来源于 provide
-  //     provideA: this.provideSymbolFrom,
-  //     provideB: "provideB",
-  //   };
+  // provide: {
+  //   // provideA注释
+  //   provideA: "provideAFrom",
   // },
+  provide() {
+    let s = Symbol();
+    return {
+      // provideSymbol注释
+      [s]: this.provideSymbolFrom.a,
+      // provideA注释，来源于 provide
+      provideA: this.provideSymbolFrom,
+      provideB: "provideB",
+    };
+  },
   // inject: [
   //   // injectA注释
   //   "injectA",

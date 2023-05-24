@@ -18,6 +18,7 @@ import {
 import { mixins } from "vue-class-component";
 import ExtendClassComponent from "./ExtendClassComponent.vue";
 const symbol = Symbol("injectD");
+const provideSymbol = Symbol("provideReactive");
 @Component({
   props: [
     // propA注释
@@ -77,7 +78,7 @@ export default class ClassComponent extends mixins(ExtendClassComponent) {
   injectD!: string;
 
   // ProvideReactiveA注释
-  @ProvideReactive("provideName")
+  @ProvideReactive(provideSymbol)
   // data:{provideReactiveA:'provideReactiveA'},provide:{provideName:this.provideReactiveA}
   provideReactiveA = "provideReactiveA";
 

@@ -213,14 +213,15 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             // provide
             const provide = node.parent
 
-            const provideName = node.expression.arguments.length ? node.expression.arguments[0].value : provide.key.name
+            const provideName = node.expression.arguments.length ? (node.expression.arguments[0].value || node.expression.arguments[0].name) : provide.key.name
+            const nameType = node.expression.arguments.length ? node.expression.arguments[0].type : 'Literal'
             const dataName = provide.key.name
 
             const decoratorComments = sourceCode.getCommentsBefore(node)
             const dataComments = sourceCode.getCommentsAfter(node)
             const provideComment = commentNodesToText([...decoratorComments])
 
-            const provideInfo = new ProvideInfo(provideName, 'Identifier', dataName, 'Identifier', provideComment)
+            const provideInfo = new ProvideInfo(provideName, nameType, dataName, 'Identifier', provideComment)
             provideMap.set(provideName, provideInfo)
 
             // data
