@@ -76,23 +76,14 @@ class VueOverviewPlugin {
       ]
     }
     webpack(newOptions, (err, stats) => {
-      if (err) {
-        console.error(err.stack || err);
-        if (err.details) {
-          console.error(err.details);
-        }
-        return;
-      }
-
-      const info = stats.toJson();
-
       if (stats.hasErrors()) {
-        console.error(info.errors);
+        const info = stats.toJson();
+        console.error('\nvue-loader-plugin:打包失败');
+        info.errors.forEach((error, index) => {
+          console.error(`错误：${index}`);
+          console.error(error);
+        })
         return
-      }
-
-      if (stats.hasWarnings()) {
-        console.warn(info.warnings);
       }
       console.log('vue-overview-plugin:打包完成')
     })

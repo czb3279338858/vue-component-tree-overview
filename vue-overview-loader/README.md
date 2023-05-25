@@ -9,6 +9,8 @@
   - class
     - 不支持@Watch
     - 不支持@Ref
+- 不支持
+  - vue option 中不支持解构语法
 - template
   - 支持：
     - 标签、{{}}、字符串注释

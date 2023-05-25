@@ -60,6 +60,7 @@ import extendOption from "./extendOption";
 import mixinB, { mixinA } from "./mixinOption";
 import ClassComponent from "./ClassComponent.vue";
 import { defineComponent, PropType, ref } from "vue";
+import deconstruction from "./deconstruction";
 const injectSymbol = Symbol();
 // filterB注释，来源于定义
 function filterB(v) {
