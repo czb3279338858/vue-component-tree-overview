@@ -1,5 +1,5 @@
 {
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "webpack plugin，项目打包时同步进行vue代码概览打包，打包结果会输出到项目输入目录的/vue-overview下",
   "name": "vue-overview-plugin",
   "main": "./src/index.js",
