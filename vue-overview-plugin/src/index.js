@@ -75,19 +75,26 @@ class VueOverviewPlugin {
         })
       ]
     }
-    this.webpackPromise = new Promise((resolve, reject) => {
-      webpack(newOptions, (err, stats) => {
-        resolve()
-        if (err) {
-          console.error('vue-overview-plugin:打包失败', err)
-        } else {
-          console.log('vue-overview-plugin:打包完成')
+    webpack(newOptions, (err, stats) => {
+      if (err) {
+        console.error(err.stack || err);
+        if (err.details) {
+          console.error(err.details);
         }
-      })
-    })
-    compiler.hooks.afterEmit.tapAsync('VueOverviewPlugin', async (compilation, callback) => {
-      await this.webpackPromise
-      callback()
+        return;
+      }
+
+      const info = stats.toJson();
+
+      if (stats.hasErrors()) {
+        console.error(info.errors);
+        return
+      }
+
+      if (stats.hasWarnings()) {
+        console.warn(info.warnings);
+      }
+      console.log('vue-overview-plugin:打包完成')
     })
   }
 }
