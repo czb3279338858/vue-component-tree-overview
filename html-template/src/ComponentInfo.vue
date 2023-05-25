@@ -21,7 +21,7 @@
           </span>
         </el-tree>
       </div>
-      <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto">
+      <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto" v-if="currentTemplate">
         <div v-if="isFirstTemplate">
           <div class="tw-p-2">
             <div>
@@ -533,7 +533,9 @@ export default {
         componentMap[`"${templateName}"`],
         this.index
       );
-      this.$refs.templateTree.setCheckedKeys([template._id]);
+      this.$nextTick(() => {
+        this.$refs.templateTree.setCheckedKeys([template._id]);
+      });
     },
   },
   mounted() {
