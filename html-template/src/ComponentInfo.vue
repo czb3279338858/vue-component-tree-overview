@@ -218,6 +218,10 @@
           </div>
         </div>
         <template v-else>
+          <div>
+            <div>标签注释：</div>
+            {{ currentTemplate.comment }}
+          </div>
           <div v-if="isVElement(currentTemplate)">
             <h1 class="tw-mb-2">属性</h1>
             <el-table :data="attributes" border>

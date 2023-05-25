@@ -9,6 +9,7 @@ const { TemplateInfo, PropInfo, SetupInfo, LifecycleHookInfo, FilterInfo, EmitIn
 const { runLinterGetVueExportCode } = require('./utils/code')
 const { getVueLoader } = require('./utils/vue-loader')
 const { getEsLoader } = require('./utils/es-loader')
+const { clearTemplateAllComments } = require('./utils/template')
 
 const linter = new Linter()
 const parserOptions = {
@@ -151,6 +152,7 @@ module.exports = function loader(source) {
 	const { routes: { include } } = this.query
 	if (/node_module/.test(resource) || (include && include.test(resource))) return source
 	if (/.vue$/.test(resource)) {
+		clearTemplateAllComments()
 		const exportDefaultCode = runLinterGetVueExportCode(linter, source, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, parserOptions)
 		let newCode = ''
 		importSet.forEach((value) => {

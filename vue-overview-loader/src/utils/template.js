@@ -19,6 +19,9 @@ function formatVText(text) {
 }
 
 let templateAllComments
+function clearTemplateAllComments() {
+  templateAllComments = undefined
+}
 /**
  * 获取 template 中的所有注释节点，ast 中所有注释节点都在 <template> 节点上
  * @param {*} node 
@@ -95,6 +98,7 @@ function getTemplateCommentBefore(node) {
 }
 
 module.exports = {
+  clearTemplateAllComments,
   getTemplateCommentBefore,
   formatVText,
   isEmptyVText,
