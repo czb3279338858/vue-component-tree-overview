@@ -259,7 +259,19 @@ function isInnerImport(ImportDeclaration) {
   const importSource = ImportDeclaration.source.value
   return /^[@\.]/.test(importSource)
 }
+function chooseShim(chooseName) {
+  const matchesReg = /:matches\(([^\(\)]+)\)/
+  const chooseNames = chooseName.match(matchesReg)
+  if (chooseNames && chooseNames[1]) {
+    const names = chooseNames[1].split(',')
+    const newNames = names.concat(names.map(n => n.replace(/PropertyDefinition/g, 'ClassProperty')))
+    return `:matches(${newNames.join(',')})`
+  } else {
+    return chooseName.replace(/PropertyDefinition/g, 'ClassProperty')
+  }
+}
 module.exports = {
+  chooseShim,
   isInnerImport,
   mergeText,
   setSome,

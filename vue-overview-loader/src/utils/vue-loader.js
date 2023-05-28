@@ -1,6 +1,6 @@
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
-const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, mergeText, isInnerImport, getVariableNode } = require('./commont')
+const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, mergeText, isInnerImport, getVariableNode, chooseShim } = require('./commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption } = require('./script')
 const { Attribute, LifecycleHookInfo, TemplateInfo, MethodInfo, SetupInfo, ProvideInfo, DataInfo, InjectInfo, EmitInfo, PropInfo } = require('./meta')
@@ -52,7 +52,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
         // class component
         ...{
           // class component @Prop
-          'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Prop]'(node) {
+          [chooseShim('ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Prop]')](node) {
             const decoratorParams = node.expression.arguments
             const prop = node.parent
 
@@ -69,7 +69,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             propMap.set(name, propInfo)
           },
           // class component @PropSync
-          'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=PropSync]'(node) {
+          [chooseShim('ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=PropSync]')](node) {
             // prop
             const decoratorParams = node.expression.arguments
             const computed = node.parent
@@ -97,7 +97,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             emitMap.set(emitName, emitInfo)
           },
           // class component @Model
-          'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Model]'(node) {
+          [chooseShim('ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Model]')](node) {
             const decoratorParams = node.expression.arguments
             const prop = node.parent
 
@@ -119,7 +119,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             modelOptionMap.set('prop', name)
           },
           // class component @ModelSync
-          'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]'(node) {
+          [chooseShim('ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ModelSync]')](node) {
             // prop
             const computed = node.parent
             const decoratorParams = node.expression.arguments
@@ -153,7 +153,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
 
           },
           // class component @VModel
-          'ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=VModel]'(node) {
+          [chooseShim('ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=VModel]')](node) {
             const computed = node.parent
             const decoratorParams = node.expression.arguments
 
@@ -175,7 +175,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             emitMap.set(emitName, emitInfo)
           },
           // 属性定义 dataA = "1"
-          'ClassDeclaration > ClassBody > PropertyDefinition[decorators=undefined]'(node) {
+          [chooseShim('ClassDeclaration > ClassBody > PropertyDefinition[decorators=undefined]')](node) {
             forEachDataOptionSetDataMap(context, [node], dataMap)
           },
           // 方法定义，包括计算属性和方法
@@ -209,7 +209,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             }
           },
           // @Provide/@ProvideReactive
-          ':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Provide],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ProvideReactive])'(node) {
+          [chooseShim(':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Provide],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=ProvideReactive])')](node) {
             // provide
             const provide = node.parent
 
@@ -232,7 +232,7 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             deepSetDataMap(context, provide, dataMap, dataName, dataComment)
           },
           // @Inject/@InjectReactive
-          ':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=InjectReactive])'(node) {
+          [chooseShim(':matches(ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=Inject],ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.callee.name=InjectReactive])')](node) {
             const inject = node.parent
             const injectName = inject.key.name
             const [injectFrom, injectDefault, injectFromType] = getInjectFromAndTypeAndDefaultFromInjectOption(context, node.expression.arguments[0], injectName)
