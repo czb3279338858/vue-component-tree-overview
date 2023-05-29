@@ -2,7 +2,7 @@ const { getCodeFromMap } = require('./code')
 const { commentNodesToText, getFormatJsCode, getVariableComment, getVariableDeclarationNameAndComments, mergeText, getVariableNode, isInnerImport, } = require('./commont')
 const { setMapFormVueOptions, isVueOptions } = require('./script')
 
-function getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta, importSet) {
+function getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta, importSet, otherMap) {
   const sourceCode = context.getSourceCode()
   return {
     'Program ExportDefaultDeclaration'(node) {
@@ -11,7 +11,7 @@ function getEsLoader(context, exportSet, templateMap, componentMap, propMap, set
         if (isVueOptions(declaration)) {
           // export default {prop:['a']}
           setMapFormVueOptions(context, declaration, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
-          const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+          const exportCode = getCodeFromMap(otherMap, templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
           exportSet.add(`export default ${exportCode}`)
           initMeta()
         } else {
@@ -27,7 +27,7 @@ function getEsLoader(context, exportSet, templateMap, componentMap, propMap, set
         if (isVueOptions(variableInit)) {
           // export default VueOption
           setMapFormVueOptions(context, variableInit, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
-          const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+          const exportCode = getCodeFromMap(otherMap, templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
           exportSet.add(`export default ${exportCode}`)
           initMeta()
         } else {
@@ -60,7 +60,7 @@ function getEsLoader(context, exportSet, templateMap, componentMap, propMap, set
           if (isVueOptions(init)) {
             setMapFormVueOptions(context, init, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
 
-            const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+            const exportCode = getCodeFromMap(otherMap, templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
             exportSet.add(`export const ${exportName} = ${exportCode}`)
             initMeta()
           } else {
@@ -83,7 +83,7 @@ function getEsLoader(context, exportSet, templateMap, componentMap, propMap, set
           const variableInit = variable.init
           if (isVueOptions(variableInit)) {
             setMapFormVueOptions(context, variableInit, emitMap, propMap, mixinSet, componentMap, filterMap, nameAndExtendMap, lifecycleHookMap, provideMap, injectMap, methodMap, computedMap, dataMap, setupMap)
-            const exportCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
+            const exportCode = getCodeFromMap(otherMap, templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet)
             p[exportName] = exportCode
             initMeta()
           } else {

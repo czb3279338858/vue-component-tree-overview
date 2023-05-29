@@ -28,6 +28,11 @@ linter.defineParser('vueEslintParser', {
 	parserOptions
 })
 
+/**
+ * node:{@link OtherInfo}
+ * 除了vue标准的配置项，其他都在这里面，例如vuex的配置项
+ */
+const otherMap = new Map()
 
 /**
  * node:{@link TemplateInfo}
@@ -128,6 +133,7 @@ function initMeta() {
 	nameAndExtendMap.set('extend', undefined)
 	modelOptionMap.set('prop', 'value')
 	modelOptionMap.set('event', 'input')
+	otherMap.clear()
 }
 initMeta()
 importSet.clear()
@@ -136,13 +142,13 @@ exportSet.clear()
 
 linter.defineRule("vue-loader", {
 	create(context) {
-		return getVueLoader(context, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, importSet)
+		return getVueLoader(context, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, importSet, otherMap)
 	},
 });
 
 linter.defineRule('es-loader', {
 	create(context) {
-		return getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta, importSet)
+		return getEsLoader(context, exportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, initMeta, importSet, otherMap)
 	}
 })
 
@@ -153,7 +159,7 @@ module.exports = function loader(source) {
 	if (/node_module/.test(resource) || (include && include.test(resource))) return source
 	if (/.vue$/.test(resource)) {
 		clearTemplateAllComments()
-		const exportDefaultCode = runLinterGetVueExportCode(linter, source, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, parserOptions, resource)
+		const exportDefaultCode = runLinterGetVueExportCode(linter, source, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, parserOptions, otherMap, resource)
 		let newCode = ''
 		importSet.forEach((value) => {
 			newCode += `${value}\n`

@@ -25,7 +25,10 @@ const provideSymbol = Symbol("provideReactive");
     "propA",
   ],
 })
+const namespace=(name)=>name
+const moduleUser = namespace('user')
 export default class ClassComponent extends mixins(ExtendClassComponent) {
+  @moduleUser.Getter vuexGetter
   // 生命周期
   mounted() {
     console.log("mounted");

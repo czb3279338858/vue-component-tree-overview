@@ -147,7 +147,15 @@ class InjectInfo {
   }
 }
 
+class OtherInfo {
+  constructor(name, comment) {
+    this.name = name
+    this.comment = comment
+  }
+}
+
 module.exports = {
+  OtherInfo,
   Attribute,
   PropInfo,
   TemplateInfo,

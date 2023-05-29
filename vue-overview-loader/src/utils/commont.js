@@ -267,7 +267,7 @@ function chooseShim(chooseName) {
     const newNames = names.concat(names.map(n => n.replace(/PropertyDefinition/g, 'ClassProperty')))
     return `:matches(${newNames.join(',')})`
   } else {
-    return chooseName.replace(/PropertyDefinition/g, 'ClassProperty')
+    return `${chooseName},${chooseName.replace(/PropertyDefinition/g, 'ClassProperty')}`
   }
 }
 module.exports = {

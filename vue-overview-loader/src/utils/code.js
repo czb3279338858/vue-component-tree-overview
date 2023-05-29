@@ -32,7 +32,7 @@ function getCodeFromMetaData(value, noJsonKeys, key) {
     return JSON.stringify(value)
   }
 }
-function getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet, resource) {
+function getCodeFromMap(otherMap, templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet, resource) {
   const template = templateMap.values().next().value
   const name = nameAndExtendMap.get('name')
   const extend = nameAndExtendMap.get('extend')
@@ -56,11 +56,12 @@ function getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHoo
     mixinSet,
 
     componentMap,
+    otherMap,
     resource
   }
   return getCodeFromMetaData(metaData, ['importValue'])
 }
-function runLinterGetVueExportCode(linter, source, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, parserOptions, resource) {
+function runLinterGetVueExportCode(linter, source, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, parserOptions, otherMap, resource) {
   const config = {
     parserOptions,
     rules: { "vue-loader": "error" },
@@ -81,7 +82,7 @@ function runLinterGetVueExportCode(linter, source, setupScriptImportSet, templat
     }
   }
   // 获取新代码
-  const exportDefaultCode = getCodeFromMap(templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet, resource)
+  const exportDefaultCode = getCodeFromMap(otherMap, templateMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, componentMap, nameAndExtendMap, modelOptionMap, mixinSet, resource)
   return exportDefaultCode
 }
 module.exports = {

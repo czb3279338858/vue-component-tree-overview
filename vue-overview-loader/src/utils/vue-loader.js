@@ -3,8 +3,8 @@ const casing = require('eslint-plugin-vue/lib/utils/casing')
 const { commentNodesToText, getFormatJsCode, getFunFirstReturnBodyNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, mergeText, isInnerImport, getVariableNode, chooseShim } = require('./commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption } = require('./script')
-const { Attribute, LifecycleHookInfo, TemplateInfo, MethodInfo, SetupInfo, ProvideInfo, DataInfo, InjectInfo, EmitInfo, PropInfo } = require('./meta')
-function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, importSet) {
+const { Attribute, LifecycleHookInfo, TemplateInfo, MethodInfo, SetupInfo, ProvideInfo, DataInfo, InjectInfo, EmitInfo, PropInfo, OtherInfo } = require('./meta')
+function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, importSet, otherMap) {
   const sourceCode = context.getSourceCode()
   return utils.compositingVisitors(
     utils.defineTemplateBodyVisitor(
@@ -173,6 +173,15 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             const emitName = 'input'
             const emitInfo = new EmitInfo(emitName, [propType], propComment)
             emitMap.set(emitName, emitInfo)
+          },
+          // vuex @moduleUser.Getter vuexGetter
+          [chooseShim('ClassDeclaration > ClassBody > PropertyDefinition > Decorator[expression.object]')](node) {
+            const decoratorComments = sourceCode.getCommentsBefore(node)
+            const vuexComments = sourceCode.getCommentsAfter(node)
+            const vuexComment = commentNodesToText([...decoratorComments, ...vuexComments])
+            const vuexName = node.parent.key.name
+            const vuexInfo = new OtherInfo(vuexName, vuexComment)
+            otherMap.set(vuexName, vuexInfo)
           },
           // 属性定义 dataA = "1"
           [chooseShim('ClassDeclaration > ClassBody > PropertyDefinition[decorators=undefined]')](node) {
