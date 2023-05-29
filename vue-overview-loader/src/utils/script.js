@@ -360,6 +360,7 @@ function setEmitMapFromEslintPluginVueEmits(context, emits, emitMap) {
  */
 function deepSetDataMap(context, dataOption, dataMap, dataName, parentDataComment) {
   const dataValue = dataOption.value
+  if (!dataValue) return
   if (dataValue.type === 'ObjectExpression') {
     forEachDataOptionSetDataMap(context, dataValue.properties, dataMap, parentDataComment, dataName)
   }
