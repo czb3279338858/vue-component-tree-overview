@@ -211,11 +211,11 @@ function getFunParamsRuntimeType(context, params) {
  * @param {*} funNode 
  * @returns 
  */
-function getFunFirstReturnNode(funNode) {
+function getFunFirstReturnBodyNode(funNode) {
   const funBody = funNode.body
   if (funBody.type === 'BlockStatement') {
     const funRet = funBody.body.find(f => f.type === 'ReturnStatement')
-    return funRet
+    return funRet && funRet.argument
   } else {
     return funBody
   }
@@ -280,7 +280,7 @@ module.exports = {
   getVariableComment,
   isThisMember,
   getVariableNode,
-  getFunFirstReturnNode,
+  getFunFirstReturnBodyNode,
   getRuntimeTypeFromNode,
   getFunParamsRuntimeType,
   getFormatJsCode,

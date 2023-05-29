@@ -1,6 +1,6 @@
 const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
-const { commentNodesToText, getFormatJsCode, getFunFirstReturnNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, mergeText, isInnerImport, getVariableNode, chooseShim } = require('./commont')
+const { commentNodesToText, getFormatJsCode, getFunFirstReturnBodyNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, mergeText, isInnerImport, getVariableNode, chooseShim } = require('./commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./template')
 const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption } = require('./script')
 const { Attribute, LifecycleHookInfo, TemplateInfo, MethodInfo, SetupInfo, ProvideInfo, DataInfo, InjectInfo, EmitInfo, PropInfo } = require('./meta')
@@ -250,9 +250,9 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
             const emitFunParams = emitFun.value.params
 
             const emitType = getFunParamsRuntimeType(context, emitFunParams)
-            const emitFunRet = getFunFirstReturnNode(emitFun.value)
+            const emitFunRet = getFunFirstReturnBodyNode(emitFun.value)
             if (emitFunRet) {
-              emitType.unshift(getRuntimeTypeFromNode(context, emitFunRet.argument))
+              emitType.unshift(getRuntimeTypeFromNode(context, emitFunRet))
             }
             const decoratorComments = sourceCode.getCommentsBefore(node)
             const emitComments = sourceCode.getCommentsAfter(node)

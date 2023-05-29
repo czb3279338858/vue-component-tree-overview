@@ -212,10 +212,8 @@ export default defineComponent({
   props: {
     // propA 注释
     propA: {
-      default: () => {
-        return "propADefault";
-      },
-      type: String as PropType<string>,
+      default: () => [],
+      type: Array as PropType<string[]>,
       required: true,
     },
     // propB 注释

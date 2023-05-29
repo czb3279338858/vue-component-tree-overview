@@ -1,4 +1,4 @@
-const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnNode, isThisMember, getVariableComment, getRuntimeTypeFromNode, mergeText, isInnerImport } = require("./commont")
+const { getCallExpressionParamsAndFunNames, getFormatJsCode, getPatternNames, commentNodesToText, getFunParamsRuntimeType, getVariableNode, getFunFirstReturnBodyNode, isThisMember, getVariableComment, getRuntimeTypeFromNode, mergeText, isInnerImport } = require("./commont")
 const { PropInfo, LifecycleHookInfo, FilterInfo, EmitInfo, DataInfo, ComputedInfo, MethodInfo, ProvideInfo, InjectInfo, SetupInfo } = require("./meta")
 const tsUtils = require('./ts-ast-utils')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
@@ -101,9 +101,9 @@ function getPropTypeFromPropTypeOption(context, typeValue) {
 function getPropTypeFromPropDefault(context, propDefault) {
   if (!propDefault) return undefined
   if (['FunctionDeclaration', 'ArrowFunctionExpression'].includes(propDefault.type)) {
-    const returnNode = getFunFirstReturnNode(propDefault)
+    const returnNode = getFunFirstReturnBodyNode(propDefault)
     if (returnNode) {
-      return getRuntimeTypeFromNode(context, returnNode.argument)
+      return getRuntimeTypeFromNode(context, returnNode)
     }
     return undefined
   } else {
@@ -366,9 +366,9 @@ function deepSetDataMap(context, dataOption, dataMap, dataName, parentDataCommen
   if (dataValue.type === 'CallExpression') {
     const variableNode = getVariableNode(context, dataValue.callee)
     if (variableNode) {
-      const returnNode = getFunFirstReturnNode(variableNode)
-      if (returnNode && returnNode.argument.type === "ObjectExpression") {
-        forEachDataOptionSetDataMap(context, returnNode.argument.properties, dataMap, parentDataComment, dataName)
+      const returnNode = getFunFirstReturnBodyNode(variableNode)
+      if (returnNode && returnNode.type === "ObjectExpression") {
+        forEachDataOptionSetDataMap(context, returnNode.properties, dataMap, parentDataComment, dataName)
       }
     }
   }
@@ -455,8 +455,8 @@ function forEachProvideOptionSetProvideMap(context, provideOption, provideMap) {
     properties = provideOption.properties
   }
   if (provideOption.type === 'FunctionExpression') {
-    const funRet = getFunFirstReturnNode(provideOption)
-    properties = funRet.argument.properties
+    const funRet = getFunFirstReturnBodyNode(provideOption)
+    properties = funRet.properties
   }
   return properties.forEach(provide => {
     const provideName = provide.key.name
@@ -658,8 +658,8 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
     // data
     if (optionKeyName === 'data') {
       if (optionValue.type === 'FunctionExpression') {
-        const funRet = getFunFirstReturnNode(optionValue)
-        forEachDataOptionSetDataMap(context, funRet.argument.properties, dataMap, undefined, undefined)
+        const funRet = getFunFirstReturnBodyNode(optionValue)
+        forEachDataOptionSetDataMap(context, funRet.properties, dataMap, undefined, undefined)
       }
       if (optionValue.type === 'ObjectExpression') {
         forEachDataOptionSetDataMap(context, optionValue.properties, dataMap, undefined, undefined)
@@ -668,8 +668,8 @@ function setMapFormVueOptions(context, optionNode, emitMap, propMap, mixinSet, c
 
     // setup函数
     if (optionKeyName === 'setup') {
-      const setupFunReturn = getFunFirstReturnNode(optionValue)
-      const setupFunReturnProperties = setupFunReturn.argument.properties
+      const setupFunReturn = getFunFirstReturnBodyNode(optionValue)
+      const setupFunReturnProperties = setupFunReturn.properties
       setupFunReturnProperties.forEach(item => {
         const setupKeyName = item.key.name
         const setupValue = item.value
