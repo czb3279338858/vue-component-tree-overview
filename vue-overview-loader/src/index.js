@@ -153,7 +153,7 @@ module.exports = function loader(source) {
 	if (/node_module/.test(resource) || (include && include.test(resource))) return source
 	if (/.vue$/.test(resource)) {
 		clearTemplateAllComments()
-		const exportDefaultCode = runLinterGetVueExportCode(linter, source, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, parserOptions)
+		const exportDefaultCode = runLinterGetVueExportCode(linter, source, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, parserOptions, resource)
 		let newCode = ''
 		importSet.forEach((value) => {
 			newCode += `${value}\n`

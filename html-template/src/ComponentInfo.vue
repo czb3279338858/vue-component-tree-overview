@@ -1,10 +1,10 @@
 <template>
   <div class="tw-flex tw-flex-col tw-p-2">
     <div class="tw-border-black tw-border tw-text-center tw-mb-2">
-      {{ index }}
+      组件文件路径：{{ componentData.resource }}
     </div>
     <div class="tw-flex tw-min-h-0 tw-border-black tw-border">
-      <div class="tw-overflow-auto tw-border-black tw-border-r">
+      <div class="tw-overflow-auto tw-border-black tw-border-r tw-max-w-3xl">
         <el-tree
           :data="treeData"
           node-key="_id"
@@ -14,14 +14,17 @@
           accordion
           @check="checkTemplate"
           ref="templateTree"
-          class="tw-p-2"
+          class="tw-el-tree-extend tw-p-2"
         >
           <span slot-scope="{ data }">
             <span>{{ data.template }}</span>
           </span>
         </el-tree>
       </div>
-      <div class="tw-ml-2 tw-min-h-0 tw-overflow-auto" v-if="currentTemplate">
+      <div
+        class="tw-ml-2 tw-min-h-0 tw-overflow-auto tw-grow"
+        v-if="currentTemplate"
+      >
         <div v-if="isFirstTemplate">
           <div class="tw-p-2">
             <div>
@@ -416,7 +419,7 @@ export default {
       ]) {
         const info = this[key][identifierName];
         if (info) {
-          const comments = [`${key}：${info.comment}`];
+          const comments = [`${key}：\n${info.comment}`];
           if (info.importValue) {
             comments.push(info.importValue.comment);
           }
@@ -528,11 +531,7 @@ export default {
       this.currentTemplate = template;
       const componentMap = this.componentData.componentMap;
       const templateName = template.template.replace(/[<>]/g, "");
-      this.$emit(
-        "pushComponent",
-        componentMap[`"${templateName}"`],
-        this.index
-      );
+      this.$emit("pushComponent", componentMap[`${templateName}`], this.index);
       this.$nextTick(() => {
         this.$refs.templateTree.setCheckedKeys([template._id]);
       });

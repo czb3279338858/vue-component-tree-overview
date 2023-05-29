@@ -12,9 +12,15 @@
       <!-- 路由信息，全部或搜索结果 -->
       <div
         class="tw-border-black tw-border tw-p-2 tw-min-h-0 tw-flex tw-flex-col"
+        :class="extendTreeSty"
       >
-        <div>路由信息</div>
-        <div class="tw-overflow-auto tw-min-h-0">
+        <div class="tw-flex tw-justify-between tw-items-center">
+          <span>路由信息</span>
+          <el-button type="text" size="small" @click="switchExtendTree">{{
+            extendText
+          }}</el-button>
+        </div>
+        <div class="tw-overflow-auto tw-min-h-0 tw-flex-grow">
           <el-tree
             :data="treeData"
             default-expand-all
@@ -24,6 +30,7 @@
             highlight-current
             show-checkbox
             ref="routeTree"
+            class="tw-el-tree-extend"
           >
             <span slot-scope="{ data }">
               <span>{{ data.path }}</span>
@@ -82,12 +89,21 @@ export default Vue.extend({
     [Tooltip.name]: Tooltip,
   },
   computed: {
+    extendText() {
+      return this.extendTree ? "收起" : "展开";
+    },
+    extendTreeSty() {
+      return this.extendTree ? "" : "tw-w-52";
+    },
     treeData() {
       const ret = getTreeDataFromRoutes(this.routes);
       return ret;
     },
   },
   methods: {
+    switchExtendTree() {
+      this.extendTree = !this.extendTree;
+    },
     checkUrl() {
       if (!this.searchUrl) {
         this.routes = routes;
@@ -133,6 +149,7 @@ export default Vue.extend({
       routes,
       componentList: [],
       currentId: "",
+      extendTree: true,
     };
   },
 });
