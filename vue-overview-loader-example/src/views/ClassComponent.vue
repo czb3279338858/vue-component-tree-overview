@@ -1,5 +1,5 @@
 <template>
-  <div>class-component</div>
+  <div :class="vuexGetter">class-component</div>
 </template>
 <script lang="ts">
 import {
@@ -19,16 +19,21 @@ import { mixins } from "vue-class-component";
 import ExtendClassComponent from "./ExtendClassComponent.vue";
 const symbol = Symbol("injectD");
 const provideSymbol = Symbol("provideReactive");
+
+const namespace = (name) => name;
+const moduleUser = namespace("user");
+
 @Component({
   props: [
     // propA注释
     "propA",
   ],
 })
-const namespace=(name)=>name
-const moduleUser = namespace('user')
 export default class ClassComponent extends mixins(ExtendClassComponent) {
-  @moduleUser.Getter vuexGetter
+  // vuexGetter装饰器注释
+  @moduleUser.Getter
+  // vuexGetter定义注释
+  vuexGetter;
   // 生命周期
   mounted() {
     console.log("mounted");

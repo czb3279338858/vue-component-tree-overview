@@ -326,6 +326,9 @@ export default {
     filterMap() {
       return this.getComponentOptionMap("filterMap");
     },
+    otherMap() {
+      return this.getComponentOptionMap("otherMap");
+    },
     lifecycleHooks() {
       return Object.values(this.getComponentOptionMap("lifecycleHookMap"));
     },
@@ -416,6 +419,7 @@ export default {
         "methodMap",
         "injectMap",
         "filterMap",
+        "otherMap",
       ]) {
         const info = this[key][identifierName];
         if (info) {
