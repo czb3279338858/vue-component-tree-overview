@@ -4,57 +4,79 @@ const tsUtils = require('./ts-ast-utils')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const utils = require('eslint-plugin-vue/lib/utils/index')
 /**
+ * 
+ * @param {*} context 
+ * @param {*} attrValue 
+ * @returns [valueName, valueType,params, scopeNames]
+ */
+function getAttrInfo(context, attrValue) {
+  if (!attrValue) return []
+  // class="className"
+  if (attrValue.type === 'VLiteral') {
+    return [attrValue.value, attrValue.type]
+  }
+
+  if (attrValue.type === 'VExpressionContainer') {
+    // @attr-e="getAttrB1(getAttrB2(dataA))"
+    if (attrValue.expression.type === 'VOnExpression') {
+      return getExpressionInfo(context, attrValue.expression.body[0].expression)
+    }
+    // :attr-d="myClass | filterA | filterB"
+    if (attrValue.expression.type === 'VFilterSequenceExpression') {
+      const callNames = attrValue.expression.filters.map(f => f.callee.name)
+      const callParam = attrValue.expression.expression.name
+      return [getFormatJsCode(context, attrValue.expression), attrValue.expression.type, [callParam, ...callNames]]
+    }
+    // 绑定值是v-for的值
+    // 遍历的对象只支持变量
+    if (attrValue.expression.type === 'VForExpression') {
+      return [getFormatJsCode(context, attrValue.expression), attrValue.expression.type, [attrValue.expression.right.name], getPatternNames(attrValue.expression.left)]
+    }
+    // 绑定值是slot-scope或v-slot
+    if (attrValue.expression.type === 'VSlotScopeExpression') {
+      const scopeNames = getPatternNames(attrValue.expression.params)
+      return [getFormatJsCode(context, attrValue.expression), attrValue.expression.type, , scopeNames]
+    }
+    // :class="dataA"
+    // :attr-a="getAttrB1(getAttrB2(dataA))"
+    // :attr-c="dataB.a"
+    return getExpressionInfo(context, attrValue.expression)
+  }
+}
+/**
  * 获取表达式容器的信息
  * 1、适用于标签属性的绑定值
  * 2、适用于{{}}中的绑定值
- * @param {*} container 
- * @returns [valueName, valueType,scopeNames, callNames，callParams]
+ * @param {*} expression 
+ * @returns [valueName, valueType,params]
  */
-function getExpressionContainerInfo(context, container) {
+function getExpressionInfo(context, expression) {
   // 没有绑定值时，例如 v-else
-  if (!container) return []
+  if (!expression) return []
 
   // 绑定指是常量
-  if (container.expression.type === 'Literal') {
-    return [getFormatJsCode(context, container.expression), container.expression.type, , , [container.expression.raw]]
+  if (expression.type === 'Literal') {
+    return [getFormatJsCode(context, expression), expression.type, [expression.raw]]
   }
 
   // 绑定值是变量（函数或变量），[变量名,'Identifier']
-  if (container.expression.type === 'Identifier') return [getFormatJsCode(context, container.expression), container.expression.type, , , [container.expression.name]]
+  if (expression.type === 'Identifier') return [getFormatJsCode(context, expression), expression.type, [expression.name]]
 
   // 表达式(e.a)直接返回文本
-  if (['MemberExpression'].includes(container.expression.type)) {
-    const expressionText = getFormatJsCode(context, container.expression)
-    return [expressionText, container.expression.type, , , [expressionText]]
+  if (['MemberExpression'].includes(expression.type)) {
+    const expressionText = getFormatJsCode(context, expression)
+    return [expressionText, expression.type, [expressionText]]
   }
+
 
   // 绑定值是函数调用
-  if (container.expression.type === 'CallExpression') {
-    const [callParams, callNames] = getCallExpressionParamsAndFunNames(context, container.expression)
-    return [getFormatJsCode(context, container.expression), container.expression.type, undefined, callNames, callParams]
-  }
-
-  // filter filter的顺序做了颠倒和函数一致符合它的书写顺序
-  if ('VFilterSequenceExpression' === container.expression.type) {
-    const callNames = container.expression.filters.map(f => f.callee.name).reverse()
-    const callParam = container.expression.expression.name
-    return [getFormatJsCode(context, container.expression), container.expression.type, undefined, callNames, [callParam]]
-  }
-
-  // 绑定值是v-for的值
-  // 遍历的对象只支持变量
-  if (container.expression.type === 'VForExpression') {
-    return [getFormatJsCode(context, container.expression), container.expression.type, getPatternNames(container.expression.left), undefined, [container.expression.right.name]]
-  }
-
-  // 绑定值是slot-scope或v-slot
-  if (container.expression.type === 'VSlotScopeExpression') {
-    const scopeNames = getPatternNames(container.expression.params)
-    return [getFormatJsCode(context, container.expression), container.expression.type, scopeNames]
+  if (expression.type === 'CallExpression') {
+    const [callParams, callNames] = getCallExpressionParamsAndFunNames(context, expression)
+    return [getFormatJsCode(context, expression), expression.type, [...callNames, ...callParams]]
   }
 
   // 其他
-  return [getFormatJsCode(context, container.expression), container.expression.type]
+  return [getFormatJsCode(context, expression), expression.type]
 }
 
 /**
@@ -723,6 +745,7 @@ function isClassComponent(node) {
   return false
 }
 module.exports = {
+  getAttrInfo,
   isClassComponent,
   isVueOptions,
   getInjectFromAndTypeAndDefaultFromInjectOption,
@@ -740,6 +763,5 @@ module.exports = {
   getPropMapFromTypePropList,
   getPropMapFromPropList,
   addTemplateMap,
-  getExpressionContainerInfo,
   getPropInfoFromPropOption
 }

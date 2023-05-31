@@ -6,6 +6,7 @@
     class="tw-p-2"
     :class="dataA"
     :attr-a="getAttrB1(getAttrB2(dataA))"
+    @attr-e="getAttrB1"
     :attr-c="dataB.a"
     :attr-d="myClass | filterA | filterB"
   >

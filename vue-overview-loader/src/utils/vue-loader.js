@@ -2,7 +2,7 @@ const utils = require('eslint-plugin-vue/lib/utils/index')
 const casing = require('eslint-plugin-vue/lib/utils/casing')
 const { commentNodesToText, getFormatJsCode, getFunFirstReturnBodyNode, forEachPattern, getFunParamsRuntimeType, getRuntimeTypeFromNode, mergeText, isInnerImport, getVariableNode, chooseShim } = require('./commont')
 const { isEmptyVText, formatVText, getTemplateCommentBefore } = require('./template')
-const { getExpressionContainerInfo, addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption } = require('./script')
+const { addTemplateMap, getPropInfoFromPropOption, getPropMapFromPropList, LIFECYCLE_HOOKS, getPropMapFromTypePropList, setEmitMapFromEslintPluginVueEmits, deepSetDataMap, forEachDataOptionSetDataMap, setComputedMap, setMapFromVueCommonOption, setMapFormVueOptions, isUnAddSetupMap, setEmitMapFromEmitCall, getInjectFromAndTypeAndDefaultFromInjectOption, getAttrInfo } = require('./script')
 const { Attribute, LifecycleHookInfo, TemplateInfo, MethodInfo, SetupInfo, ProvideInfo, DataInfo, InjectInfo, EmitInfo, PropInfo, OtherInfo } = require('./meta')
 function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, propMap, setupMap, provideMap, lifecycleHookMap, filterMap, computedMap, emitMap, dataMap, methodMap, injectMap, nameAndExtendMap, modelOptionMap, mixinSet, importSet, otherMap) {
   const sourceCode = context.getSourceCode()
@@ -18,12 +18,8 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
           const attributes = element.startTag.attributes.map(a => {
             const keyName = getFormatJsCode(context, a.key)
             const value = a.value
-            if (value && value.type === "VLiteral") {
-              return new Attribute(keyName, value.value, value.type)
-            } else {
-              const [valueName, valueType, scopeNames, callNames, callParams] = getExpressionContainerInfo(context, value)
-              return new Attribute(keyName, valueName, valueType, scopeNames, callNames, callParams)
-            }
+            const [valueName, valueType, params, scopeNames] = getAttrInfo(context, value)
+            return new Attribute(keyName, valueName, valueType, scopeNames, params)
           })
           const comment = getTemplateCommentBefore(element)
           const templateInfo = new TemplateInfo(`<${template}>`, 'VElement', attributes, comment, [])
@@ -37,8 +33,8 @@ function getVueLoader(context, setupScriptImportSet, templateMap, componentMap, 
         },
         // 标签内{{ }}
         'VElement>VExpressionContainer'(node) {
-          const [, type, , callNames, callParams,] = getExpressionContainerInfo(context, node)
-          const templateInfo = new TemplateInfo(`${getFormatJsCode(context, node)}`, type, undefined, getTemplateCommentBefore(node), undefined, callNames, callParams)
+          const [, type, params] = getAttrInfo(context, node)
+          const templateInfo = new TemplateInfo(`${getFormatJsCode(context, node)}`, type, undefined, getTemplateCommentBefore(node), undefined, params)
           addTemplateMap(node, templateInfo, templateMap)
         }
       },

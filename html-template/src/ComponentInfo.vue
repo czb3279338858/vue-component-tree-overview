@@ -27,8 +27,8 @@
       >
         <div v-if="isFirstTemplate">
           <div class="tw-p-2">
-            <div>
-              <div>组件注释：</div>
+            <div v-if="currentTemplate.comment">
+              <div class="tw-mb-2">组件注释：</div>
               {{ currentTemplate.comment }}
             </div>
             <div class="tw-mt-2">组件名：{{ componentData.name || "无" }}</div>
@@ -221,11 +221,11 @@
           </div>
         </div>
         <template v-else>
-          <div>
-            <div>标签注释：</div>
+          <div v-if="currentTemplate.comment">
+            <div class="tw-mb-2">标签注释：</div>
             {{ currentTemplate.comment }}
           </div>
-          <div v-if="isVElement(currentTemplate)">
+          <div v-if="isVElement(currentTemplate)" class="tw-mt-2">
             <h1 class="tw-mb-2">属性</h1>
             <el-table :data="attributes" border>
               <el-table-column label="key" width="100" prop="keyName">
@@ -241,8 +241,8 @@
               </el-table-column>
             </el-table>
           </div>
-          <div v-if="isBrace(currentTemplate)">
-            <h1 class="tw-mb-2">绑定值</h1>
+          <div v-if="isBrace(currentTemplate)" class="tw-mt-2">
+            <h1 class="tw-mb-2">绑定值注释：</h1>
             <div
               v-html="getAttrValueComment(currentTemplate, currentTemplate)"
             ></div>
@@ -343,10 +343,10 @@ export default {
   },
   methods: {
     isBrace(template) {
-      return template && !["VElement", "VText"].includes(template.type);
+      return template && !["VElement", "VText"].includes(template.valueType);
     },
     isVElement(template) {
-      return template && template.type === "VElement";
+      return template && template.valueType === "VElement";
     },
     getProvideValueComment(provide) {
       if (provide.valueType !== "Identifier") {
@@ -444,11 +444,9 @@ export default {
         if (scopeAttr) {
           if (scopeAttr.valueType === "VForExpression") {
             // 如果是v-for
-            preFrom.push(
-              `${valueName}来源于v-for循环值${scopeAttr.callParams[0]}`
-            );
+            preFrom.push(`${valueName}来源于v-for循环值${scopeAttr.params[0]}`);
             return this.getAttrValueCommentFromComponent(
-              scopeAttr.callParams[0],
+              scopeAttr.params[0],
               currentTemplate.parent,
               preFrom
             );
@@ -479,21 +477,14 @@ export default {
     // 获取属性绑定值的的注释
     getAttrValueComment(attr, slot) {
       if (["VLiteral", "Literal"].includes(attr.valueType)) {
-        return "";
+        return "常量";
       }
-      const callNamesComment = attr.callNames
-        ? attr.callNames.map((name) => {
+      const paramsComment = attr.params
+        ? attr.params.map((name) => {
             return this.getAttrValueCommentFromComponent(name, slot);
           })
         : [];
-      const callParamsComment = attr.callParams
-        ? attr.callParams.map((param) => {
-            return this.getAttrValueCommentFromComponent(param, slot);
-          })
-        : [];
-      return this.getBrFromLineBreak(
-        [...callNamesComment, ...callParamsComment].join("\n\n")
-      );
+      return this.getBrFromLineBreak(paramsComment.join("\n\n"));
     },
     // 获取slot标签除name以外的所有属性
     getSlotAttrs(template) {

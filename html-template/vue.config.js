@@ -2,7 +2,7 @@ const { defineConfig } = require('@vue/cli-service')
 module.exports = defineConfig({
   transpileDependencies: true,
   // 生成map文件
-  productionSourceMap: false,
+  productionSourceMap: process.env.NODE_ENV !== 'production',
   css: {
     loaderOptions: {
       postcss: {
@@ -18,7 +18,7 @@ module.exports = defineConfig({
   configureWebpack: {
     optimization: {
       // 混淆代码
-      // minimize: false,
+      minimize: process.env.NODE_ENV === 'production',
       // 代码分割
       splitChunks: false
     }
@@ -32,6 +32,5 @@ module.exports = defineConfig({
     })
     // 字体文件改为内联
     config.module.rule('fonts').clear().test(/\.(woff2?|eot|ttf|otf)(\?.*)?$/i).type('asset/inline')
-
   },
 })

@@ -12,17 +12,17 @@ class PropInfo {
  * valueName：attr右边 => getAttrB1(getAttrB2(dataA))
  * valueType：attr右边的类型,VLiteral \Literal \Identifier \CallExpression \MemberExpression \VFilterSequenceExpression \VForExpression \VSlotScopeExpression \undefined
  * scopeNames：v-for,v-slot,slot-scope有作用域
- * callNames：attr右边是函数调用或filter => [getAttrB1,getAttrB2]
- * callParams：attr右边是函数调用或filter的参数，或绑定值是变量时，或vForName的循环值 => [dataA]
+ * params：绑定值中的变量和函数名
+ *  函数调用或filter => [getAttrB1,getAttrB2，dataA]
+ *  vForName的循环值 => [dataA]
  */
 class Attribute {
-  constructor(keyName, valueName, valueType, scopeNames, callNames, callParams) {
+  constructor(keyName, valueName, valueType, scopeNames, params) {
     this.keyName = keyName
     this.valueName = valueName
     this.valueType = valueType
     this.scopeNames = scopeNames
-    this.callNames = callNames
-    this.callParams = callParams
+    this.params = params
   }
 }
 /**
@@ -30,19 +30,16 @@ class Attribute {
  * type VElement\VText\{{}}内表达式的类型（Literal、Identifier、CallExpression
  * attributes:{@link Attribute}[]
  * value 只有 {{}} 绑定 才有 {{ data }} => data
- * callNames 只有 {{}} 绑定 函数调用时 才有
- * callParams 只有 {{}} 绑定函数调用时才有
+ * params {{}} 绑定的变量和函数名 => [data]
  */
 class TemplateInfo {
-  constructor(template, type, attributes, comment, children, callNames, callParams) {
+  constructor(template, type, attributes, comment, children, params) {
     this.template = template
-    this.type = type
+    this.valueType = type
     this.attributes = attributes
     this.comment = comment
     this.children = children
-    // this.value = value
-    this.callNames = callNames
-    this.callParams = callParams
+    this.params = params
   }
 }
 
