@@ -1,6 +1,0 @@
-packages:
-  - 'vue-overview-loader'
-  - 'vue-overview-loader-example'
-  - 'html-template'
-  - 'vue-overview-plugin'
-  - 'vue-overview-plugin-example'
