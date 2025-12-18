@@ -20,9 +20,10 @@
     ]
   },
   "scripts": {
+    "nvm":"nvm use 22.12.0 && timeout /T 1 /NOBREAK",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "watch": "npm run nvm && tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
