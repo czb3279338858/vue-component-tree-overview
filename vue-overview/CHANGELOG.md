@@ -1,9 +1,9 @@
-# Change Log
+# 变更日志
 
-All notable changes to the "vue-overview" extension will be documented in this file.
+"vue-overview" 扩展的所有重要变更都将记录在此文件中。
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+查看 [Keep a Changelog](http://keepachangelog.com/) 了解如何构建此文件的建议。
 
-## [Unreleased]
+## [未发布]
 
-- Initial release
+- 初始发布

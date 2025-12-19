@@ -20,6 +20,7 @@
     ]
   },
   "scripts": {
+    "nvm":"nvm use 22.12.0 && timeout /T 1 /NOBREAK",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
