@@ -1,41 +1,6 @@
 {
-  "name": "vue-component-tree-overview",
-  "displayName": "vue-component-tree-overview",
-  "description": "",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.107.0"
-  },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [],
-  "main": "./out/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "vue-component-tree-overview.helloWorld",
-        "title": "Hello World"
-      }
-    ]
-  },
-  "scripts": {
-    "nvm":"nvm use 22.12.0 && timeout /T 1 /NOBREAK",
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "npm run nvm && tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
-  },
-  "devDependencies": {
-    "@types/vscode": "^1.107.0",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
-    "typescript-eslint": "^8.48.1",
-    "eslint": "^9.39.1",
-    "typescript": "^5.9.3",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+  "dependencies": {
+    "generator-code": "^1.11.15",
+    "yo": "^6.0.0"
   }
 }

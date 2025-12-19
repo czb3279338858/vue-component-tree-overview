@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 
-// 您可以导入并使用 'vscode' 模块中的所有 API
-// 也可以导入您的扩展进行测试
+// You can import and use all API from the 'vscode' module
+// as well as import your extension to test it
 import * as vscode from 'vscode';
 // import * as myExtension from '../../extension';
 
